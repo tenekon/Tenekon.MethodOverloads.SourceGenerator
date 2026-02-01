@@ -1,0 +1,10 @@
+﻿[assembly: System.Runtime.Versioning.TargetFramework(".NETStandard,Version=v2.0", FrameworkDisplayName=".NET Standard 2.0")]
+namespace Tenekon.MethodOverloads.SourceGenerator
+{
+    [Microsoft.CodeAnalysis.Generator("C#", new string[0])]
+    public sealed class MethodOverloadsGenerator : Microsoft.CodeAnalysis.IIncrementalGenerator
+    {
+        public MethodOverloadsGenerator() { }
+        public void Initialize(Microsoft.CodeAnalysis.IncrementalGeneratorInitializationContext context) { }
+    }
+}

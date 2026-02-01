@@ -1,0 +1,50 @@
+﻿[
+  {
+    Id: MOG001,
+    Title: Invalid overload window anchor,
+    MessageFormat: Overload window anchor '{0}' refers to a missing parameter '{1}',
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 2,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG002,
+    Title: Matcher has no subsequence match,
+    MessageFormat: Matcher '{0}' has no subsequence match for target method '{1}',
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 1,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG003,
+    Title: Defaults inside overload window,
+    MessageFormat: Method '{0}' contains default or optional parameters inside the overload window,
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 1,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG004,
+    Title: Params outside overload window,
+    MessageFormat: Method '{0}' has a params parameter outside the overload window,
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 1,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG005,
+    Title: Ref/out/in parameters cannot be omitted,
+    MessageFormat: Method '{0}' has ref/out/in parameters that would be omitted by an overload,
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 1,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG006,
+    Title: Duplicate overload signature,
+    MessageFormat: Method '{0}' would generate a duplicate overload signature and was skipped,
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 0,
+    IsEnabledByDefault: true
+  }
+]

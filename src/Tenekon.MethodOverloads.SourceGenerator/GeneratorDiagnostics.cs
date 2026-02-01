@@ -1,0 +1,54 @@
+using Microsoft.CodeAnalysis;
+
+namespace Tenekon.MethodOverloads.SourceGenerator;
+
+internal static class GeneratorDiagnostics
+{
+    public static readonly DiagnosticDescriptor InvalidWindowAnchor = new(
+        id: "MOG001",
+        title: "Invalid overload window anchor",
+        messageFormat: "Overload window anchor '{0}' refers to a missing parameter '{1}'",
+        category: "MethodOverloadsGenerator",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor MatcherHasNoSubsequenceMatch = new(
+        id: "MOG002",
+        title: "Matcher has no subsequence match",
+        messageFormat: "Matcher '{0}' has no subsequence match for target method '{1}'",
+        category: "MethodOverloadsGenerator",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor DefaultsInWindow = new(
+        id: "MOG003",
+        title: "Defaults inside overload window",
+        messageFormat: "Method '{0}' contains default or optional parameters inside the overload window",
+        category: "MethodOverloadsGenerator",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor ParamsOutsideWindow = new(
+        id: "MOG004",
+        title: "Params outside overload window",
+        messageFormat: "Method '{0}' has a params parameter outside the overload window",
+        category: "MethodOverloadsGenerator",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor RefOutInOmitted = new(
+        id: "MOG005",
+        title: "Ref/out/in parameters cannot be omitted",
+        messageFormat: "Method '{0}' has ref/out/in parameters that would be omitted by an overload",
+        category: "MethodOverloadsGenerator",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor DuplicateSignatureSkipped = new(
+        id: "MOG006",
+        title: "Duplicate overload signature",
+        messageFormat: "Method '{0}' would generate a duplicate overload signature and was skipped",
+        category: "MethodOverloadsGenerator",
+        defaultSeverity: DiagnosticSeverity.Hidden,
+        isEnabledByDefault: true);
+}
