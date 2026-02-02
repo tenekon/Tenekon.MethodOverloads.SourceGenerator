@@ -8,7 +8,7 @@ namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 public sealed class PackageLayoutTests
 {
     [Fact]
-    public void Package_PlacesAnalyzerUnderAnalyzersFolder_AndHasNoLibFolder()
+    public void Package_PlacesAnalyzerUnderAnalyzersFolder_AndUsesLibPlaceholder()
     {
         var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
         var projectPath = Path.Combine(repoRoot, "src", "Tenekon.MethodOverloads.SourceGenerator", "Tenekon.MethodOverloads.SourceGenerator.csproj");
@@ -29,8 +29,10 @@ public sealed class PackageLayoutTests
             var entries = zip.Entries.Select(e => e.FullName).ToArray();
 
             Assert.Contains("analyzers/dotnet/cs/Tenekon.MethodOverloads.SourceGenerator.dll", entries);
-            Assert.DoesNotContain(entries, e => e.StartsWith("lib/", StringComparison.OrdinalIgnoreCase));
             Assert.DoesNotContain(entries, e => e.StartsWith("analyzers/dotnet/cs/netstandard", StringComparison.OrdinalIgnoreCase));
+
+            var libEntries = entries.Where(e => e.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)).ToArray();
+            Assert.Equal(new[] { "lib/netstandard2.0/_._" }, libEntries);
         }
         finally
         {

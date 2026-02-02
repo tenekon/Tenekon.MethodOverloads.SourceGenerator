@@ -12,14 +12,14 @@
         <IsTrimmable Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net6.0'))">true</IsTrimmable>
         <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net7.0'))">true</IsAotCompatible>
         <!--
-            NU5128: The project targets netstandard2.0, so NuGet creates a dependency group for that TFM,
-            but this is an analyzer-only package with no lib/ or ref/ assemblies. NuGet expects a matching
-            lib/ or ref/ folder for each dependency group and warns when it does not find one. 
+            NU5128: The project targets netstandard2.0, so NuGet creates a dependency group for that TFM.
+            We include lib/netstandard2.0/_._ to satisfy NuGet's expected layout for analyzer-only packages.
+
             RS2008: We test diagnostics API ourselves.
         -->
-        <NoWarn>RS2008;NU5128</NoWarn>
+        <NoWarn>RS2008</NoWarn>
         <PackageId>Tenekon.MethodOverloads.SourceGenerator</PackageId>
-        <Version>0.0.2</Version>
+        <Version>0.0.3</Version>
         <Authors>Tenekon authors and contributors</Authors>
         <Company>Tenekon</Company>
         <Description>C# source generator that creates extension method overloads by treating a parameter window as optional and emitting legal, unique subsequences.</Description>
@@ -46,5 +46,9 @@
         <Content Include="..\..\README.md" Pack="true" PackagePath="" />
         <Content Include="..\..\LICENSE" Pack="true" PackagePath="" />
         <Content Include="..\..\res\icon.jpg" Pack="true" PackagePath="" Visible="false" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Content Include="..\..\ref\_._" Pack="true" PackagePath="lib/netstandard2.0/" />
     </ItemGroup>
 </Project>
