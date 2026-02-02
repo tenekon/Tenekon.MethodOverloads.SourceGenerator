@@ -6,6 +6,11 @@ namespace Tenekon.MethodOverloads.SourceGenerator;
 
 internal sealed partial class MethodOverloadsGeneratorCore
 {
+    private static readonly SymbolDisplayFormat TypeDisplayFormat =
+        SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
+            SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
+
+    private static readonly SymbolDisplayFormat SignatureDisplayFormat = SymbolDisplayFormat.FullyQualifiedFormat;
     private const string GenerateOverloadsAttributeName = "GenerateOverloadsAttribute";
     private const string GenerateMethodOverloadsAttributeName = "GenerateMethodOverloadsAttribute";
     private const string OverloadGenerationOptionsAttributeName = "OverloadGenerationOptionsAttribute";

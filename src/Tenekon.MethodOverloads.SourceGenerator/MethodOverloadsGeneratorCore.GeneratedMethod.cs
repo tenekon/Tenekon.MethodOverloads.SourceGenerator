@@ -41,14 +41,14 @@ internal sealed partial class MethodOverloadsGeneratorCore
         {
             var builder = new StringBuilder();
             var accessibility = RenderAccessibility();
-            var returnType = _method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var returnType = _method.ReturnType.ToDisplayString(TypeDisplayFormat);
             var typeParams = RenderTypeParameters(_method);
             var constraints = RenderTypeParameterConstraints(_method);
 
             builder.Append("    ").Append(accessibility).Append(" static ").Append(returnType).Append(" ")
                 .Append(_method.Name).Append(typeParams).Append("(");
 
-            builder.Append("this ").Append(_method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)).Append(" source");
+            builder.Append("this ").Append(_method.ContainingType.ToDisplayString(TypeDisplayFormat)).Append(" source");
 
             foreach (var parameter in _keptParameters)
             {
@@ -71,10 +71,10 @@ internal sealed partial class MethodOverloadsGeneratorCore
         {
             var builder = new StringBuilder();
             var accessibility = RenderAccessibility();
-            var returnType = _method.ReturnType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var returnType = _method.ReturnType.ToDisplayString(TypeDisplayFormat);
             var typeParams = RenderTypeParameters(_method);
             var constraints = RenderTypeParameterConstraints(_method);
-            var receiverType = _method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            var receiverType = _method.ContainingType.ToDisplayString(TypeDisplayFormat);
 
             builder.AppendLine("    extension(" + receiverType + ")");
             builder.AppendLine("    {");
@@ -144,7 +144,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
             if (parameter.IsParams && parameter.Type is IArrayTypeSymbol arrayType)
             {
-                var elementType = arrayType.ElementType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                var elementType = arrayType.ElementType.ToDisplayString(TypeDisplayFormat);
                 return "global::System.Array.Empty<" + elementType + ">()";
             }
 
@@ -207,7 +207,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 _ => string.Empty
             });
 
-            builder.Append(parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            builder.Append(parameter.Type.ToDisplayString(TypeDisplayFormat));
             builder.Append(" ").Append(parameter.Name);
             return builder.ToString();
         }
@@ -256,7 +256,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
                 foreach (var constraintType in typeParam.ConstraintTypes)
                 {
-                    parts.Add(constraintType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+                    parts.Add(constraintType.ToDisplayString(TypeDisplayFormat));
                 }
 
                 if (typeParam.HasConstructorConstraint)

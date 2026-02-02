@@ -8,6 +8,9 @@ internal static class Class_24_Matcher
     internal static extern void Matcher_1(int param_1, string? param_2);
 }
 
+/// <summary>
+/// Type-level matcher applies to class/struct/interface targets.
+/// </summary>
 [GenerateMethodOverloads(Matchers = [typeof(Class_24_Matcher)])]
 public class Class_24_ClassTarget
 {

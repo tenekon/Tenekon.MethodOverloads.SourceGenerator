@@ -14,11 +14,13 @@ internal sealed partial class MethodOverloadsGeneratorCore
     /// </summary>
     private void GenerateMethods()
     {
+        var matcherHasAnyMatch = new Dictionary<IMethodSymbol, bool>(SymbolEqualityComparer.Default);
+        var matcherLocations = new Dictionary<IMethodSymbol, Location?>(SymbolEqualityComparer.Default);
+
         foreach (var pair in _typeContexts)
         {
             var typeSymbol = pair.Key;
             var typeContext = pair.Value;
-            var seenMatcherSignatures = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (var method in typeContext.Methods)
             {
@@ -126,17 +128,20 @@ internal sealed partial class MethodOverloadsGeneratorCore
                                 continue;
                             }
 
+                            if (!matcherHasAnyMatch.ContainsKey(matcherMethod))
+                            {
+                                matcherHasAnyMatch[matcherMethod] = false;
+                                matcherLocations[matcherMethod] = matcherMethodSyntax?.Identifier.GetLocation() ?? matcherMethod.Locations.FirstOrDefault();
+                            }
+
                             var groupKey = "matcher:" + BuildMethodGroupKey(matcherMethod);
                             var matches = FindSubsequenceMatches(matcherMethod, method).ToArray();
                             if (matches.Length == 0)
                             {
-                                Report(
-                                    GeneratorDiagnostics.MatcherHasNoSubsequenceMatch,
-                                    matcherMethodSyntax?.Identifier.GetLocation() ?? matcherMethod.Locations.FirstOrDefault(),
-                                    matcherMethod.Name,
-                                    method.Name);
                                 continue;
                             }
+
+                            matcherHasAnyMatch[matcherMethod] = true;
 
                             foreach (var match in matches)
                             {
@@ -180,15 +185,6 @@ internal sealed partial class MethodOverloadsGeneratorCore
                     continue;
                 }
 
-                if (useMethodMatchers || useTypeMatchers)
-                {
-                    var parameterSignatureKey = BuildParameterSignatureKey(method.Parameters);
-                    if (!seenMatcherSignatures.Add(parameterSignatureKey))
-                    {
-                        continue;
-                    }
-                }
-
                 var options = GetEffectiveOptions(method, typeSymbol);
                 if (methodSyntax is not null && TryGetOverloadOptionsFromSyntax(methodSyntax, out var syntaxOptions))
                 {
@@ -206,6 +202,20 @@ internal sealed partial class MethodOverloadsGeneratorCore
                     list.Add(generated);
                 }
             }
+        }
+
+        foreach (var entry in matcherHasAnyMatch)
+        {
+            if (entry.Value)
+            {
+                continue;
+            }
+
+            var matcherMethod = entry.Key;
+            Report(
+                GeneratorDiagnostics.MatcherHasNoSubsequenceMatch,
+                matcherLocations.TryGetValue(matcherMethod, out var location) ? location : matcherMethod.Locations.FirstOrDefault(),
+                matcherMethod.Name);
         }
     }
     private IEnumerable<GeneratedMethod> GenerateOverloadsForMethod(
@@ -429,7 +439,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
         foreach (var parameter in parameters)
         {
             builder.Append("|");
-            builder.Append(parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            builder.Append(parameter.Type.ToDisplayString(SignatureDisplayFormat));
             builder.Append(":");
             builder.Append(parameter.RefKind);
             builder.Append(":");
@@ -578,7 +588,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
         foreach (var parameter in parameters)
         {
             builder.Append("|");
-            builder.Append(parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            builder.Append(parameter.Type.ToDisplayString(SignatureDisplayFormat));
             builder.Append(":");
             builder.Append(parameter.RefKind);
             builder.Append(":");

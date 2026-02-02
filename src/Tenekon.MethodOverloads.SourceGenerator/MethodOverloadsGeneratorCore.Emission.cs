@@ -58,7 +58,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
     private static string BuildMethodGroupKey(IMethodSymbol method)
     {
         var builder = new StringBuilder();
-        builder.Append(method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+        builder.Append(method.ContainingType.ToDisplayString(TypeDisplayFormat));
         builder.Append(".");
         builder.Append(method.Name);
         builder.Append("|");
@@ -67,7 +67,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
         foreach (var parameter in method.Parameters)
         {
             builder.Append("|");
-            builder.Append(parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+            builder.Append(parameter.Type.ToDisplayString(TypeDisplayFormat));
             builder.Append(":");
             builder.Append(parameter.RefKind);
             builder.Append(":");

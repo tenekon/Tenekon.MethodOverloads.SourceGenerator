@@ -121,42 +121,18 @@ internal sealed partial class MethodOverloadsGeneratorCore
     }
     private static bool AreTypesEquivalent(ITypeSymbol matcherType, ITypeSymbol targetType)
     {
-        if (SymbolEqualityComparer.Default.Equals(matcherType, targetType))
+        if (SymbolEqualityComparer.IncludeNullability.Equals(matcherType, targetType))
         {
             return true;
         }
 
-        var matcherDisplay = matcherType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        var targetDisplay = targetType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        var matcherDisplay = matcherType.ToDisplayString(TypeDisplayFormat);
+        var targetDisplay = targetType.ToDisplayString(TypeDisplayFormat);
         return string.Equals(matcherDisplay, targetDisplay, StringComparison.Ordinal);
     }
     private static IEnumerable<IMethodSymbol> SelectMatcherMethods(IMethodSymbol[] matcherMethods, int targetParameterCount)
     {
-        if (matcherMethods.Length == 0)
-        {
-            return Array.Empty<IMethodSymbol>();
-        }
-
-        var selected = new List<IMethodSymbol>();
-        foreach (var group in matcherMethods.GroupBy(m => m.Name, StringComparer.Ordinal))
-        {
-            if (group.Count() > 1)
-            {
-                var minCount = group.Min(m => m.Parameters.Length);
-                selected.AddRange(group.Where(m => m.Parameters.Length == minCount));
-            }
-            else
-            {
-                selected.Add(group.First());
-            }
-        }
-
-        if (selected.Any(m => m.Parameters.Length == targetParameterCount))
-        {
-            selected = selected.Where(m => m.Parameters.Length == targetParameterCount).ToList();
-        }
-
-        return selected;
+        return matcherMethods.Length == 0 ? Array.Empty<IMethodSymbol>() : matcherMethods;
     }
 }
 

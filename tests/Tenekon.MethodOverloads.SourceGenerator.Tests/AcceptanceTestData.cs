@@ -11,6 +11,9 @@ namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 internal static class AcceptanceTestData
 {
     private static readonly string RepoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    private static readonly SymbolDisplayFormat TypeDisplayFormat =
+        SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
+            SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
     public static ImmutableArray<SourceFile> LoadReferenceSources()
     {
@@ -103,7 +106,7 @@ internal static class AcceptanceTestData
                         continue;
                     }
 
-                    var receiver = symbol.Parameters[0].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    var receiver = symbol.Parameters[0].Type.ToDisplayString(TypeDisplayFormat);
                     var parameters = symbol.Parameters.Skip(1).Select(ToParameterSignature).ToImmutableArray();
                     expected.Add(new ExpectedSignature(
                         KeyFrom(symbol.Name, receiver, symbol.TypeParameters.Length, parameters, symbol.DeclaredAccessibility, "classic"),
@@ -175,7 +178,7 @@ internal static class AcceptanceTestData
 
                 if (method.ParameterList.Parameters.Count > 0 && method.ParameterList.Parameters[0].Modifiers.Any(m => m.IsKind(SyntaxKind.ThisKeyword)))
                 {
-                    var receiver = symbol.Parameters[0].Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                    var receiver = symbol.Parameters[0].Type.ToDisplayString(TypeDisplayFormat);
                     var parameters = symbol.Parameters.Skip(1).Select(ToParameterSignature).ToImmutableArray();
                     results.Add(new ExpectedSignature(
                         KeyFrom(symbol.Name, receiver, symbol.TypeParameters.Length, parameters, symbol.DeclaredAccessibility, "classic"),
@@ -291,7 +294,7 @@ internal static class AcceptanceTestData
     private static ParameterSignature ToParameterSignature(IParameterSymbol parameter)
     {
         return new ParameterSignature(
-            parameter.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            parameter.Type.ToDisplayString(TypeDisplayFormat),
             parameter.RefKind,
             parameter.IsParams);
     }
@@ -399,6 +402,12 @@ internal static class AcceptanceTestData
     private static string NormalizeType(string typeName)
     {
         var trimmed = typeName.Trim();
+        var isNullable = trimmed.EndsWith("?", StringComparison.Ordinal);
+        if (isNullable)
+        {
+            trimmed = trimmed.Substring(0, trimmed.Length - 1);
+        }
+
         if (trimmed.StartsWith("global::", StringComparison.Ordinal))
         {
             trimmed = trimmed.Substring("global::".Length);
@@ -409,7 +418,7 @@ internal static class AcceptanceTestData
             trimmed = trimmed.Split('.').Last();
         }
 
-        return trimmed switch
+        var normalized = trimmed switch
         {
             "int" => "Int32",
             "string" => "String",
@@ -423,6 +432,8 @@ internal static class AcceptanceTestData
             "char" => "Char",
             _ => trimmed
         };
+
+        return isNullable ? normalized + "?" : normalized;
     }
 
     private static Accessibility ParseAccessibility(string text)

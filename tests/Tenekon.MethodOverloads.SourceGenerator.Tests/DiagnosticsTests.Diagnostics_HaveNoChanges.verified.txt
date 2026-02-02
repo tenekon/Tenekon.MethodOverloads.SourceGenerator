@@ -10,7 +10,7 @@
   {
     Id: MOG002,
     Title: Matcher has no subsequence match,
-    MessageFormat: Matcher '{0}' has no subsequence match for target method '{1}',
+    MessageFormat: Matcher '{0}' has no subsequence match for any target method,
     Category: MethodOverloadsGenerator,
     DefaultSeverity: 1,
     IsEnabledByDefault: true

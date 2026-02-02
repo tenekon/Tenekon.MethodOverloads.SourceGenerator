@@ -4,7 +4,6 @@ using Tenekon.MethodOverloads.SourceGenerator;
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeAndName)]
-[SuppressMessage("MethodOverloadsGenerator", "MOG002")]
 internal class Class_18_Matcher
 {
     [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
@@ -37,5 +36,4 @@ public static class Class_18_AcceptanceCriterias
 
     // No extension methods for Case_2 (name casing mismatch).
 }
-
 

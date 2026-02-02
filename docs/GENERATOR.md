@@ -42,12 +42,16 @@ Matcher parameters are matched against target parameters as a subsequence:
 - TypeOnly: type + ref kind + params must match.
 - TypeAndName: same as above, plus exact parameter name match (case-sensitive).
 
+Matching is nullability-aware for reference types (string vs string? are different).
+
 Match mode resolution order:
 1) Target method OverloadGenerationOptions
 2) Target type OverloadGenerationOptions
 3) Matcher method OverloadGenerationOptions
 4) Matcher type OverloadGenerationOptions
 5) Default: TypeOnly
+
+All matcher methods are considered as candidates; there is no exact-count-only filter.
 
 ## 6) Overload generation rules
 Given a window:
@@ -63,11 +67,8 @@ Given a window:
   - A params parameter exists outside the optional window
 
 ## 7) De-duplication and collisions
-- Generated overloads are deduped by signature.
+- Generated overloads are deduped by signature (nullability is ignored here to match C# signature rules).
 - Existing overloads in the target type are never duplicated.
-- Matcher methods with the same name are filtered to avoid ambiguous matching:
-  - If multiple overloads share the same matcher name, only those with minimum parameter count are used.
-  - If any matcher overload exactly matches the target parameter count, only exact-count matchers are used.
 
 ## 8) Accessibility rules
 - OverloadVisibility can override generated method visibility:

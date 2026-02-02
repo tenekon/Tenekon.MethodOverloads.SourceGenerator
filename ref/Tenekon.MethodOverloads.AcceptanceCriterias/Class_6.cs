@@ -8,7 +8,6 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 /// Expects overloads only when effective match mode allows.
 /// </summary>
 [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeAndName)]
-[SuppressMessage("MethodOverloadsGenerator", "MOG002")]
 internal class Class_6_Matcher
 {
     [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeOnly)]
@@ -38,5 +37,4 @@ public static class Class_6_AcceptanceCriterias
     public static void Case_2(this Class_6 source, CancellationToken cancellationToken) =>
         source.Case_2(value: false, cancellationToken);
 }
-
 

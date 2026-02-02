@@ -15,7 +15,7 @@ internal static class GeneratorDiagnostics
     public static readonly DiagnosticDescriptor MatcherHasNoSubsequenceMatch = new(
         id: "MOG002",
         title: "Matcher has no subsequence match",
-        messageFormat: "Matcher '{0}' has no subsequence match for target method '{1}'",
+        messageFormat: "Matcher '{0}' has no subsequence match for any target method",
         category: "MethodOverloadsGenerator",
         defaultSeverity: DiagnosticSeverity.Info,
         isEnabledByDefault: true);

@@ -12,4 +12,4 @@ A C# source generator that creates extension method overloads by treating a sele
 - Omits only legal subsets (no ref/out/in removal, no empty parameter list).
 - Dedupes by signature and never duplicates existing overloads.
 
-See `docs/GENERATOR.md` for full behavior and rules.
+See `docs/Generator.md` for full behavior and rules.
