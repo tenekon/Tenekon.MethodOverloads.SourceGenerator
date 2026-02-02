@@ -16,7 +16,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
             var semanticModel = _compilation.GetSemanticModel(tree);
             var root = tree.GetRoot();
 
-            foreach (var typeDecl in root.DescendantNodes().OfType<TypeDeclarationSyntax>())
+            foreach (var typeDecl in root.DescendantNodes().OfType<BaseTypeDeclarationSyntax>())
             {
                 if (semanticModel.GetDeclaredSymbol(typeDecl) is not INamedTypeSymbol typeSymbol)
                 {
@@ -44,20 +44,23 @@ internal sealed partial class MethodOverloadsGeneratorCore
                     }
                 }
 
-                foreach (var methodDecl in typeDecl.Members.OfType<MethodDeclarationSyntax>())
+                if (typeDecl is TypeDeclarationSyntax typeDeclaration)
                 {
-                    if (semanticModel.GetDeclaredSymbol(methodDecl) is not IMethodSymbol methodSymbol)
+                    foreach (var methodDecl in typeDeclaration.Members.OfType<MethodDeclarationSyntax>())
                     {
-                        continue;
-                    }
+                        if (semanticModel.GetDeclaredSymbol(methodDecl) is not IMethodSymbol methodSymbol)
+                        {
+                            continue;
+                        }
 
-                    typeContext.Methods.Add(methodSymbol);
-                    typeContext.MethodSyntax[methodSymbol] = methodDecl;
+                        typeContext.Methods.Add(methodSymbol);
+                        typeContext.MethodSyntax[methodSymbol] = methodDecl;
 
-                    var methodMatchers = ExtractMatchersFromSyntax(methodDecl, semanticModel, "GenerateOverloads");
-                    foreach (var matcher in methodMatchers)
-                    {
-                        _matcherTypes.Add(matcher);
+                        var methodMatchers = ExtractMatchersFromSyntax(methodDecl, semanticModel, "GenerateOverloads");
+                        foreach (var matcher in methodMatchers)
+                        {
+                            _matcherTypes.Add(matcher);
+                        }
                     }
                 }
             }
@@ -83,7 +86,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         return null;
     }
-    private static ImmutableArray<INamedTypeSymbol> ExtractMatchers(AttributeData? attribute, TypeDeclarationSyntax typeDecl, SemanticModel semanticModel)
+    private static ImmutableArray<INamedTypeSymbol> ExtractMatchers(AttributeData? attribute, BaseTypeDeclarationSyntax typeDecl, SemanticModel semanticModel)
     {
         var fromAttribute = ExtractMatchers(attribute);
         if (!fromAttribute.IsEmpty)

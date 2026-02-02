@@ -37,7 +37,7 @@ public sealed class GenerateOverloadsAttribute : global::System.Attribute
 #nullable enable
 namespace Tenekon.MethodOverloads.SourceGenerator;
 
-[global::System.AttributeUsage(global::System.AttributeTargets.Class)]
+[global::System.AttributeUsage(global::System.AttributeTargets.Class | global::System.AttributeTargets.Struct | global::System.AttributeTargets.Interface)]
 public sealed class GenerateMethodOverloadsAttribute : global::System.Attribute
 {
     public global::System.Type[]? Matchers { get; set; }
