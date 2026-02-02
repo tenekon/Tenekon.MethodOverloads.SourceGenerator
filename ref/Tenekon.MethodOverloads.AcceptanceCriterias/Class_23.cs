@@ -2,16 +2,22 @@ using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
+internal static class Class_23_Matcher
+{
+    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    internal static extern void Matcher_1(int param_1, string? param_2);
+}
+
 /// <summary>
 /// Operators and constructors should not be considered for overload generation.
 /// </summary>
+[GenerateMethodOverloads(Matchers = [typeof(Class_23_Matcher)])]
 public class Class_23
 {
-    public Class_23(int value) { }
+    public Class_23(int param_1, string? param_2) { }
 
-    public static Class_23 operator +(Class_23 left, Class_23 right) => left;
+    public static Class_23 operator +(Class_23 left, string? param_2) => left;
 
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
     public void Case_1(int param_1, string? param_2) { }
 }
 
