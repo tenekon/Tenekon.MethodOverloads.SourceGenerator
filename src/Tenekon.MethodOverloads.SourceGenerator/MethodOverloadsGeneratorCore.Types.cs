@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -99,12 +98,14 @@ internal sealed partial class MethodOverloadsGeneratorCore
     }
     private struct GenerateOverloadsArgs
     {
+        public string? BeginEnd;
         public string? Begin;
         public string? BeginExclusive;
         public string? End;
         public string? EndExclusive;
 
         public bool HasAny =>
+            !string.IsNullOrEmpty(BeginEnd) ||
             !string.IsNullOrEmpty(Begin) ||
             !string.IsNullOrEmpty(BeginExclusive) ||
             !string.IsNullOrEmpty(End) ||
@@ -114,7 +115,11 @@ internal sealed partial class MethodOverloadsGeneratorCore
     private enum WindowSpecFailureKind
     {
         None,
-        MissingAnchor
+        MissingAnchor,
+        ConflictingAnchors,
+        RedundantAnchors,
+        ConflictingBeginAnchors,
+        ConflictingEndAnchors
     }
 
     private readonly struct WindowSpecFailure

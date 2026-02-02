@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 

@@ -6,10 +6,10 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeAndName)]
 internal class Class_18_Matcher
 {
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    [GenerateOverloads(nameof(param_2))]
     internal static extern void Matcher_1(int param_1, string? param_2);
 
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    [GenerateOverloads(nameof(param_2))]
     internal static extern void Matcher_2(int param_1, string? param_2);
 }
 
@@ -28,7 +28,6 @@ public abstract class Class_18
 /// <summary>
 /// Expected extension overloads for TypeAndName matching.
 /// </summary>
-[SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 public static class Class_18_AcceptanceCriterias
 {
     public static void Case_1(this Class_18 source, int param_1) =>
@@ -36,4 +35,5 @@ public static class Class_18_AcceptanceCriterias
 
     // No extension methods for Case_2 (name casing mismatch).
 }
+
 

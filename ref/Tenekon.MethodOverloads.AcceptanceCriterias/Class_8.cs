@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
@@ -15,7 +14,6 @@ public abstract class Class_8
 /// <summary>
 /// Expected extension overloads for all unique subsequences of the optional span.
 /// </summary>
-[SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 public static class Class_8_AcceptanceCriterias
 {
     public static void Case_1(this Class_8 source, int param_1, string? param_2, bool param_3) =>

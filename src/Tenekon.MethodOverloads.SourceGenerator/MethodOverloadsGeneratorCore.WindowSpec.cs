@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -66,6 +65,14 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 {
                     if (argument.NameEquals is null)
                     {
+                        if (args.BeginEnd is null)
+                        {
+                            var positionalValue = GetAttributeStringValue(argument.Expression);
+                            if (!string.IsNullOrEmpty(positionalValue))
+                            {
+                                args.BeginEnd = positionalValue;
+                            }
+                        }
                         continue;
                     }
 
@@ -173,6 +180,40 @@ internal sealed partial class MethodOverloadsGeneratorCore
             endIndex = match.TargetIndices[match.TargetIndices.Length - 1];
         }
 
+        if (!string.IsNullOrEmpty(args.BeginEnd) &&
+            (!string.IsNullOrEmpty(args.Begin) ||
+             !string.IsNullOrEmpty(args.End) ||
+             !string.IsNullOrEmpty(args.BeginExclusive) ||
+             !string.IsNullOrEmpty(args.EndExclusive)))
+        {
+            failure = new WindowSpecFailure(WindowSpecFailureKind.ConflictingAnchors, null, null);
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(args.Begin) && !string.IsNullOrEmpty(args.BeginExclusive))
+        {
+            failure = new WindowSpecFailure(WindowSpecFailureKind.ConflictingBeginAnchors, "Begin", args.Begin);
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(args.End) && !string.IsNullOrEmpty(args.EndExclusive))
+        {
+            failure = new WindowSpecFailure(WindowSpecFailureKind.ConflictingEndAnchors, "End", args.End);
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(args.BeginEnd))
+        {
+            args.Begin = args.BeginEnd;
+            args.End = args.BeginEnd;
+        }
+        else if (!string.IsNullOrEmpty(args.Begin) &&
+                 !string.IsNullOrEmpty(args.End) &&
+                 string.Equals(args.Begin, args.End, StringComparison.Ordinal))
+        {
+            failure = new WindowSpecFailure(WindowSpecFailureKind.RedundantAnchors, "BeginEnd", args.Begin);
+        }
+
         if (!string.IsNullOrEmpty(args.Begin))
         {
             var beginIdx = IndexOfParameter(matcherParams, args.Begin!);
@@ -251,6 +292,13 @@ internal sealed partial class MethodOverloadsGeneratorCore
     private static bool TryGetGenerateOverloadsArgs(AttributeData attribute, out GenerateOverloadsArgs args)
     {
         args = default;
+
+        if (attribute.ConstructorArguments.Length > 0 &&
+            attribute.ConstructorArguments[0].Kind == TypedConstantKind.Primitive &&
+            attribute.ConstructorArguments[0].Value is string ctorValue)
+        {
+            args.BeginEnd = ctorValue;
+        }
 
         foreach (var arg in attribute.NamedArguments)
         {

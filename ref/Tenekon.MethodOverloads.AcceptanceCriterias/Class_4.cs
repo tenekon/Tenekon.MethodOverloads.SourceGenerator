@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
@@ -29,7 +28,6 @@ public abstract class Class_4
 /// <summary>
 /// Expected extension overloads (or none) for Class_4 cases.
 /// </summary>
-[SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 public static class Class_4_AcceptanceCriterias
 {
     public static void Case_1(this Class_4 source, CancellationToken param_2) => source.Case_1(param_1: false, param_2);

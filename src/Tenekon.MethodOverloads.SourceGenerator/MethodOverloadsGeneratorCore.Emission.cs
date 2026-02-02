@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 
@@ -27,7 +25,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 builder.AppendLine();
             }
 
-            builder.AppendLine("public static class MethodOverloadsExtensions");
+            builder.AppendLine("public static class MethodOverloads");
             builder.AppendLine("{");
 
             foreach (var generated in methods.OrderBy(m => m.Method.Name, StringComparer.Ordinal))
@@ -37,7 +35,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
             builder.AppendLine("}");
 
-            _context.AddSource($"MethodOverloadsExtensions_{Sanitize(namespaceName)}.g.cs", builder.ToString());
+            _context.AddSource($"MethodOverloads_{Sanitize(namespaceName)}.g.cs", builder.ToString());
         }
     }
     private static string Sanitize(string name)

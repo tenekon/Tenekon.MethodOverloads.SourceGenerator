@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 
@@ -32,7 +30,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         public string Render()
         {
-            return _method.IsStatic
+            return _method.IsStatic && !_method.IsExtensionMethod
                 ? RenderStaticExtensionBlock()
                 : RenderClassicExtensionMethod();
         }
@@ -44,14 +42,27 @@ internal sealed partial class MethodOverloadsGeneratorCore
             var returnType = _method.ReturnType.ToDisplayString(TypeDisplayFormat);
             var typeParams = RenderTypeParameters(_method);
             var constraints = RenderTypeParameterConstraints(_method);
+            var isExtensionMethod = _method.IsExtensionMethod;
+            var receiverParameter = isExtensionMethod ? _method.Parameters.FirstOrDefault() : null;
+            var receiverType = receiverParameter?.Type.ToDisplayString(TypeDisplayFormat)
+                ?? _method.ContainingType.ToDisplayString(TypeDisplayFormat);
+            var receiverName = receiverParameter?.Name ?? "source";
+            var invocationReceiver = isExtensionMethod
+                ? _method.ContainingType.ToDisplayString(TypeDisplayFormat)
+                : receiverName;
 
             builder.Append("    ").Append(accessibility).Append(" static ").Append(returnType).Append(" ")
                 .Append(_method.Name).Append(typeParams).Append("(");
 
-            builder.Append("this ").Append(_method.ContainingType.ToDisplayString(TypeDisplayFormat)).Append(" source");
+            builder.Append("this ").Append(receiverType).Append(" ").Append(receiverName);
 
             foreach (var parameter in _keptParameters)
             {
+                if (receiverParameter is not null && SymbolEqualityComparer.Default.Equals(parameter, receiverParameter))
+                {
+                    continue;
+                }
+
                 builder.Append(", ").Append(RenderParameter(parameter));
             }
 
@@ -62,7 +73,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 builder.Append(" ").Append(constraints);
             }
 
-            builder.Append(" => ").Append(RenderInvocation("source")).Append(";");
+            builder.Append(" => ").Append(RenderInvocation(invocationReceiver)).Append(";");
 
             return builder.ToString();
         }

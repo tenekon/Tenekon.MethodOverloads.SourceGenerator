@@ -5,7 +5,7 @@ This doc explains what the generator looks at, how it decides what to emit, and 
 ## Quickstart
 1) Mark a method with [GenerateOverloads] or a type with [GenerateMethodOverloads(Matchers = [...])].
 2) (Optional) Add [OverloadGenerationOptions(...)] to control matching and output.
-3) Build the project. Generated overloads appear in MethodOverloadsExtensions_<Namespace>.g.cs.
+3) Build the project. Generated overloads appear in MethodOverloads_<Namespace>.g.cs.
 
 ## 1) Purpose
 Create extension overloads from a single method by treating a parameter span as optional and emitting only legal, unique overloads.
@@ -80,7 +80,7 @@ Given a window:
 
 ## 9) Output shape
 - One generated static class per namespace:
-  - MethodOverloadsExtensions_<Namespace>.g.cs
+  - MethodOverloads_<Namespace>.g.cs
 - Instance targets -> classic extension methods (this T source).
 - Static targets -> C# 14 extension blocks:
   extension(SomeStaticType) { public static ... }
@@ -91,3 +91,15 @@ Given a window:
 
 ## 11) Known non-goals
 See docs/Unsupported.md for out-of-scope behavior.
+## 12) GenerateOverloads shorthand
+If the optional window is a single parameter, you can use the ctor shorthand:
+```
+[GenerateOverloads(nameof(param_2))]
+```
+This is equivalent to:
+```
+[GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+```
+
+The ctor shorthand cannot be combined with Begin/End/BeginExclusive/EndExclusive. If mixed, the generator reports an error diagnostic and skips overload generation for that method.\r\n
+

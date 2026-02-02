@@ -30,7 +30,6 @@ public abstract class Class_5
 /// <summary>
 /// Expected extension overloads (or none) for Class_5 cases.
 /// </summary>
-[SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 public static class Class_5_AcceptanceCriterias
 {
     public static void Case_1(this Class_5 source, CancellationToken cancellationToken) =>

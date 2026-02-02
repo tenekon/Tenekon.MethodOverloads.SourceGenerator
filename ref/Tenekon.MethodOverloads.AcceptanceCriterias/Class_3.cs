@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
@@ -27,7 +26,6 @@ public abstract class Class_3
     public abstract void Case_3(string? param_1, bool param_2, CancellationToken param_3);
 }
 
-[SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 /// <summary>
 /// Expected extension overloads (or none) for Class_3 cases.
 /// </summary>

@@ -51,4 +51,36 @@ internal static class GeneratorDiagnostics
         category: "MethodOverloadsGenerator",
         defaultSeverity: DiagnosticSeverity.Hidden,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor ConflictingWindowAnchors = new(
+        id: "MOG007",
+        title: "Conflicting overload window anchors",
+        messageFormat: "GenerateOverloadsAttribute(string beginEnd) cannot be combined with Begin/End/BeginExclusive/EndExclusive on method '{0}'",
+        category: "MethodOverloadsGenerator",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor RedundantBeginEndAnchors = new(
+        id: "MOG008",
+        title: "Begin and End anchors are identical",
+        messageFormat: "GenerateOverloads Begin and End are identical on method '{0}'. Prefer GenerateOverloadsAttribute(string beginEnd).",
+        category: "MethodOverloadsGenerator",
+        defaultSeverity: DiagnosticSeverity.Info,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor BeginAndBeginExclusiveConflict = new(
+        id: "MOG009",
+        title: "Conflicting begin anchors",
+        messageFormat: "GenerateOverloads cannot specify both Begin and BeginExclusive on method '{0}'",
+        category: "MethodOverloadsGenerator",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor EndAndEndExclusiveConflict = new(
+        id: "MOG010",
+        title: "Conflicting end anchors",
+        messageFormat: "GenerateOverloads cannot specify both End and EndExclusive on method '{0}'",
+        category: "MethodOverloadsGenerator",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

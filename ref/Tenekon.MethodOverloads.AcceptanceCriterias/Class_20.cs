@@ -5,7 +5,7 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 internal class Class_20_Matcher
 {
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    [GenerateOverloads(nameof(param_2))]
     internal static extern void Matcher_1(int param_1, string? param_2);
 }
 
@@ -29,7 +29,6 @@ public abstract class Class_20
 /// <summary>
 /// Expected extension overloads for multiple matched subsequences.
 /// </summary>
-[SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 public static class Class_20_AcceptanceCriterias
 {
     public static void Case_1(
@@ -54,4 +53,5 @@ public static class Class_20_AcceptanceCriterias
         Case_1(this Class_20 source, int param_1, bool param_3, int param_4, CancellationToken param_6) =>
         source.Case_1(param_1, param_2: null, param_3, param_4, param_5: null, param_6);
 }
+
 

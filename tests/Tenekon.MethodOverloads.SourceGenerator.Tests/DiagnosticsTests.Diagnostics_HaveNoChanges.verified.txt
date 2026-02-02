@@ -46,5 +46,37 @@
     Category: MethodOverloadsGenerator,
     DefaultSeverity: 0,
     IsEnabledByDefault: true
+  },
+  {
+    Id: MOG007,
+    Title: Conflicting overload window anchors,
+    MessageFormat: GenerateOverloadsAttribute(string beginEnd) cannot be combined with Begin/End/BeginExclusive/EndExclusive on method '{0}',
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 3,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG008,
+    Title: Begin and End anchors are identical,
+    MessageFormat: GenerateOverloads Begin and End are identical on method '{0}'. Prefer GenerateOverloadsAttribute(string beginEnd).,
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 1,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG009,
+    Title: Conflicting begin anchors,
+    MessageFormat: GenerateOverloads cannot specify both Begin and BeginExclusive on method '{0}',
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 3,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG010,
+    Title: Conflicting end anchors,
+    MessageFormat: GenerateOverloads cannot specify both End and EndExclusive on method '{0}',
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 3,
+    IsEnabledByDefault: true
   }
 ]

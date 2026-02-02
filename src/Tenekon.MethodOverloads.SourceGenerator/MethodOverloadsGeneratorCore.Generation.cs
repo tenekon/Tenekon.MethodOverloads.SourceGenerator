@@ -1,6 +1,4 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -71,6 +69,16 @@ internal sealed partial class MethodOverloadsGeneratorCore
                     {
                         var groupKey = "direct:" + BuildMethodGroupKey(method);
                         windowSpecs.Add(new WindowSpec(windowSpecFromAttribute.StartIndex, windowSpecFromAttribute.EndIndex, groupKey));
+
+                        if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.RedundantAnchors)
+                        {
+                            Report(
+                                GeneratorDiagnostics.RedundantBeginEndAnchors,
+                                methodGenerateOverloads.ApplicationSyntaxReference?.GetSyntax().GetLocation()
+                                    ?? methodSyntax?.Identifier.GetLocation()
+                                    ?? method.Locations.FirstOrDefault(),
+                                method.Name);
+                        }
                     }
                     else if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.MissingAnchor)
                     {
@@ -80,6 +88,38 @@ internal sealed partial class MethodOverloadsGeneratorCore
                             windowFailureFromAttribute.AnchorKind ?? "anchor",
                             windowFailureFromAttribute.AnchorValue ?? string.Empty);
                     }
+                    else if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.ConflictingAnchors)
+                    {
+                        Report(
+                            GeneratorDiagnostics.ConflictingWindowAnchors,
+                            methodSyntax?.Identifier.GetLocation() ?? method.Locations.FirstOrDefault(),
+                            method.Name);
+                    }
+                    else if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.RedundantAnchors)
+                    {
+                        Report(
+                            GeneratorDiagnostics.RedundantBeginEndAnchors,
+                            methodSyntax?.Identifier.GetLocation() ?? method.Locations.FirstOrDefault(),
+                            method.Name);
+                    }
+                    else if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.ConflictingBeginAnchors)
+                    {
+                        Report(
+                            GeneratorDiagnostics.BeginAndBeginExclusiveConflict,
+                            methodGenerateOverloads.ApplicationSyntaxReference?.GetSyntax().GetLocation()
+                                ?? methodSyntax?.Identifier.GetLocation()
+                                ?? method.Locations.FirstOrDefault(),
+                            method.Name);
+                    }
+                    else if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.ConflictingEndAnchors)
+                    {
+                        Report(
+                            GeneratorDiagnostics.EndAndEndExclusiveConflict,
+                            methodGenerateOverloads.ApplicationSyntaxReference?.GetSyntax().GetLocation()
+                                ?? methodSyntax?.Identifier.GetLocation()
+                                ?? method.Locations.FirstOrDefault(),
+                            method.Name);
+                    }
                 }
                 else if (useDirectGenerateOverloads && methodSyntax is not null)
                 {
@@ -87,6 +127,15 @@ internal sealed partial class MethodOverloadsGeneratorCore
                     {
                         var groupKey = "direct:" + BuildMethodGroupKey(method);
                         windowSpecs.Add(new WindowSpec(windowSpecFromSyntax.StartIndex, windowSpecFromSyntax.EndIndex, groupKey));
+
+                        if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.RedundantAnchors)
+                        {
+                            Report(
+                                GeneratorDiagnostics.RedundantBeginEndAnchors,
+                                GetGenerateOverloadsAttributeLocation(methodSyntax)
+                                    ?? methodSyntax.Identifier.GetLocation(),
+                                method.Name);
+                        }
                     }
                     else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.MissingAnchor)
                     {
@@ -95,6 +144,36 @@ internal sealed partial class MethodOverloadsGeneratorCore
                             methodSyntax.Identifier.GetLocation(),
                             windowFailureFromSyntax.AnchorKind ?? "anchor",
                             windowFailureFromSyntax.AnchorValue ?? string.Empty);
+                    }
+                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.ConflictingAnchors)
+                    {
+                        Report(
+                            GeneratorDiagnostics.ConflictingWindowAnchors,
+                            methodSyntax.Identifier.GetLocation(),
+                            method.Name);
+                    }
+                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.RedundantAnchors)
+                    {
+                        Report(
+                            GeneratorDiagnostics.RedundantBeginEndAnchors,
+                            methodSyntax.Identifier.GetLocation(),
+                            method.Name);
+                    }
+                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.ConflictingBeginAnchors)
+                    {
+                        Report(
+                            GeneratorDiagnostics.BeginAndBeginExclusiveConflict,
+                            GetGenerateOverloadsAttributeLocation(methodSyntax)
+                                ?? methodSyntax.Identifier.GetLocation(),
+                            method.Name);
+                    }
+                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.ConflictingEndAnchors)
+                    {
+                        Report(
+                            GeneratorDiagnostics.EndAndEndExclusiveConflict,
+                            GetGenerateOverloadsAttributeLocation(methodSyntax)
+                                ?? methodSyntax.Identifier.GetLocation(),
+                            method.Name);
                     }
                 }
 
@@ -150,6 +229,16 @@ internal sealed partial class MethodOverloadsGeneratorCore
                                     if (TryCreateWindowSpec(method, matcherMethod, matcherGenerateOverloads, match, out var windowSpec, out var windowFailure))
                                     {
                                         windowSpecs.Add(new WindowSpec(windowSpec.StartIndex, windowSpec.EndIndex, groupKey));
+
+                                        if (windowFailure.Kind == WindowSpecFailureKind.RedundantAnchors)
+                                        {
+                                            Report(
+                                                GeneratorDiagnostics.RedundantBeginEndAnchors,
+                                                matcherGenerateOverloads.ApplicationSyntaxReference?.GetSyntax().GetLocation()
+                                                    ?? matcherMethodSyntax?.Identifier.GetLocation()
+                                                    ?? matcherMethod.Locations.FirstOrDefault(),
+                                                matcherMethod.Name);
+                                        }
                                     }
                                     else if (windowFailure.Kind == WindowSpecFailureKind.MissingAnchor)
                                     {
@@ -159,12 +248,53 @@ internal sealed partial class MethodOverloadsGeneratorCore
                                             windowFailure.AnchorKind ?? "anchor",
                                             windowFailure.AnchorValue ?? string.Empty);
                                     }
+                                    else if (windowFailure.Kind == WindowSpecFailureKind.ConflictingAnchors)
+                                    {
+                                        Report(
+                                            GeneratorDiagnostics.ConflictingWindowAnchors,
+                                            matcherMethodSyntax?.Identifier.GetLocation() ?? matcherMethod.Locations.FirstOrDefault(),
+                                            matcherMethod.Name);
+                                    }
+                                    else if (windowFailure.Kind == WindowSpecFailureKind.RedundantAnchors)
+                                    {
+                                        Report(
+                                            GeneratorDiagnostics.RedundantBeginEndAnchors,
+                                            matcherMethodSyntax?.Identifier.GetLocation() ?? matcherMethod.Locations.FirstOrDefault(),
+                                            matcherMethod.Name);
+                                    }
+                                    else if (windowFailure.Kind == WindowSpecFailureKind.ConflictingBeginAnchors)
+                                    {
+                                        Report(
+                                            GeneratorDiagnostics.BeginAndBeginExclusiveConflict,
+                                            matcherGenerateOverloads.ApplicationSyntaxReference?.GetSyntax().GetLocation()
+                                                ?? matcherMethodSyntax?.Identifier.GetLocation()
+                                                ?? matcherMethod.Locations.FirstOrDefault(),
+                                            matcherMethod.Name);
+                                    }
+                                    else if (windowFailure.Kind == WindowSpecFailureKind.ConflictingEndAnchors)
+                                    {
+                                        Report(
+                                            GeneratorDiagnostics.EndAndEndExclusiveConflict,
+                                            matcherGenerateOverloads.ApplicationSyntaxReference?.GetSyntax().GetLocation()
+                                                ?? matcherMethodSyntax?.Identifier.GetLocation()
+                                                ?? matcherMethod.Locations.FirstOrDefault(),
+                                            matcherMethod.Name);
+                                    }
                                 }
                                 else if (matcherMethodSyntax is not null)
                                 {
                                     if (TryCreateWindowSpecFromSyntax(method, matcherMethod, matcherMethodSyntax, match, out var windowSpecFromSyntax, out var windowFailureFromSyntax))
                                     {
                                         windowSpecs.Add(new WindowSpec(windowSpecFromSyntax.StartIndex, windowSpecFromSyntax.EndIndex, groupKey));
+
+                                        if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.RedundantAnchors)
+                                        {
+                                            Report(
+                                                GeneratorDiagnostics.RedundantBeginEndAnchors,
+                                                GetGenerateOverloadsAttributeLocation(matcherMethodSyntax)
+                                                    ?? matcherMethodSyntax.Identifier.GetLocation(),
+                                                matcherMethod.Name);
+                                        }
                                     }
                                     else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.MissingAnchor)
                                     {
@@ -173,6 +303,36 @@ internal sealed partial class MethodOverloadsGeneratorCore
                                             matcherMethodSyntax.Identifier.GetLocation(),
                                             windowFailureFromSyntax.AnchorKind ?? "anchor",
                                             windowFailureFromSyntax.AnchorValue ?? string.Empty);
+                                    }
+                                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.ConflictingAnchors)
+                                    {
+                                        Report(
+                                            GeneratorDiagnostics.ConflictingWindowAnchors,
+                                            matcherMethodSyntax.Identifier.GetLocation(),
+                                            matcherMethod.Name);
+                                    }
+                                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.RedundantAnchors)
+                                    {
+                                        Report(
+                                            GeneratorDiagnostics.RedundantBeginEndAnchors,
+                                            matcherMethodSyntax.Identifier.GetLocation(),
+                                            matcherMethod.Name);
+                                    }
+                                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.ConflictingBeginAnchors)
+                                    {
+                                        Report(
+                                            GeneratorDiagnostics.BeginAndBeginExclusiveConflict,
+                                            GetGenerateOverloadsAttributeLocation(matcherMethodSyntax)
+                                                ?? matcherMethodSyntax.Identifier.GetLocation(),
+                                            matcherMethod.Name);
+                                    }
+                                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.ConflictingEndAnchors)
+                                    {
+                                        Report(
+                                            GeneratorDiagnostics.EndAndEndExclusiveConflict,
+                                            GetGenerateOverloadsAttributeLocation(matcherMethodSyntax)
+                                                ?? matcherMethodSyntax.Identifier.GetLocation(),
+                                            matcherMethod.Name);
                                     }
                                 }
                             }
@@ -596,6 +756,22 @@ internal sealed partial class MethodOverloadsGeneratorCore
         }
 
         return builder.ToString();
+    }
+
+    private static Location? GetGenerateOverloadsAttributeLocation(MethodDeclarationSyntax methodSyntax)
+    {
+        foreach (var attributeList in methodSyntax.AttributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
+                if (IsAttributeNameMatch(attribute.Name.ToString(), "GenerateOverloads"))
+                {
+                    return attribute.GetLocation();
+                }
+            }
+        }
+
+        return null;
     }
 }
 

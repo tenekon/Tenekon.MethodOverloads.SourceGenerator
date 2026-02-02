@@ -9,6 +9,16 @@ namespace Tenekon.MethodOverloads.SourceGenerator;
 [global::System.AttributeUsage(global::System.AttributeTargets.Method)]
 public sealed class GenerateOverloadsAttribute : global::System.Attribute
 {
+    public GenerateOverloadsAttribute()
+    {
+    }
+
+    public GenerateOverloadsAttribute(string beginEnd)
+    {
+        Begin = beginEnd;
+        End = beginEnd;
+    }
+
     /// <summary>
     /// All parameters beginning from <see cref=\"Begin\"/> (inclusive) are considered for optional or required.
     /// </summary>

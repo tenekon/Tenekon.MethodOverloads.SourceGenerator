@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
@@ -18,7 +17,6 @@ public abstract class Class_28
     public abstract void Case_1(int param_1, string? param_2, bool param_3);
 }
 
-[SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 public static class Class_28_AcceptanceCriterias
 {
     public static void Case_1(this Class_28 source, string? param_2, bool param_3) =>

@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
@@ -9,19 +8,19 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 /// </summary>
 public class Class_15
 {
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    [GenerateOverloads(nameof(param_2))]
     public void Case_1(int param_1, string? param_2) { }
 
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    [GenerateOverloads(nameof(param_2))]
     internal void Case_2(int param_1, string? param_2) { }
 
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    [GenerateOverloads(nameof(param_2))]
     protected void Case_3(int param_1, string? param_2) { }
 
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    [GenerateOverloads(nameof(param_2))]
     private void Case_4(int param_1, string? param_2) { }
 
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    [GenerateOverloads(nameof(param_2))]
     protected internal void Case_5(int param_1, string? param_2) { }
 }
 
@@ -31,18 +30,17 @@ public class Class_15
 public class Class_15_Visibility
 {
     [OverloadGenerationOptions(OverloadVisibility = OverloadVisibility.Internal)]
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    [GenerateOverloads(nameof(param_2))]
     public void Case_1(int param_1, string? param_2) { }
 
     [OverloadGenerationOptions(OverloadVisibility = OverloadVisibility.Public)]
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    [GenerateOverloads(nameof(param_2))]
     internal void Case_2(int param_1, string? param_2) { }
 }
 
 /// <summary>
 /// Expected extension overloads (or none) for accessibility scenarios.
 /// </summary>
-[SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 public static class Class_15_AcceptanceCriterias
 {
     public static void Case_1(this Class_15 source, int param_1) =>
@@ -64,6 +62,7 @@ public static class Class_15_AcceptanceCriterias
     public static void Case_2(this Class_15_Visibility source, int param_1) =>
         source.Case_2(param_1, param_2: null);
 }
+
 
 
 

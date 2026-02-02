@@ -7,13 +7,13 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 /// </summary>
 public class Class_22_Base
 {
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    [GenerateOverloads(nameof(param_2))]
     public virtual void Case_1(int param_1, string? param_2) { }
 }
 
 public class Class_22_Derived : Class_22_Base
 {
-    [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
+    [GenerateOverloads(nameof(param_2))]
     public override void Case_1(int param_1, string? param_2) { }
 }
 
@@ -28,3 +28,4 @@ public static class Class_22_AcceptanceCriterias
     public static void Case_1(this Class_22_Derived source, int param_1) =>
         source.Case_1(param_1, param_2: null);
 }
+

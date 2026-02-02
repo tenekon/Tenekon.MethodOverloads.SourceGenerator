@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
@@ -29,7 +28,6 @@ public abstract class Class_7
 /// <summary>
 /// Expected extension overloads (or none) for Class_7 cases.
 /// </summary>
-[SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 public static class Class_7_AcceptanceCriterias
 {
     // No extension methods for Case_1

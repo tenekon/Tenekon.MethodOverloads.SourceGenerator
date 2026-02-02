@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
@@ -16,7 +15,6 @@ public abstract class Class_13
 /// <summary>
 /// Expected extension overloads for generic method cases.
 /// </summary>
-[SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 public static class Class_13_AcceptanceCriterias
 {
     public static void Case_1<T>(this Class_13 source, int param_1, T? param_2) where T : class, new() =>

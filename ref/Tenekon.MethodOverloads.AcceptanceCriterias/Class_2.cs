@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
@@ -15,7 +14,7 @@ public abstract class Class_2
     [GenerateOverloads(End = nameof(param_1))]
     public abstract void Case_2(bool param_1, CancellationToken param_2);
 
-    [GenerateOverloads(Begin = nameof(param_1), End = nameof(param_1))]
+    [GenerateOverloads(nameof(param_1))]
     public abstract void Case_3(bool param_1, CancellationToken param_2);
 
     [GenerateOverloads(Begin = nameof(param_1), EndExclusive = nameof(param_2))]
@@ -28,7 +27,6 @@ public abstract class Class_2
     public abstract void Case_6(bool param_1, CancellationToken param_2);
 }
 
-[SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 /// <summary>
 /// Expected extension overloads (or none) for Class_2 cases.
 /// </summary>
@@ -46,6 +44,7 @@ public static class Class_2_AcceptanceCriterias
 
     // No extension methods for Case_6
 }
+
 
 
 

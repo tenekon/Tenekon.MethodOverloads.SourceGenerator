@@ -1,5 +1,3 @@
-using Xunit;
-
 namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 
 public sealed class AcceptanceCriteriaTests

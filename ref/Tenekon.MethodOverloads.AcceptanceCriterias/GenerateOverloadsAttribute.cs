@@ -4,6 +4,16 @@ namespace Tenekon.MethodOverloads.SourceGenerator;
 [AttributeUsage(AttributeTargets.Method)]
 public class GenerateOverloadsAttribute : Attribute
 {
+    public GenerateOverloadsAttribute()
+    {
+    }
+
+    public GenerateOverloadsAttribute(string beginEnd)
+    {
+        Begin = beginEnd;
+        End = beginEnd;
+    }
+
     /// <summary>
     /// All parameters beginning from <see cref="Begin"/> (inclusive) are considered for optional or required.
     /// </summary>
