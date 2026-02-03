@@ -131,14 +131,6 @@ internal static class AcceptanceTestData
 
         foreach (var source in sources)
         {
-            var fileName = Path.GetFileName(source.Path);
-            if (string.Equals(fileName, "GenerateOverloadsAttribute.cs", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(fileName, "GenerateMethodOverloadsAttribute.cs", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(fileName, "OverloadGenerationOptions.cs", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
             var tree = CSharpSyntaxTree.ParseText(source.Content, parseOptions, source.Path);
             var root = tree.GetRoot();
 
@@ -557,4 +549,93 @@ internal static class AcceptanceTestData
         string Kind);
 
     internal sealed record ExpectedDiagnostic(string ClassName, string Id);
+
+    internal enum AttributeTargetKind
+    {
+        Class,
+        Struct,
+        Interface,
+        Method
+    }
+
+    internal static Dictionary<string, HashSet<AttributeTargetKind>> ExtractAttributeTargets(ImmutableArray<SourceFile> sources)
+    {
+        var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
+        var trees = sources.Select(source => CSharpSyntaxTree.ParseText(source.Content, parseOptions, source.Path)).ToArray();
+        var targetsByAttribute = new Dictionary<string, HashSet<AttributeTargetKind>>(StringComparer.Ordinal);
+
+        foreach (var tree in trees)
+        {
+            var root = tree.GetRoot();
+
+            foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
+            {
+                CollectAttributeTargets(classDecl.AttributeLists, AttributeTargetKind.Class, targetsByAttribute);
+            }
+
+            foreach (var structDecl in root.DescendantNodes().OfType<StructDeclarationSyntax>())
+            {
+                CollectAttributeTargets(structDecl.AttributeLists, AttributeTargetKind.Struct, targetsByAttribute);
+            }
+
+            foreach (var interfaceDecl in root.DescendantNodes().OfType<InterfaceDeclarationSyntax>())
+            {
+                CollectAttributeTargets(interfaceDecl.AttributeLists, AttributeTargetKind.Interface, targetsByAttribute);
+            }
+
+            foreach (var methodDecl in root.DescendantNodes().OfType<MethodDeclarationSyntax>())
+            {
+                CollectAttributeTargets(methodDecl.AttributeLists, AttributeTargetKind.Method, targetsByAttribute);
+            }
+        }
+
+        return targetsByAttribute;
+    }
+
+    private static void CollectAttributeTargets(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        AttributeTargetKind targetKind,
+        Dictionary<string, HashSet<AttributeTargetKind>> targetsByAttribute)
+    {
+        foreach (var attributeList in attributeLists)
+        {
+            foreach (var attribute in attributeList.Attributes)
+            {
+                var name = NormalizeAttributeName(attribute.Name.ToString());
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    continue;
+                }
+
+                if (!targetsByAttribute.TryGetValue(name, out var targets))
+                {
+                    targets = new HashSet<AttributeTargetKind>();
+                    targetsByAttribute[name] = targets;
+                }
+
+                targets.Add(targetKind);
+            }
+        }
+    }
+
+    private static string NormalizeAttributeName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return string.Empty;
+        }
+
+        var trimmed = name.Trim();
+        if (trimmed.EndsWith("Attribute", StringComparison.Ordinal))
+        {
+            trimmed = trimmed.Substring(0, trimmed.Length - "Attribute".Length);
+        }
+
+        if (trimmed.Contains("."))
+        {
+            trimmed = trimmed.Split('.').Last();
+        }
+
+        return trimmed;
+    }
 }

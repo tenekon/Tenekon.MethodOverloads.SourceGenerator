@@ -29,6 +29,9 @@ public sealed class PackageLayoutTests
             Assert.Contains("analyzers/dotnet/cs/Tenekon.MethodOverloads.SourceGenerator.dll", entries);
             Assert.DoesNotContain(entries, e => e.StartsWith("analyzers/dotnet/cs/netstandard", StringComparison.OrdinalIgnoreCase));
 
+            Assert.Contains("build/Tenekon.MethodOverloads.SourceGenerator.props", entries);
+            Assert.Contains("buildTransitive/Tenekon.MethodOverloads.SourceGenerator.props", entries);
+
             var libEntries = entries.Where(e => e.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)).ToArray();
             Assert.Equal(new[] { "lib/netstandard2.0/_._" }, libEntries);
         }

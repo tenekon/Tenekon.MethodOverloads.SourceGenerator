@@ -8,9 +8,20 @@
 A C# source generator that creates combinatorial extension method overloads by treating a selected parameter window as optional and emitting legal, unique subsequences.
 
 ## Quickstart
+
 1) Mark a method with `[GenerateOverloads]` or a type with `[GenerateMethodOverloads(Matchers = ...)]`.
 2) (Optional) Add `[OverloadGenerationOptions(...)]` to control matching and output.
 3) Build the project. Generated overloads appear in `MethodOverloads_<Namespace>.g.cs`.
+
+## MSBuild options
+
+Emit attributes only (skip overload generation):
+
+```xml
+<PropertyGroup>
+  <TenekonMethodOverloadsSourceGeneratorAttributesOnly>true</TenekonMethodOverloadsSourceGeneratorAttributesOnly>
+</PropertyGroup>
+```
 
 ## Examples
 

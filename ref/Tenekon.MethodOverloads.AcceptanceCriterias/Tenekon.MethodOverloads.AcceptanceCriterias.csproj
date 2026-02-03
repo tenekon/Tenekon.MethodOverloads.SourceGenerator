@@ -5,6 +5,13 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <TenekonMethodOverloadsSourceGeneratorAttributesOnly>true</TenekonMethodOverloadsSourceGeneratorAttributesOnly>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Tenekon.MethodOverloads.SourceGenerator\Tenekon.MethodOverloads.SourceGenerator.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
+  </ItemGroup>
 
 </Project>
