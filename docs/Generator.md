@@ -1,16 +1,19 @@
-# Method Overloads Source Generator — Architecture & Behavior
+# Method Overloads Source Generator ï¿½ Architecture & Behavior
 
 This doc explains what the generator looks at, how it decides what to emit, and the rules it enforces.
 
 ## Quickstart
+
 1) Mark a method with [GenerateOverloads] or a type with [GenerateMethodOverloads(Matchers = [...])].
 2) (Optional) Add [OverloadGenerationOptions(...)] to control matching and output.
 3) Build the project. Generated overloads appear in MethodOverloads_<Namespace>.g.cs.
 
 ## 1) Purpose
+
 Create extension overloads from a single method by treating a parameter span as optional and emitting only legal, unique overloads.
 
 ## 2) Terms used here
+
 - Target method: the method the generator is trying to add overloads for.
 - Optional window: a contiguous range of parameters that can be omitted.
 - Subsequence: an order-preserving omission set inside the optional window.
@@ -19,6 +22,7 @@ Create extension overloads from a single method by treating a parameter span as 
 - Matcher-based generation: GenerateMethodOverloads on a type (or Matchers on a method).
 
 ## 3) What the generator considers
+
 The generator scans all syntax trees and records:
 - All declared types and their methods.
 - GenerateMethodOverloads on types (type-level matchers).
@@ -31,6 +35,7 @@ Methods are skipped if they are:
 - Declared in a matcher type (matcher types are never targets)
 
 ## 4) Optional window rules
+
 For each target method, the generator builds one or more windows:
 - Direct: from GenerateOverloads on the method itself.
 - Matcher: from GenerateOverloads on the matcher method that matched the target.
@@ -38,6 +43,7 @@ For each target method, the generator builds one or more windows:
 - If a matcher method has multiple windows, a union window is computed only within that matcher group (never across different matcher methods).
 
 ## 5) Matching rules
+
 Matcher parameters are matched against target parameters as a subsequence:
 - TypeOnly: type + ref kind + params must match.
 - TypeAndName: same as above, plus exact parameter name match (case-sensitive).
@@ -54,6 +60,7 @@ Match mode resolution order:
 All matcher methods are considered as candidates; there is no exact-count-only filter.
 
 ## 6) Overload generation rules
+
 Given a window:
 - Compute all omission sets (subsequences) based on OverloadSubsequenceStrategy:
   - PrefixOnly -> omit suffixes only
@@ -67,10 +74,12 @@ Given a window:
   - A params parameter exists outside the optional window
 
 ## 7) De-duplication and collisions
+
 - Generated overloads are deduped by signature (nullability is ignored here to match C# signature rules).
 - Existing overloads in the target type are never duplicated.
 
 ## 8) Accessibility rules
+
 - OverloadVisibility can override generated method visibility:
   - Public, Internal, or Private
 - Default is MatchTarget, which means:
@@ -79,6 +88,7 @@ Given a window:
   - protected internal / protected are emitted as internal (protected is not emitted)
 
 ## 9) Output shape
+
 - One generated static class per namespace:
   - MethodOverloads_<Namespace>.g.cs
 - Instance targets -> classic extension methods (this T source).
@@ -86,12 +96,16 @@ Given a window:
   extension(SomeStaticType) { public static ... }
 
 ## 10) Entry point & files
+
 - Generator: src/Tenekon.MethodOverloads.SourceGenerator/MethodOverloadsGenerator.cs
 - Attributes are emitted via RegisterPostInitializationOutput.
 
 ## 11) Known non-goals
+
 See docs/Unsupported.md for out-of-scope behavior.
+
 ## 12) GenerateOverloads shorthand
+
 If the optional window is a single parameter, you can use the ctor shorthand:
 ```
 [GenerateOverloads(nameof(param_2))]

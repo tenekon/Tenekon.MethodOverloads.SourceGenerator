@@ -1,6 +1,11 @@
 # Tenekon.MethodOverloads.SourceGenerator
 
-A C# source generator that creates extension method overloads by treating a selected parameter window as optional and emitting legal, unique subsequences.
+[![Build](https://github.com/tenekon/Tenekon.MethodOverloads.SourceGenerator/actions/workflows/coverage.yml/badge.svg?branch=main)](https://github.com/tenekon/Tenekon.MethodOverloads.SourceGenerator/actions/workflows/coverage.yml)
+[![NuGet](https://img.shields.io/nuget/v/Tenekon.MethodOverloads.SourceGenerator.svg)](https://www.nuget.org/packages/Tenekon.MethodOverloads.SourceGenerator)
+[![Codecov](https://codecov.io/gh/tenekon/Tenekon.MethodOverloads.SourceGenerator/branch/main/graph/badge.svg)](https://codecov.io/gh/tenekon/Tenekon.MethodOverloads.SourceGenerator)
+[![License](https://img.shields.io/github/license/tenekon/Tenekon.MethodOverloads.SourceGenerator.svg)](LICENSE)
+
+A C# source generator that creates combinatorial extension method overloads by treating a selected parameter window as optional and emitting legal, unique subsequences.
 
 ## Quickstart
 1) Mark a method with `[GenerateOverloads]` or a type with `[GenerateMethodOverloads(Matchers = ...)]`.
@@ -30,15 +35,14 @@ namespace Demo;
 
 public static class MethodOverloads
 {
+    public static void Add(this Calculator source, int param_1) =>
+        source.Add(param_1, param_2: default, param_3: default);
 
     public static void Add(this Calculator source, int param_1, string? param_2) =>
         source.Add(param_1, param_2, param_3: default);
 
     public static void Add(this Calculator source, int param_1, bool param_3) =>
         source.Add(param_1, param_2: default, param_3);
-
-    public static void Add(this Calculator source, int param_1) =>
-        source.Add(param_1, param_2: default, param_3: default);
 }
 ```
 

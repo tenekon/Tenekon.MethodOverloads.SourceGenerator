@@ -3,10 +3,12 @@
 Tests are acceptance-criteria driven: expected overloads live in the ref files and the generator output is compared against them.
 
 ## Quickstart
+
 1) Run `dotnet test --nologo` at repo root.
 2) Add or update a Class_*.cs acceptance criteria file, then re-run tests.
 
 ## What is tested
+
 - Which overloads are generated
 - Which overloads are not generated
 - Accessibility of generated overloads
@@ -16,6 +18,7 @@ Tests are acceptance-criteria driven: expected overloads live in the ref files a
 - Public API surface snapshots
 
 ## Source of truth
+
 The expected overloads live in:
 - ref/Tenekon.MethodOverloads.AcceptanceCriterias/*.cs
 
@@ -24,6 +27,7 @@ Each file defines:
 - A Class_*_AcceptanceCriterias static class that describes the expected extension methods
 
 ## How it works
+
 1. Load all reference .cs files
 2. Extract expected signatures
    - Looks at the Class_*_AcceptanceCriterias methods
@@ -39,11 +43,30 @@ Each file defines:
    - Expected diagnostics are compared by ID per Class_* file
 
 ## Running tests
+
 ```
 dotnet test --nologo
 ```
 
 ## Adding new acceptance criteria
+
 1. Add or update a Class_*.cs file in ref/Tenekon.MethodOverloads.AcceptanceCriterias.
 2. Add the expected overloads to the corresponding Class_*_AcceptanceCriterias class.
 3. Run tests; update the generator until the test passes.
+
+## Local CI (act)
+
+Run the Codecov workflow locally with nektos/act:
+```
+act -W .github/workflows/coverage.yml -j coverage
+```
+
+Pass the token if you want to test upload:
+```
+act -W .github/workflows/coverage.yml -j coverage -s CODECOV_TOKEN=your_token_here
+```
+
+If the default image lacks tooling, use the full image:
+```
+act -W .github/workflows/coverage.yml -j coverage -P ubuntu-latest=ghcr.io/catthehacker/ubuntu:full-latest
+```

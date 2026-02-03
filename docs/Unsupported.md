@@ -3,6 +3,7 @@
 Short version: the generator only emits overloads for ordinary methods, and only by omitting a contiguous parameter window. Anything outside that model is not supported.
 
 ## Not supported
+
 - Inheritance/override scenarios (base/derived methods).
 - Constructors, operators, or other non-method members.
 - Overloads that require parameter reordering or non-contiguous omission windows.

@@ -22,9 +22,9 @@
         <Version>0.0.5-rc2</Version>
         <Authors>Tenekon authors and contributors</Authors>
         <Company>Tenekon</Company>
-        <Description>C# source generator that creates extension method overloads by treating a parameter window as optional and emitting legal, unique subsequences.</Description>
+        <Description>C# source generator that creates combinatorial extension method overloads by treating a parameter window as optional and emitting legal, unique subsequences.</Description>
         <PackageTags>source-generator;roslyn;analyzer;csharp;overloads;extension-methods;api-design;fluent;dsl</PackageTags>
-        <PackageReleaseNotes>Initial public release. Generates extension method overloads from a marked optional parameter window, dedupes signatures, and avoids invalid overloads.</PackageReleaseNotes>
+        <PackageReleaseNotes>Initial public release. Generates combinatorial extension method overloads from a marked optional parameter window, dedupes signatures, and avoids invalid overloads.</PackageReleaseNotes>
         <PackageProjectUrl>https://github.com/tenekon/Tenekon.MethodOverloads.SourceGenerator</PackageProjectUrl>
         <RepositoryUrl>https://github.com/tenekon/Tenekon.MethodOverloads.SourceGenerator</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
