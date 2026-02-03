@@ -3,13 +3,13 @@ using Tenekon.MethodOverloads.SourceGenerator;
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeAndName)]
-internal static class Class_29_Matcher
+internal interface Class_29_Matcher
 {
     [GenerateOverloads(nameof(param_2))]
-    internal static extern void Matcher_1(this Class_29_Target source, int param_1, string? param_2);
+    void Matcher_1(Class_29_Target source, int param_1, string? param_2);
 
     [GenerateOverloads(nameof(text))]
-    internal static extern void Matcher_2(int value, string? text);
+    void Matcher_2(int value, string? text);
 }
 
 public sealed class Class_29_Target;

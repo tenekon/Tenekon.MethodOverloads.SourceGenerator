@@ -78,12 +78,25 @@ public enum OverloadVisibility
     Private
 }
 
-[global::System.AttributeUsage(global::System.AttributeTargets.Class | global::System.AttributeTargets.Method)]
+[global::System.AttributeUsage(global::System.AttributeTargets.Class | global::System.AttributeTargets.Struct | global::System.AttributeTargets.Interface | global::System.AttributeTargets.Method)]
 public sealed class OverloadGenerationOptionsAttribute : global::System.Attribute
 {
     public RangeAnchorMatchMode RangeAnchorMatchMode { get; set; }
     public OverloadSubsequenceStrategy SubsequenceStrategy { get; set; }
     public OverloadVisibility OverloadVisibility { get; set; }
+}
+""";
+
+    public const string MatcherUsageAttribute = """
+#nullable enable
+namespace Tenekon.MethodOverloads.SourceGenerator;
+
+[global::System.AttributeUsage(global::System.AttributeTargets.Method, AllowMultiple = true)]
+internal sealed class MatcherUsageAttribute : global::System.Attribute
+{
+    public MatcherUsageAttribute(global::System.Type matcherType, string methodName)
+    {
+    }
 }
 """;
 }

@@ -7,11 +7,11 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 /// Expects overloads only when effective match mode allows.
 /// </summary>
 [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeOnly)]
-internal class Class_7_Matcher
+internal interface Class_7_Matcher
 {
     [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeAndName)]
     [GenerateOverloads(EndExclusive = nameof(param_2))]
-    internal static extern void Matcher_1(bool param_1, CancellationToken param_2);
+    void Matcher_1(bool param_1, CancellationToken param_2);
 }
 
 [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeAndName)]

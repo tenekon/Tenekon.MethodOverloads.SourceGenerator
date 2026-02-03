@@ -2,10 +2,10 @@ using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
-internal class Class_19_Matcher
+internal interface Class_19_Matcher
 {
     [GenerateOverloads(nameof(param_2))]
-    internal static extern void Matcher_1(int param_1, string? param_2);
+    void Matcher_1(int param_1, string? param_2);
 }
 
 /// <summary>

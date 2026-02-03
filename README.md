@@ -60,10 +60,10 @@ public sealed class Customer
     public void Update(string param_1, int param_2) { }
 }
 
-internal static class CustomerMatcher
+internal interface CustomerMatcher
 {
     [GenerateOverloads(nameof(param_2))]
-    internal static extern void Update(string param_1, int param_2);
+    void Update(string param_1, int param_2);
 }
 ```
 
@@ -92,10 +92,10 @@ public static class MathUtils
     public static void Multiply(int param_1, int param_2) { }
 }
 
-internal static class MathMatchers
+internal interface MathMatchers
 {
     [GenerateOverloads(nameof(param_2))]
-    internal static extern void Multiply(int param_1, int param_2);
+    void Multiply(int param_1, int param_2);
 }
 ```
 
@@ -115,7 +115,7 @@ public static class MethodOverloads
 
 ## Key behavior
 - Generates overloads from a contiguous optional window of parameters.
-- Omits only legal subsets (no ref/out/in removal, no empty parameter list).
+- Omits only legal subsets (no ref/out/in removal).
 - Dedupes by signature and never duplicates existing overloads.
 
 See [docs/Generator.md](docs/Generator.md) for full behavior and rules.

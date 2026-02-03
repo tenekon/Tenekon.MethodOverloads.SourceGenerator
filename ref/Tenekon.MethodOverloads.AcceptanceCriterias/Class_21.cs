@@ -13,10 +13,6 @@ public static class Class_21
     [GenerateOverloads(Begin = "missing", End = "also_missing")]
     public static void InvalidAnchors(int value) { }
 
-    // 2) Matcher present but no subsequence matches target.
-    [GenerateOverloads(nameof(m))]
-    public static void MatcherSignature(string m) { }
-
     // 3) Defaults/optional inside window.
     [SuppressMessage("MethodOverloadsGenerator", "MOG003")]
     [GenerateOverloads(nameof(optional))]
@@ -38,13 +34,17 @@ public static class Class_21
     public static void Duplicate(int value, string optional) { }
 
     public static void Duplicate(int value) { }
+
+    [GenerateOverloads]
+    [SuppressMessage("MethodOverloadsGenerator", "MOG011")]
+    public static void Parameterless() { }
 }
 
-internal static class Class_21_Matcher
+internal interface Class_21_Matcher
 {
     [SuppressMessage("MethodOverloadsGenerator", "MOG002")]
     [GenerateOverloads(nameof(m))]
-    internal static void MatcherSignature(int m) { }
+    void MatcherSignature(int m);
 }
 
 [GenerateMethodOverloads(Matchers = [typeof(Class_21_Matcher)])]
@@ -55,6 +55,5 @@ public abstract class Class_21_Matched
 
 public static class Class_21_AcceptanceCriterias
 {
-    // No overloads expected; each case triggers a diagnostic and is skipped.
+    // Diagnostics are expected for the cases above, but MatcherSignature now emits a receiver-only overload.
 }
-

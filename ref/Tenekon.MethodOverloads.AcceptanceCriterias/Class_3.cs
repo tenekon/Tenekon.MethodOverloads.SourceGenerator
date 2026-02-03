@@ -5,10 +5,10 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 /// <summary>
 /// 
 /// </summary>
-internal class Class_3_Matcher
+internal interface Class_3_Matcher
 {
     [GenerateOverloads(EndExclusive = nameof(param_2))]
-    internal static extern void Matcher_2(bool param_1, CancellationToken param_2);
+    void Matcher_2(bool param_1, CancellationToken param_2);
 }
 
 /// <summary>

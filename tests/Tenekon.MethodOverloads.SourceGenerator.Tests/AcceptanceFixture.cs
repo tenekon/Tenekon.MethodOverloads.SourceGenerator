@@ -23,6 +23,7 @@ public sealed class AcceptanceFixture
         var generatedTrees = outputCompilation.SyntaxTrees
             .Where(tree => tree.FilePath.Contains(".g.cs", StringComparison.OrdinalIgnoreCase))
             .ToArray();
+        GeneratedTrees = generatedTrees;
 
         HasGenerateOverloadsAttribute = generatedTrees.Any(tree => tree.ToString().Contains("class GenerateOverloadsAttribute", StringComparison.Ordinal));
         HasGenerateMethodOverloadsAttribute = generatedTrees.Any(tree => tree.ToString().Contains("class GenerateMethodOverloadsAttribute", StringComparison.Ordinal));
@@ -34,6 +35,7 @@ public sealed class AcceptanceFixture
 
     public bool HasGenerateOverloadsAttribute { get; }
     public bool HasGenerateMethodOverloadsAttribute { get; }
+    public IReadOnlyList<SyntaxTree> GeneratedTrees { get; }
     public IReadOnlyList<CaseResult> Cases { get; }
     internal ImmutableArray<AcceptanceTestData.ExpectedDiagnostic> ExpectedDiagnostics { get; }
     public ImmutableArray<Diagnostic> Diagnostics { get; }

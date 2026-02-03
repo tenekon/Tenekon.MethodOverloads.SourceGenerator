@@ -14,6 +14,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
     {
         var matcherHasAnyMatch = new Dictionary<IMethodSymbol, bool>(SymbolEqualityComparer.Default);
         var matcherLocations = new Dictionary<IMethodSymbol, Location?>(SymbolEqualityComparer.Default);
+        var matchedMatchersByTarget = new Dictionary<IMethodSymbol, HashSet<IMethodSymbol>>(SymbolEqualityComparer.Default);
 
         foreach (var pair in _typeContexts)
         {
@@ -57,6 +58,16 @@ internal sealed partial class MethodOverloadsGeneratorCore
                     {
                         _matcherTypes.Add(matcher);
                     }
+                }
+
+                if (hasMethodGenerateOverloads && method.Parameters.Length == 0)
+                {
+                    var location = methodGenerateOverloads?.ApplicationSyntaxReference?.GetSyntax().GetLocation()
+                        ?? (methodSyntax is not null ? GetGenerateOverloadsAttributeLocation(methodSyntax) : null)
+                        ?? methodSyntax?.Identifier.GetLocation()
+                        ?? method.Locations.FirstOrDefault();
+                    Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, method.Name);
+                    continue;
                 }
 
                 var useMethodMatchers = methodMatchers.Length > 0;
@@ -207,6 +218,16 @@ internal sealed partial class MethodOverloadsGeneratorCore
                                 continue;
                             }
 
+                            if (matcherMethod.Parameters.Length == 0)
+                            {
+                                var location = matcherGenerateOverloads?.ApplicationSyntaxReference?.GetSyntax().GetLocation()
+                                    ?? (matcherMethodSyntax is not null ? GetGenerateOverloadsAttributeLocation(matcherMethodSyntax) : null)
+                                    ?? matcherMethodSyntax?.Identifier.GetLocation()
+                                    ?? matcherMethod.Locations.FirstOrDefault();
+                                Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, matcherMethod.Name);
+                                continue;
+                            }
+
                             if (!matcherHasAnyMatch.ContainsKey(matcherMethod))
                             {
                                 matcherHasAnyMatch[matcherMethod] = false;
@@ -221,6 +242,23 @@ internal sealed partial class MethodOverloadsGeneratorCore
                             }
 
                             matcherHasAnyMatch[matcherMethod] = true;
+
+                            if (!matchedMatchersByTarget.TryGetValue(method, out var matchedMatchers))
+                            {
+                                matchedMatchers = new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default);
+                                matchedMatchersByTarget[method] = matchedMatchers;
+                            }
+
+                            matchedMatchers.Add(matcherMethod);
+
+                            var namespaceName = method.ContainingType.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+                            if (!_matchedMatchersByNamespace.TryGetValue(namespaceName, out var matchedByNamespace))
+                            {
+                                matchedByNamespace = new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default);
+                                _matchedMatchersByNamespace[namespaceName] = matchedByNamespace;
+                            }
+
+                            matchedByNamespace.Add(matcherMethod);
 
                             foreach (var match in matches)
                             {
@@ -351,7 +389,8 @@ internal sealed partial class MethodOverloadsGeneratorCore
                     ApplyOptions(options, syntaxOptions);
                 }
 
-                foreach (var generated in GenerateOverloadsForMethod(method, windowSpecs, options))
+                matchedMatchersByTarget.TryGetValue(method, out var matchedMatcherMethods);
+                foreach (var generated in GenerateOverloadsForMethod(method, windowSpecs, options, matchedMatcherMethods))
                 {
                     if (!_methodsByNamespace.TryGetValue(generated.Namespace, out var list))
                     {
@@ -381,7 +420,8 @@ internal sealed partial class MethodOverloadsGeneratorCore
     private IEnumerable<GeneratedMethod> GenerateOverloadsForMethod(
         IMethodSymbol method,
         List<WindowSpec> windowSpecs,
-        GenerationOptions options)
+        GenerationOptions options,
+        IReadOnlyCollection<IMethodSymbol>? matchedMatcherMethods)
     {
         var signatureKeys = new HashSet<string>(StringComparer.Ordinal);
         var existingKeys = BuildExistingMethodKeys(method.ContainingType, method.Name);
@@ -449,11 +489,6 @@ internal sealed partial class MethodOverloadsGeneratorCore
                     .Where((_, index) => Array.IndexOf(omittedIndices, index) < 0)
                     .ToArray();
 
-                if (keptParameters.Length == 0)
-                {
-                    continue;
-                }
-
                 var key = BuildSignatureKey(method.Name, method.TypeParameters.Length, keptParameters);
                 if (!signatureKeys.Add(key))
                 {
@@ -475,7 +510,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
                     continue;
                 }
 
-                yield return new GeneratedMethod(method, keptParameters, omittedParameters, options.OverloadVisibility);
+                yield return new GeneratedMethod(method, keptParameters, omittedParameters, options.OverloadVisibility, matchedMatcherMethods);
             }
         }
     }

@@ -67,7 +67,6 @@ Given a window:
   - UniqueBySignature -> all unique non-empty omission subsets
 - Skip any omission set that:
   - Removes any ref, out, or in parameter
-  - Produces an empty parameter list
   - Is redundant because omitted parameters already have defaults
 - Skip entire method if:
   - Any parameter inside the optional window already has defaults

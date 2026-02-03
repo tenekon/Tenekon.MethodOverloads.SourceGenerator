@@ -2,10 +2,10 @@ using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
-internal static class Class_24_Matcher
+internal interface Class_24_Matcher
 {
     [GenerateOverloads(nameof(param_2))]
-    internal static extern void Matcher_1(int param_1, string? param_2);
+    void Matcher_1(int param_1, string? param_2);
 }
 
 /// <summary>
@@ -29,7 +29,6 @@ public interface Class_24_InterfaceTarget
     void Case_1(int param_1, string? param_2);
 }
 
-[System.Diagnostics.CodeAnalysis.SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 public static class Class_24_AcceptanceCriterias
 {
     public static void Case_1(this Class_24_ClassTarget source, int param_1) =>

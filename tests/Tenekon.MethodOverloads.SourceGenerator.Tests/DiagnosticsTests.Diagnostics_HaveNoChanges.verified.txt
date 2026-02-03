@@ -78,5 +78,13 @@
     Category: MethodOverloadsGenerator,
     DefaultSeverity: 3,
     IsEnabledByDefault: true
+  },
+  {
+    Id: MOG011,
+    Title: Parameterless method cannot generate overloads,
+    MessageFormat: Method '{0}' has no parameters; overload generation requires at least one parameter,
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 2,
+    IsEnabledByDefault: true
   }
 ]

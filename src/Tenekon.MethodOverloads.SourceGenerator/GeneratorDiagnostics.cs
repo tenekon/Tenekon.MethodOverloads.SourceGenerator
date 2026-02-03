@@ -83,4 +83,12 @@ internal static class GeneratorDiagnostics
         category: "MethodOverloadsGenerator",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor ParameterlessTargetMethod = new(
+        id: "MOG011",
+        title: "Parameterless method cannot generate overloads",
+        messageFormat: "Method '{0}' has no parameters; overload generation requires at least one parameter",
+        category: "MethodOverloadsGenerator",
+        defaultSeverity: DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
 }

@@ -18,6 +18,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
     private readonly Dictionary<INamedTypeSymbol, TypeContext> _typeContexts;
     private readonly Dictionary<string, List<GeneratedMethod>> _methodsByNamespace;
     private readonly HashSet<INamedTypeSymbol> _matcherTypes;
+    private readonly Dictionary<string, HashSet<IMethodSymbol>> _matchedMatchersByNamespace;
 
     public MethodOverloadsGeneratorCore(Compilation compilation, SourceProductionContext context)
     {
@@ -26,6 +27,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
         _typeContexts = new Dictionary<INamedTypeSymbol, TypeContext>(SymbolEqualityComparer.Default);
         _methodsByNamespace = new Dictionary<string, List<GeneratedMethod>>(StringComparer.Ordinal);
         _matcherTypes = new HashSet<INamedTypeSymbol>(SymbolEqualityComparer.Default);
+        _matchedMatchersByNamespace = new Dictionary<string, HashSet<IMethodSymbol>>(StringComparer.Ordinal);
     }
 
     public void Execute()

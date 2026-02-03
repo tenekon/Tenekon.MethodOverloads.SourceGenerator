@@ -2,13 +2,13 @@ using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
-internal class Class_4_Matcher
+internal interface Class_4_Matcher
 {
     [GenerateOverloads(EndExclusive = nameof(param_2))]
-    internal static extern void Matcher_2(bool param_1, CancellationToken param_2);
+    void Matcher_2(bool param_1, CancellationToken param_2);
     
     [GenerateOverloads(EndExclusive = nameof(param_2))]
-    internal static extern void Matcher_2(string? param_1, bool param_2, CancellationToken param_3);
+    void Matcher_2(string? param_1, bool param_2, CancellationToken param_3);
 }
 
 /// <summary>

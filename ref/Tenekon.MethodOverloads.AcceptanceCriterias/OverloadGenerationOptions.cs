@@ -1,4 +1,5 @@
 // ReSharper disable once CheckNamespace
+
 namespace Tenekon.MethodOverloads.SourceGenerator;
 
 public enum RangeAnchorMatchMode
@@ -23,12 +24,12 @@ public enum OverloadVisibility
     // Private // Reserved
 }
 
-[AttributeUsage(AttributeTargets.Class | AttributeTargets.Method)]
+[AttributeUsage(
+    AttributeTargets.Method | AttributeTargets.Class | AttributeTargets.Class | AttributeTargets.Interface
+    | AttributeTargets.Struct)]
 public class OverloadGenerationOptionsAttribute : Attribute
 {
     public RangeAnchorMatchMode RangeAnchorMatchMode { get; set; }
     public OverloadSubsequenceStrategy SubsequenceStrategy { get; set; }
     public OverloadVisibility OverloadVisibility { get; set; }
 }
-
-

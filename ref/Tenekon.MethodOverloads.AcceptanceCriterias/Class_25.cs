@@ -3,11 +3,11 @@ using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
-internal static class Class_25_MatcherUnused
+internal interface Class_25_MatcherUnused
 {
     [SuppressMessage("MethodOverloadsGenerator", "MOG002")]
     [GenerateOverloads(nameof(param_1))]
-    internal static extern void Matcher_1(Guid param_1);
+    void Matcher_1(Guid param_1);
 }
 
 /// <summary>
@@ -28,14 +28,14 @@ public sealed class Class_25_MixedTarget
     public void Case_1(int param_1, string? param_2, bool param_3) { }
 }
 
-internal static class Class_25_MatcherMixed
+internal interface Class_25_MatcherMixed
 {
     [GenerateOverloads(nameof(param_2))]
-    internal static extern void Matcher_1(int param_1, string? param_2);
+    void Matcher_1(int param_1, string? param_2);
 
     [SuppressMessage("MethodOverloadsGenerator", "MOG002")]
     [GenerateOverloads(nameof(param_1))]
-    internal static extern void Matcher_2(Guid param_1);
+    void Matcher_2(Guid param_1);
 }
 
 /// <summary>

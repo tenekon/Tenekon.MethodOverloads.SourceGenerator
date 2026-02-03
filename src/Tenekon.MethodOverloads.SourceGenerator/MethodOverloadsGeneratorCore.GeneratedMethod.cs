@@ -14,13 +14,20 @@ internal sealed partial class MethodOverloadsGeneratorCore
         private readonly IParameterSymbol[] _keptParameters;
         private readonly IParameterSymbol[] _omittedParameters;
         private readonly OverloadVisibility _overloadVisibility;
+        private readonly IMethodSymbol[] _matchedMatcherMethods;
 
-        public GeneratedMethod(IMethodSymbol method, IParameterSymbol[] keptParameters, IParameterSymbol[] omittedParameters, OverloadVisibility overloadVisibility)
+        public GeneratedMethod(
+            IMethodSymbol method,
+            IParameterSymbol[] keptParameters,
+            IParameterSymbol[] omittedParameters,
+            OverloadVisibility overloadVisibility,
+            IReadOnlyCollection<IMethodSymbol>? matchedMatcherMethods)
         {
             _method = method;
             _keptParameters = keptParameters;
             _omittedParameters = omittedParameters;
             _overloadVisibility = overloadVisibility;
+            _matchedMatcherMethods = NormalizeMatchedMatcherMethods(matchedMatcherMethods);
 
             Namespace = method.ContainingType.ContainingNamespace?.ToDisplayString() ?? string.Empty;
         }
@@ -51,6 +58,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 ? _method.ContainingType.ToDisplayString(TypeDisplayFormat)
                 : receiverName;
 
+            AppendMatcherUsageAttributes(builder, "    ");
             builder.Append("    ").Append(accessibility).Append(" static ").Append(returnType).Append(" ")
                 .Append(_method.Name).Append(typeParams).Append("(");
 
@@ -89,6 +97,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
             builder.AppendLine("    extension(" + receiverType + ")");
             builder.AppendLine("    {");
+            AppendMatcherUsageAttributes(builder, "        ");
             builder.Append("        ").Append(accessibility).Append(" static ").Append(returnType).Append(" ")
                 .Append(_method.Name).Append(typeParams).Append("(");
 
@@ -116,6 +125,56 @@ internal sealed partial class MethodOverloadsGeneratorCore
             builder.Append("    }");
 
             return builder.ToString();
+        }
+        private void AppendMatcherUsageAttributes(StringBuilder builder, string indent)
+        {
+            if (_matchedMatcherMethods.Length == 0)
+            {
+                return;
+            }
+
+            foreach (var matcherMethod in _matchedMatcherMethods)
+            {
+                var matcherType = matcherMethod.ContainingType.ToDisplayString(TypeDisplayFormat);
+                builder.Append(indent)
+                    .Append("[global::Tenekon.MethodOverloads.SourceGenerator.MatcherUsageAttribute(typeof(")
+                    .Append(matcherType)
+                    .Append("), nameof(")
+                    .Append(matcherType)
+                    .Append(".")
+                    .Append(matcherMethod.Name)
+                    .Append("))]")
+                    .AppendLine();
+            }
+        }
+        internal static IMethodSymbol[] NormalizeMatchedMatcherMethods(IReadOnlyCollection<IMethodSymbol>? matchedMatcherMethods)
+        {
+            if (matchedMatcherMethods is null || matchedMatcherMethods.Count == 0)
+            {
+                return Array.Empty<IMethodSymbol>();
+            }
+
+            return matchedMatcherMethods
+                .Distinct(MethodSymbolComparer.Instance)
+                .OrderBy(method => method.ContainingType?.ToDisplayString(TypeDisplayFormat) ?? string.Empty, StringComparer.Ordinal)
+                .ThenBy(method => method.Name, StringComparer.Ordinal)
+                .ThenBy(method => method.Parameters.Length)
+                .ToArray();
+        }
+
+        private sealed class MethodSymbolComparer : IEqualityComparer<IMethodSymbol>
+        {
+            public static readonly MethodSymbolComparer Instance = new();
+
+            public bool Equals(IMethodSymbol? x, IMethodSymbol? y)
+            {
+                return SymbolEqualityComparer.Default.Equals(x, y);
+            }
+
+            public int GetHashCode(IMethodSymbol obj)
+            {
+                return SymbolEqualityComparer.Default.GetHashCode(obj);
+            }
         }
 
         private string RenderInvocation(string receiver)

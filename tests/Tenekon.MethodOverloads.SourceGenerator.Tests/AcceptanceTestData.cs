@@ -17,7 +17,7 @@ internal static class AcceptanceTestData
     public static ImmutableArray<SourceFile> LoadReferenceSources()
     {
         var refFolder = Path.Combine(RepoRoot, "ref", "Tenekon.MethodOverloads.AcceptanceCriterias");
-        var files = Directory.GetFiles(refFolder, "*.cs", SearchOption.TopDirectoryOnly)
+        var files = Directory.GetFiles(refFolder, "*.cs", SearchOption.AllDirectories)
             .Where(path => !path.EndsWith(".g.cs", StringComparison.OrdinalIgnoreCase))
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();

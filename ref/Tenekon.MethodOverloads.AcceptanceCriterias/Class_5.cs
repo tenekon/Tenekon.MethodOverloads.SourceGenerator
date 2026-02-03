@@ -8,15 +8,15 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 /// Expects overloads only when the selected match mode fits.
 /// </summary>
 [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeOnly)]
-internal class Class_5_Matcher
+internal interface Class_5_Matcher
 {
     [GenerateOverloads(EndExclusive = nameof(param_2))]
-    internal static extern void Matcher_1(bool param_1, CancellationToken param_2);
+    void Matcher_1(bool param_1, CancellationToken param_2);
 
     [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeAndName)]
     [SuppressMessage("MethodOverloadsGenerator", "MOG002")]
     [GenerateOverloads(EndExclusive = nameof(param_2))]
-    internal static extern void Matcher_2(string? param_1, bool param_2, CancellationToken param_3);
+    void Matcher_2(string? param_1, bool param_2, CancellationToken param_3);
 }
 
 [GenerateMethodOverloads(Matchers = [typeof(Class_5_Matcher)])]
