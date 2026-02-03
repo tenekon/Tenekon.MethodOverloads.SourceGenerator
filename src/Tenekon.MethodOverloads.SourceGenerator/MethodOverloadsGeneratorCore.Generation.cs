@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using System.Text;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Tenekon.MethodOverloads.SourceGenerator;
 
@@ -12,71 +11,96 @@ internal sealed partial class MethodOverloadsGeneratorCore
     /// </summary>
     private void GenerateMethods()
     {
-        var matcherHasAnyMatch = new Dictionary<IMethodSymbol, bool>(SymbolEqualityComparer.Default);
-        var matcherLocations = new Dictionary<IMethodSymbol, Location?>(SymbolEqualityComparer.Default);
-        var matchedMatchersByTarget = new Dictionary<IMethodSymbol, HashSet<IMethodSymbol>>(SymbolEqualityComparer.Default);
+        var matcherHasAnyMatch = new Dictionary<MatcherMethodReference, bool>();
+        var matcherLocations = new Dictionary<MatcherMethodReference, SourceLocationModel?>();
+        var matchedMatchersByTarget = new Dictionary<string, HashSet<MatcherMethodReference>>(StringComparer.Ordinal);
 
-        foreach (var pair in _typeContexts)
+        var methodTargetsByKey = _input.MethodTargets.Items.ToDictionary(
+            target => BuildMethodIdentityKey(target.Method),
+            target => target,
+            StringComparer.Ordinal);
+
+        var candidateMethods = new Dictionary<string, MethodModel>(StringComparer.Ordinal);
+        foreach (var typeTarget in _input.TypeTargets.Items)
         {
-            var typeSymbol = pair.Key;
-            var typeContext = pair.Value;
-
-            foreach (var method in typeContext.Methods)
+            foreach (var method in typeTarget.Type.Methods.Items)
             {
-                if (method.MethodKind != MethodKind.Ordinary)
+                var key = BuildMethodIdentityKey(method);
+                if (!candidateMethods.ContainsKey(key))
                 {
-                    continue;
+                    candidateMethods[key] = method;
                 }
+            }
+        }
 
-                if (_matcherTypes.Contains(method.ContainingType))
+        foreach (var methodTarget in _input.MethodTargets.Items)
+        {
+            var key = BuildMethodIdentityKey(methodTarget.Method);
+            if (!candidateMethods.ContainsKey(key))
+            {
+                candidateMethods[key] = methodTarget.Method;
+            }
+        }
+
+        foreach (var method in candidateMethods.Values)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            if (!method.IsOrdinary)
+            {
+                continue;
+            }
+
+            if (_matcherTypeDisplays.Contains(method.ContainingTypeDisplay))
+            {
+                continue;
+            }
+
+            if (method.DeclaredAccessibility == Accessibility.Private ||
+                method.DeclaredAccessibility == Accessibility.Protected)
+            {
+                continue;
+            }
+
+            _typeTargetsByDisplay.TryGetValue(method.ContainingTypeDisplay, out var typeTarget);
+            methodTargetsByKey.TryGetValue(BuildMethodIdentityKey(method), out var methodTarget);
+
+            var hasTypeGenerate = typeTarget.HasGenerateMethodOverloads;
+            var hasMethodGenerate = methodTarget.HasGenerateOverloads;
+
+            if (!hasTypeGenerate && !hasMethodGenerate)
+            {
+                continue;
+            }
+
+            var windowSpecs = new List<WindowSpec>();
+            var methodMatchers = EquatableArray<string>.Empty;
+
+            if (hasMethodGenerate)
+            {
+                methodMatchers = methodTarget.MatcherTypeDisplays;
+            }
+
+            if (hasMethodGenerate && method.Parameters.Items.Length == 0)
+            {
+                var location = methodTarget.GenerateArgsFromAttribute?.AttributeLocation
+                    ?? methodTarget.GenerateArgsFromSyntax?.SyntaxAttributeLocation
+                    ?? method.IdentifierLocation;
+                Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, method.Name);
+                continue;
+            }
+
+            var useMethodMatchers = methodMatchers.Items.Length > 0;
+            var useDirectGenerateOverloads = hasMethodGenerate && !useMethodMatchers;
+            var useTypeMatchers = !hasMethodGenerate && hasTypeGenerate;
+
+            if (useDirectGenerateOverloads)
+            {
+                if (methodTarget.GenerateArgsFromAttribute is not null)
                 {
-                    continue;
-                }
-
-                if (method.DeclaredAccessibility == Accessibility.Private ||
-                    method.DeclaredAccessibility == Accessibility.Protected)
-                {
-                    continue;
-                }
-
-                var methodGenerateOverloads = GetAttribute(method, GenerateOverloadsAttributeName);
-                typeContext.MethodSyntax.TryGetValue(method, out var methodSyntax);
-                var hasGenerateOverloadsSyntax = methodSyntax is not null && HasAttribute(methodSyntax, "GenerateOverloads");
-                var hasMethodGenerateOverloads = methodGenerateOverloads is not null || hasGenerateOverloadsSyntax;
-
-                if (!typeContext.HasGenerateMethodOverloads && !hasMethodGenerateOverloads)
-                {
-                    continue;
-                }
-
-                var windowSpecs = new List<WindowSpec>();
-                ImmutableArray<INamedTypeSymbol> methodMatchers = ImmutableArray<INamedTypeSymbol>.Empty;
-                if (hasMethodGenerateOverloads && methodSyntax is not null)
-                {
-                    methodMatchers = ExtractMatchers(methodGenerateOverloads, methodSyntax);
-                    foreach (var matcher in methodMatchers)
-                    {
-                        _matcherTypes.Add(matcher);
-                    }
-                }
-
-                if (hasMethodGenerateOverloads && method.Parameters.Length == 0)
-                {
-                    var location = methodGenerateOverloads?.ApplicationSyntaxReference?.GetSyntax().GetLocation()
-                        ?? (methodSyntax is not null ? GetGenerateOverloadsAttributeLocation(methodSyntax) : null)
-                        ?? methodSyntax?.Identifier.GetLocation()
-                        ?? method.Locations.FirstOrDefault();
-                    Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, method.Name);
-                    continue;
-                }
-
-                var useMethodMatchers = methodMatchers.Length > 0;
-                var useDirectGenerateOverloads = hasMethodGenerateOverloads && !useMethodMatchers;
-                var useTypeMatchers = !hasMethodGenerateOverloads && typeContext.HasGenerateMethodOverloads;
-
-                if (useDirectGenerateOverloads && methodGenerateOverloads is not null)
-                {
-                    if (TryCreateWindowSpec(method, methodGenerateOverloads, out var windowSpecFromAttribute, out var windowFailureFromAttribute))
+                    if (TryCreateWindowSpecFromArgs(method, method, methodTarget.GenerateArgsFromAttribute.Value,
+                            ParameterMatch.Identity(method.Parameters.Items.Length),
+                            out var windowSpecFromAttribute, out var windowFailureFromAttribute))
                     {
                         var groupKey = "direct:" + BuildMethodGroupKey(method);
                         windowSpecs.Add(new WindowSpec(windowSpecFromAttribute.StartIndex, windowSpecFromAttribute.EndIndex, groupKey));
@@ -85,56 +109,21 @@ internal sealed partial class MethodOverloadsGeneratorCore
                         {
                             Report(
                                 GeneratorDiagnostics.RedundantBeginEndAnchors,
-                                methodGenerateOverloads.ApplicationSyntaxReference?.GetSyntax().GetLocation()
-                                    ?? methodSyntax?.Identifier.GetLocation()
-                                    ?? method.Locations.FirstOrDefault(),
+                                methodTarget.GenerateArgsFromAttribute.Value.AttributeLocation
+                                ?? method.IdentifierLocation,
                                 method.Name);
                         }
                     }
-                    else if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.MissingAnchor)
+                    else
                     {
-                        Report(
-                            GeneratorDiagnostics.InvalidWindowAnchor,
-                            methodSyntax?.Identifier.GetLocation() ?? method.Locations.FirstOrDefault(),
-                            windowFailureFromAttribute.AnchorKind ?? "anchor",
-                            windowFailureFromAttribute.AnchorValue ?? string.Empty);
-                    }
-                    else if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.ConflictingAnchors)
-                    {
-                        Report(
-                            GeneratorDiagnostics.ConflictingWindowAnchors,
-                            methodSyntax?.Identifier.GetLocation() ?? method.Locations.FirstOrDefault(),
-                            method.Name);
-                    }
-                    else if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.RedundantAnchors)
-                    {
-                        Report(
-                            GeneratorDiagnostics.RedundantBeginEndAnchors,
-                            methodSyntax?.Identifier.GetLocation() ?? method.Locations.FirstOrDefault(),
-                            method.Name);
-                    }
-                    else if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.ConflictingBeginAnchors)
-                    {
-                        Report(
-                            GeneratorDiagnostics.BeginAndBeginExclusiveConflict,
-                            methodGenerateOverloads.ApplicationSyntaxReference?.GetSyntax().GetLocation()
-                                ?? methodSyntax?.Identifier.GetLocation()
-                                ?? method.Locations.FirstOrDefault(),
-                            method.Name);
-                    }
-                    else if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.ConflictingEndAnchors)
-                    {
-                        Report(
-                            GeneratorDiagnostics.EndAndEndExclusiveConflict,
-                            methodGenerateOverloads.ApplicationSyntaxReference?.GetSyntax().GetLocation()
-                                ?? methodSyntax?.Identifier.GetLocation()
-                                ?? method.Locations.FirstOrDefault(),
-                            method.Name);
+                        ReportWindowFailure(windowFailureFromAttribute, methodTarget.GenerateArgsFromAttribute.Value, method.Name);
                     }
                 }
-                else if (useDirectGenerateOverloads && methodSyntax is not null)
+                else if (methodTarget.GenerateArgsFromSyntax is not null)
                 {
-                    if (TryCreateWindowSpecFromSyntax(method, methodSyntax, out var windowSpecFromSyntax, out var windowFailureFromSyntax))
+                    if (TryCreateWindowSpecFromArgs(method, method, methodTarget.GenerateArgsFromSyntax.Value,
+                            ParameterMatch.Identity(method.Parameters.Items.Length),
+                            out var windowSpecFromSyntax, out var windowFailureFromSyntax))
                     {
                         var groupKey = "direct:" + BuildMethodGroupKey(method);
                         windowSpecs.Add(new WindowSpec(windowSpecFromSyntax.StartIndex, windowSpecFromSyntax.EndIndex, groupKey));
@@ -143,263 +132,136 @@ internal sealed partial class MethodOverloadsGeneratorCore
                         {
                             Report(
                                 GeneratorDiagnostics.RedundantBeginEndAnchors,
-                                GetGenerateOverloadsAttributeLocation(methodSyntax)
-                                    ?? methodSyntax.Identifier.GetLocation(),
+                                methodTarget.GenerateArgsFromSyntax.Value.SyntaxAttributeLocation
+                                ?? method.IdentifierLocation,
                                 method.Name);
                         }
                     }
-                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.MissingAnchor)
+                    else
                     {
-                        Report(
-                            GeneratorDiagnostics.InvalidWindowAnchor,
-                            methodSyntax.Identifier.GetLocation(),
-                            windowFailureFromSyntax.AnchorKind ?? "anchor",
-                            windowFailureFromSyntax.AnchorValue ?? string.Empty);
-                    }
-                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.ConflictingAnchors)
-                    {
-                        Report(
-                            GeneratorDiagnostics.ConflictingWindowAnchors,
-                            methodSyntax.Identifier.GetLocation(),
-                            method.Name);
-                    }
-                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.RedundantAnchors)
-                    {
-                        Report(
-                            GeneratorDiagnostics.RedundantBeginEndAnchors,
-                            methodSyntax.Identifier.GetLocation(),
-                            method.Name);
-                    }
-                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.ConflictingBeginAnchors)
-                    {
-                        Report(
-                            GeneratorDiagnostics.BeginAndBeginExclusiveConflict,
-                            GetGenerateOverloadsAttributeLocation(methodSyntax)
-                                ?? methodSyntax.Identifier.GetLocation(),
-                            method.Name);
-                    }
-                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.ConflictingEndAnchors)
-                    {
-                        Report(
-                            GeneratorDiagnostics.EndAndEndExclusiveConflict,
-                            GetGenerateOverloadsAttributeLocation(methodSyntax)
-                                ?? methodSyntax.Identifier.GetLocation(),
-                            method.Name);
+                        ReportWindowFailure(windowFailureFromSyntax, methodTarget.GenerateArgsFromSyntax.Value, method.Name);
                     }
                 }
+            }
 
-                if (useMethodMatchers || useTypeMatchers)
+            if (useMethodMatchers || useTypeMatchers)
+            {
+                var matcherTypes = useMethodMatchers ? methodMatchers : typeTarget.MatcherTypeDisplays;
+                foreach (var matcherTypeDisplay in matcherTypes.Items)
                 {
-                    var matcherTypes = useMethodMatchers ? methodMatchers : typeContext.MatcherTypes;
-                    foreach (var matcherType in matcherTypes)
+                    if (!_matcherTypesByDisplay.TryGetValue(matcherTypeDisplay, out var matcherType))
                     {
-                        var matcherMethods = matcherType.GetMembers().OfType<IMethodSymbol>()
-                            .Where(m => m.MethodKind == MethodKind.Ordinary)
-                            .Where(m =>
-                            {
-                                var generate = GetAttribute(m, GenerateOverloadsAttributeName);
-                                if (generate is not null)
-                                {
-                                    return true;
-                                }
+                        continue;
+                    }
 
-                                var syntax = m.DeclaringSyntaxReferences.Select(r => r.GetSyntax()).OfType<MethodDeclarationSyntax>().FirstOrDefault();
-                                return syntax is not null && HasAttribute(syntax, "GenerateOverloads");
-                            })
-                            .ToArray();
-
-                        foreach (var matcherMethod in SelectMatcherMethods(matcherMethods, method.Parameters.Length))
+                    foreach (var matcherMethod in SelectMatcherMethods(matcherType.MatcherMethods, method.Parameters.Items.Length))
+                    {
+                        var matcherMethodModel = matcherMethod.Method;
+                        if (!matcherMethodModel.IsOrdinary)
                         {
-                            var matcherGenerateOverloads = GetAttribute(matcherMethod, GenerateOverloadsAttributeName);
-                            var matcherMethodSyntax = matcherMethod.DeclaringSyntaxReferences.Select(r => r.GetSyntax()).OfType<MethodDeclarationSyntax>().FirstOrDefault();
-                            var hasMatcherGenerateOverloadsSyntax = matcherMethodSyntax is not null && HasAttribute(matcherMethodSyntax, "GenerateOverloads");
-                            if (matcherGenerateOverloads is null && !hasMatcherGenerateOverloadsSyntax)
+                            continue;
+                        }
+
+                        if (matcherMethodModel.Parameters.Items.Length == 0)
+                        {
+                            var location = matcherMethod.GenerateArgsFromAttribute?.AttributeLocation
+                                ?? matcherMethod.GenerateArgsFromSyntax?.SyntaxAttributeLocation
+                                ?? matcherMethodModel.IdentifierLocation;
+                            Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, matcherMethodModel.Name);
+                            continue;
+                        }
+
+                        var matcherRef = new MatcherMethodReference(
+                            matcherMethodModel.ContainingTypeDisplay,
+                            matcherMethodModel.Name,
+                            matcherMethodModel.Parameters.Items.Length,
+                            matcherMethodModel.ContainingNamespace);
+
+                        if (!matcherHasAnyMatch.ContainsKey(matcherRef))
+                        {
+                            matcherHasAnyMatch[matcherRef] = false;
+                            matcherLocations[matcherRef] = matcherMethodModel.IdentifierLocation;
+                        }
+
+                        var groupKey = "matcher:" + BuildMethodGroupKey(matcherMethodModel);
+                        var matches = FindSubsequenceMatches(matcherMethodModel, method).ToArray();
+                        if (matches.Length == 0)
+                        {
+                            continue;
+                        }
+
+                        matcherHasAnyMatch[matcherRef] = true;
+
+                        var targetKey = BuildMethodIdentityKey(method);
+                        if (!matchedMatchersByTarget.TryGetValue(targetKey, out var matchedMatchers))
+                        {
+                            matchedMatchers = [];
+                            matchedMatchersByTarget[targetKey] = matchedMatchers;
+                        }
+
+                        matchedMatchers.Add(matcherRef);
+
+                        if (!_matchedMatchersByNamespace.TryGetValue(method.ContainingNamespace, out var matchedByNamespace))
+                        {
+                            matchedByNamespace = [];
+                            _matchedMatchersByNamespace[method.ContainingNamespace] = matchedByNamespace;
+                        }
+
+                        matchedByNamespace.Add(matcherRef);
+
+                        foreach (var match in matches)
+                        {
+                            var args = matcherMethod.GenerateArgsFromAttribute ?? matcherMethod.GenerateArgsFromSyntax;
+                            if (args is null)
                             {
                                 continue;
                             }
 
-                            if (matcherMethod.Parameters.Length == 0)
+                            if (TryCreateWindowSpecFromArgs(method, matcherMethodModel, args.Value, match,
+                                    out var windowSpec, out var windowFailure))
                             {
-                                var location = matcherGenerateOverloads?.ApplicationSyntaxReference?.GetSyntax().GetLocation()
-                                    ?? (matcherMethodSyntax is not null ? GetGenerateOverloadsAttributeLocation(matcherMethodSyntax) : null)
-                                    ?? matcherMethodSyntax?.Identifier.GetLocation()
-                                    ?? matcherMethod.Locations.FirstOrDefault();
-                                Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, matcherMethod.Name);
-                                continue;
-                            }
+                                windowSpecs.Add(new WindowSpec(windowSpec.StartIndex, windowSpec.EndIndex, groupKey));
 
-                            if (!matcherHasAnyMatch.ContainsKey(matcherMethod))
-                            {
-                                matcherHasAnyMatch[matcherMethod] = false;
-                                matcherLocations[matcherMethod] = matcherMethodSyntax?.Identifier.GetLocation() ?? matcherMethod.Locations.FirstOrDefault();
-                            }
-
-                            var groupKey = "matcher:" + BuildMethodGroupKey(matcherMethod);
-                            var matches = FindSubsequenceMatches(matcherMethod, method).ToArray();
-                            if (matches.Length == 0)
-                            {
-                                continue;
-                            }
-
-                            matcherHasAnyMatch[matcherMethod] = true;
-
-                            if (!matchedMatchersByTarget.TryGetValue(method, out var matchedMatchers))
-                            {
-                                matchedMatchers = new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default);
-                                matchedMatchersByTarget[method] = matchedMatchers;
-                            }
-
-                            matchedMatchers.Add(matcherMethod);
-
-                            var namespaceName = method.ContainingType.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-                            if (!_matchedMatchersByNamespace.TryGetValue(namespaceName, out var matchedByNamespace))
-                            {
-                                matchedByNamespace = new HashSet<IMethodSymbol>(SymbolEqualityComparer.Default);
-                                _matchedMatchersByNamespace[namespaceName] = matchedByNamespace;
-                            }
-
-                            matchedByNamespace.Add(matcherMethod);
-
-                            foreach (var match in matches)
-                            {
-                                if (matcherGenerateOverloads is not null)
+                                if (windowFailure.Kind == WindowSpecFailureKind.RedundantAnchors)
                                 {
-                                    if (TryCreateWindowSpec(method, matcherMethod, matcherGenerateOverloads, match, out var windowSpec, out var windowFailure))
-                                    {
-                                        windowSpecs.Add(new WindowSpec(windowSpec.StartIndex, windowSpec.EndIndex, groupKey));
-
-                                        if (windowFailure.Kind == WindowSpecFailureKind.RedundantAnchors)
-                                        {
-                                            Report(
-                                                GeneratorDiagnostics.RedundantBeginEndAnchors,
-                                                matcherGenerateOverloads.ApplicationSyntaxReference?.GetSyntax().GetLocation()
-                                                    ?? matcherMethodSyntax?.Identifier.GetLocation()
-                                                    ?? matcherMethod.Locations.FirstOrDefault(),
-                                                matcherMethod.Name);
-                                        }
-                                    }
-                                    else if (windowFailure.Kind == WindowSpecFailureKind.MissingAnchor)
-                                    {
-                                        Report(
-                                            GeneratorDiagnostics.InvalidWindowAnchor,
-                                            matcherMethodSyntax?.Identifier.GetLocation() ?? matcherMethod.Locations.FirstOrDefault(),
-                                            windowFailure.AnchorKind ?? "anchor",
-                                            windowFailure.AnchorValue ?? string.Empty);
-                                    }
-                                    else if (windowFailure.Kind == WindowSpecFailureKind.ConflictingAnchors)
-                                    {
-                                        Report(
-                                            GeneratorDiagnostics.ConflictingWindowAnchors,
-                                            matcherMethodSyntax?.Identifier.GetLocation() ?? matcherMethod.Locations.FirstOrDefault(),
-                                            matcherMethod.Name);
-                                    }
-                                    else if (windowFailure.Kind == WindowSpecFailureKind.RedundantAnchors)
-                                    {
-                                        Report(
-                                            GeneratorDiagnostics.RedundantBeginEndAnchors,
-                                            matcherMethodSyntax?.Identifier.GetLocation() ?? matcherMethod.Locations.FirstOrDefault(),
-                                            matcherMethod.Name);
-                                    }
-                                    else if (windowFailure.Kind == WindowSpecFailureKind.ConflictingBeginAnchors)
-                                    {
-                                        Report(
-                                            GeneratorDiagnostics.BeginAndBeginExclusiveConflict,
-                                            matcherGenerateOverloads.ApplicationSyntaxReference?.GetSyntax().GetLocation()
-                                                ?? matcherMethodSyntax?.Identifier.GetLocation()
-                                                ?? matcherMethod.Locations.FirstOrDefault(),
-                                            matcherMethod.Name);
-                                    }
-                                    else if (windowFailure.Kind == WindowSpecFailureKind.ConflictingEndAnchors)
-                                    {
-                                        Report(
-                                            GeneratorDiagnostics.EndAndEndExclusiveConflict,
-                                            matcherGenerateOverloads.ApplicationSyntaxReference?.GetSyntax().GetLocation()
-                                                ?? matcherMethodSyntax?.Identifier.GetLocation()
-                                                ?? matcherMethod.Locations.FirstOrDefault(),
-                                            matcherMethod.Name);
-                                    }
+                                    Report(
+                                        GeneratorDiagnostics.RedundantBeginEndAnchors,
+                                        args.Value.AttributeLocation
+                                        ?? args.Value.SyntaxAttributeLocation
+                                        ?? matcherMethodModel.IdentifierLocation,
+                                        matcherMethodModel.Name);
                                 }
-                                else if (matcherMethodSyntax is not null)
-                                {
-                                    if (TryCreateWindowSpecFromSyntax(method, matcherMethod, matcherMethodSyntax, match, out var windowSpecFromSyntax, out var windowFailureFromSyntax))
-                                    {
-                                        windowSpecs.Add(new WindowSpec(windowSpecFromSyntax.StartIndex, windowSpecFromSyntax.EndIndex, groupKey));
-
-                                        if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.RedundantAnchors)
-                                        {
-                                            Report(
-                                                GeneratorDiagnostics.RedundantBeginEndAnchors,
-                                                GetGenerateOverloadsAttributeLocation(matcherMethodSyntax)
-                                                    ?? matcherMethodSyntax.Identifier.GetLocation(),
-                                                matcherMethod.Name);
-                                        }
-                                    }
-                                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.MissingAnchor)
-                                    {
-                                        Report(
-                                            GeneratorDiagnostics.InvalidWindowAnchor,
-                                            matcherMethodSyntax.Identifier.GetLocation(),
-                                            windowFailureFromSyntax.AnchorKind ?? "anchor",
-                                            windowFailureFromSyntax.AnchorValue ?? string.Empty);
-                                    }
-                                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.ConflictingAnchors)
-                                    {
-                                        Report(
-                                            GeneratorDiagnostics.ConflictingWindowAnchors,
-                                            matcherMethodSyntax.Identifier.GetLocation(),
-                                            matcherMethod.Name);
-                                    }
-                                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.RedundantAnchors)
-                                    {
-                                        Report(
-                                            GeneratorDiagnostics.RedundantBeginEndAnchors,
-                                            matcherMethodSyntax.Identifier.GetLocation(),
-                                            matcherMethod.Name);
-                                    }
-                                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.ConflictingBeginAnchors)
-                                    {
-                                        Report(
-                                            GeneratorDiagnostics.BeginAndBeginExclusiveConflict,
-                                            GetGenerateOverloadsAttributeLocation(matcherMethodSyntax)
-                                                ?? matcherMethodSyntax.Identifier.GetLocation(),
-                                            matcherMethod.Name);
-                                    }
-                                    else if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.ConflictingEndAnchors)
-                                    {
-                                        Report(
-                                            GeneratorDiagnostics.EndAndEndExclusiveConflict,
-                                            GetGenerateOverloadsAttributeLocation(matcherMethodSyntax)
-                                                ?? matcherMethodSyntax.Identifier.GetLocation(),
-                                            matcherMethod.Name);
-                                    }
-                                }
+                            }
+                            else
+                            {
+                                ReportWindowFailure(windowFailure, args.Value, matcherMethodModel.Name);
                             }
                         }
                     }
                 }
+            }
 
-                if (windowSpecs.Count == 0)
+            if (windowSpecs.Count == 0)
+            {
+                continue;
+            }
+
+            var options = GetEffectiveOptions(method, methodTarget);
+            if (methodTarget.SyntaxOptions.HasValue)
+            {
+                ApplyOptions(options, methodTarget.SyntaxOptions.Value);
+            }
+
+            matchedMatchersByTarget.TryGetValue(BuildMethodIdentityKey(method), out var matchedMatcherMethods);
+            foreach (var generated in GenerateOverloadsForMethod(method, windowSpecs, options, matchedMatcherMethods))
+            {
+                if (!_methodsByNamespace.TryGetValue(generated.Namespace, out var list))
                 {
-                    continue;
+                    list = [];
+                    _methodsByNamespace[generated.Namespace] = list;
                 }
 
-                var options = GetEffectiveOptions(method, typeSymbol);
-                if (methodSyntax is not null && TryGetOverloadOptionsFromSyntax(methodSyntax, out var syntaxOptions))
-                {
-                    ApplyOptions(options, syntaxOptions);
-                }
-
-                matchedMatchersByTarget.TryGetValue(method, out var matchedMatcherMethods);
-                foreach (var generated in GenerateOverloadsForMethod(method, windowSpecs, options, matchedMatcherMethods))
-                {
-                    if (!_methodsByNamespace.TryGetValue(generated.Namespace, out var list))
-                    {
-                        list = new List<GeneratedMethod>();
-                        _methodsByNamespace[generated.Namespace] = list;
-                    }
-
-                    list.Add(generated);
-                }
+                list.Add(generated);
             }
         }
 
@@ -410,24 +272,24 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 continue;
             }
 
-            var matcherMethod = entry.Key;
             Report(
                 GeneratorDiagnostics.MatcherHasNoSubsequenceMatch,
-                matcherLocations.TryGetValue(matcherMethod, out var location) ? location : matcherMethod.Locations.FirstOrDefault(),
-                matcherMethod.Name);
+                matcherLocations.TryGetValue(entry.Key, out var location) ? location : null,
+                entry.Key.MethodName);
         }
     }
+
     private IEnumerable<GeneratedMethod> GenerateOverloadsForMethod(
-        IMethodSymbol method,
+        MethodModel method,
         List<WindowSpec> windowSpecs,
         GenerationOptions options,
-        IReadOnlyCollection<IMethodSymbol>? matchedMatcherMethods)
+        IReadOnlyCollection<MatcherMethodReference>? matchedMatcherMethods)
     {
         var signatureKeys = new HashSet<string>(StringComparer.Ordinal);
-        var existingKeys = BuildExistingMethodKeys(method.ContainingType, method.Name);
+        var existingKeys = BuildExistingMethodKeys(method.ContainingTypeDisplay, method.Name);
 
-        var parameterCount = method.Parameters.Length;
-        var originalParameters = method.Parameters;
+        var parameterCount = method.Parameters.Items.Length;
+        var originalParameters = method.Parameters.Items;
         var optionalIndexSpecs = BuildOptionalIndexSpecs(windowSpecs, parameterCount);
         var unionOptional = optionalIndexSpecs.SelectMany(indices => indices).Distinct().ToArray();
         var defaultMap = BuildDefaultValueMap(method);
@@ -437,13 +299,13 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         if (unionHasDefaults)
         {
-            Report(GeneratorDiagnostics.DefaultsInWindow, method.Locations.FirstOrDefault(), method.Name);
+            Report(GeneratorDiagnostics.DefaultsInWindow, method.IdentifierLocation, method.Name);
             yield break;
         }
 
         if (paramsIndex >= 0 && !unionOptional.Contains(paramsIndex))
         {
-            Report(GeneratorDiagnostics.ParamsOutsideWindow, method.Locations.FirstOrDefault(), method.Name);
+            Report(GeneratorDiagnostics.ParamsOutsideWindow, method.IdentifierLocation, method.Name);
             yield break;
         }
 
@@ -452,6 +314,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         foreach (var optionalIndices in optionalIndexSpecs)
         {
+            _cancellationToken.ThrowIfCancellationRequested();
             if (optionalIndices.Length == 0)
             {
                 continue;
@@ -463,6 +326,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
             foreach (var omittedIndices in omissionSets)
             {
+                _cancellationToken.ThrowIfCancellationRequested();
                 if (omittedIndices.Length == 0)
                 {
                     continue;
@@ -474,7 +338,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 {
                     if (!reportedRefOutIn)
                     {
-                        Report(GeneratorDiagnostics.RefOutInOmitted, method.Locations.FirstOrDefault(), method.Name);
+                        Report(GeneratorDiagnostics.RefOutInOmitted, method.IdentifierLocation, method.Name);
                         reportedRefOutIn = true;
                     }
                     continue;
@@ -489,12 +353,12 @@ internal sealed partial class MethodOverloadsGeneratorCore
                     .Where((_, index) => Array.IndexOf(omittedIndices, index) < 0)
                     .ToArray();
 
-                var key = BuildSignatureKey(method.Name, method.TypeParameters.Length, keptParameters);
+                var key = BuildSignatureKey(method.Name, method.TypeParameterCount, keptParameters);
                 if (!signatureKeys.Add(key))
                 {
                     if (!reportedDuplicate)
                     {
-                        Report(GeneratorDiagnostics.DuplicateSignatureSkipped, method.Locations.FirstOrDefault(), method.Name);
+                        Report(GeneratorDiagnostics.DuplicateSignatureSkipped, method.IdentifierLocation, method.Name);
                         reportedDuplicate = true;
                     }
                     continue;
@@ -504,7 +368,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 {
                     if (!reportedDuplicate)
                     {
-                        Report(GeneratorDiagnostics.DuplicateSignatureSkipped, method.Locations.FirstOrDefault(), method.Name);
+                        Report(GeneratorDiagnostics.DuplicateSignatureSkipped, method.IdentifierLocation, method.Name);
                         reportedDuplicate = true;
                     }
                     continue;
@@ -514,6 +378,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
             }
         }
     }
+
     private static List<int[]> BuildOptionalIndexSpecs(List<WindowSpec> windowSpecs, int parameterCount)
     {
         var specs = new List<int[]>();
@@ -555,28 +420,25 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         return specs;
     }
-    private static Dictionary<string, bool> BuildDefaultValueMap(IMethodSymbol method)
+
+    private static Dictionary<string, bool> BuildDefaultValueMap(MethodModel method)
     {
         var map = new Dictionary<string, bool>(StringComparer.Ordinal);
-        foreach (var syntaxRef in method.DeclaringSyntaxReferences)
+        foreach (var parameter in method.Parameters.Items)
         {
-            if (syntaxRef.GetSyntax() is MethodDeclarationSyntax methodSyntax)
-            {
-                foreach (var parameter in methodSyntax.ParameterList.Parameters)
-                {
-                    map[parameter.Identifier.ValueText] = parameter.Default is not null;
-                }
-            }
+            map[parameter.Name] = parameter.HasDefaultFromSyntax;
         }
 
         return map;
     }
-    private static bool IsDefaultableParameter(IParameterSymbol parameter, Dictionary<string, bool> defaultMap)
+
+    private static bool IsDefaultableParameter(ParameterModel parameter, Dictionary<string, bool> defaultMap)
     {
         return parameter.IsOptional ||
                parameter.HasExplicitDefaultValue ||
                (defaultMap.TryGetValue(parameter.Name, out var hasDefault) && hasDefault);
     }
+
     private static IEnumerable<int[]> BuildAllOmissions(int[] optionalIndices)
     {
         var count = optionalIndices.Length;
@@ -595,6 +457,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
             yield return list.ToArray();
         }
     }
+
     private static IEnumerable<int[]> BuildPrefixOmissions(int[] optionalIndices)
     {
         var count = optionalIndices.Length;
@@ -603,28 +466,30 @@ internal sealed partial class MethodOverloadsGeneratorCore
             yield return optionalIndices.Skip(count - omit).ToArray();
         }
     }
-    private HashSet<string> BuildExistingMethodKeys(INamedTypeSymbol type, string methodName)
+
+    private HashSet<string> BuildExistingMethodKeys(string containingTypeDisplay, string methodName)
     {
         var keys = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var method in type.GetMembers().OfType<IMethodSymbol>())
+        if (!_typesByDisplay.TryGetValue(containingTypeDisplay, out var typeModel))
         {
-            if (method.MethodKind != MethodKind.Ordinary)
+            return keys;
+        }
+
+        foreach (var signature in typeModel.MethodSignatures.Items)
+        {
+            if (!string.Equals(signature.Name, methodName, StringComparison.Ordinal))
             {
                 continue;
             }
 
-            if (!string.Equals(method.Name, methodName, StringComparison.Ordinal))
-            {
-                continue;
-            }
-
-            var key = BuildSignatureKey(method.Name, method.TypeParameters.Length, method.Parameters);
+            var key = BuildSignatureKey(signature.Name, signature.TypeParameterCount, signature.Parameters.Items);
             keys.Add(key);
         }
 
         return keys;
     }
-    private static string BuildSignatureKey(string name, int arity, IEnumerable<IParameterSymbol> parameters)
+
+    private static string BuildSignatureKey(string name, int arity, IEnumerable<ParameterModel> parameters)
     {
         var builder = new StringBuilder();
         builder.Append(name);
@@ -634,7 +499,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
         foreach (var parameter in parameters)
         {
             builder.Append("|");
-            builder.Append(parameter.Type.ToDisplayString(SignatureDisplayFormat));
+            builder.Append(parameter.SignatureTypeDisplay);
             builder.Append(":");
             builder.Append(parameter.RefKind);
             builder.Append(":");
@@ -643,7 +508,28 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         return builder.ToString();
     }
-    private GenerationOptions GetEffectiveOptions(IMethodSymbol method, INamedTypeSymbol containingType)
+
+    private static string BuildSignatureKey(string name, int arity, IEnumerable<ParameterSignatureModel> parameters)
+    {
+        var builder = new StringBuilder();
+        builder.Append(name);
+        builder.Append("|");
+        builder.Append(arity);
+
+        foreach (var parameter in parameters)
+        {
+            builder.Append("|");
+            builder.Append(parameter.SignatureTypeDisplay);
+            builder.Append(":");
+            builder.Append(parameter.RefKind);
+            builder.Append(":");
+            builder.Append(parameter.IsParams ? "params" : "noparams");
+        }
+
+        return builder.ToString();
+    }
+
+    private GenerationOptions GetEffectiveOptions(MethodModel method, MethodTargetModel methodTarget)
     {
         var options = new GenerationOptions
         {
@@ -652,115 +538,21 @@ internal sealed partial class MethodOverloadsGeneratorCore
             OverloadVisibility = OverloadVisibility.MatchTarget
         };
 
-        if (TryGetOverloadOptions(containingType, out var typeOptions))
+        if (_typesByDisplay.TryGetValue(method.ContainingTypeDisplay, out var typeModel) &&
+            typeModel.Options.HasAny)
         {
-            ApplyOptions(options, typeOptions);
+            ApplyOptions(options, typeModel.Options);
         }
 
-        if (TryGetOverloadOptions(method, out var methodOptions))
+        if (method.Options.HasAny)
         {
-            ApplyOptions(options, methodOptions);
+            ApplyOptions(options, method.Options);
         }
 
         return options;
     }
-    private bool TryGetOverloadOptions(ISymbol symbol, out OverloadOptionsSyntax options)
-    {
-        options = default;
 
-        var attribute = GetAttribute(symbol, OverloadGenerationOptionsAttributeName);
-        if (attribute is not null && TryGetOverloadOptionsFromAttribute(attribute, out options))
-        {
-            return true;
-        }
-
-        return TryGetOverloadOptionsFromSyntax(symbol, out options);
-    }
-    private static bool TryGetOverloadOptionsFromAttribute(AttributeData attribute, out OverloadOptionsSyntax options)
-    {
-        options = default;
-
-        foreach (var arg in attribute.NamedArguments)
-        {
-            if (string.Equals(arg.Key, "RangeAnchorMatchMode", StringComparison.Ordinal))
-            {
-                if (TryGetEnumConstant(arg.Value, out RangeAnchorMatchMode value))
-                {
-                    options.RangeAnchorMatchMode = value;
-                }
-            }
-            else if (string.Equals(arg.Key, "SubsequenceStrategy", StringComparison.Ordinal))
-            {
-                if (TryGetEnumConstant(arg.Value, out OverloadSubsequenceStrategy value))
-                {
-                    options.SubsequenceStrategy = value;
-                }
-            }
-            else if (string.Equals(arg.Key, "OverloadVisibility", StringComparison.Ordinal))
-            {
-                if (TryGetEnumConstant(arg.Value, out OverloadVisibility value))
-                {
-                    options.OverloadVisibility = value;
-                }
-            }
-        }
-
-        return options.HasAny;
-    }
-    private static bool TryGetEnumConstant<TEnum>(TypedConstant constant, out TEnum value)
-        where TEnum : struct
-    {
-        value = default;
-        if (constant.Value is null)
-        {
-            return false;
-        }
-
-        try
-        {
-            value = (TEnum)Enum.ToObject(typeof(TEnum), constant.Value);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-    private static bool TryGetOverloadVisibilityOverride(IMethodSymbol method, out OverloadVisibility visibility)
-    {
-        visibility = default;
-        foreach (var attribute in method.GetAttributes())
-        {
-            var name = attribute.AttributeClass?.Name;
-            if (name is null)
-            {
-                continue;
-            }
-
-            if (!string.Equals(name, OverloadGenerationOptionsAttributeName, StringComparison.Ordinal) &&
-                !(OverloadGenerationOptionsAttributeName.EndsWith("Attribute", StringComparison.Ordinal) &&
-                  string.Equals(name, OverloadGenerationOptionsAttributeName.Substring(0, OverloadGenerationOptionsAttributeName.Length - "Attribute".Length), StringComparison.Ordinal)))
-            {
-                continue;
-            }
-
-            foreach (var arg in attribute.NamedArguments)
-            {
-                if (!string.Equals(arg.Key, "OverloadVisibility", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-
-                if (TryGetEnumConstant(arg.Value, out visibility))
-                {
-                    return true;
-                }
-            }
-        }
-
-        return false;
-    }
-    private static void ApplyOptions(GenerationOptions options, OverloadOptionsSyntax optionsSyntax)
+    private static void ApplyOptions(GenerationOptions options, OverloadOptionsModel optionsSyntax)
     {
         if (optionsSyntax.RangeAnchorMatchMode.HasValue)
         {
@@ -777,13 +569,14 @@ internal sealed partial class MethodOverloadsGeneratorCore
             options.OverloadVisibility = optionsSyntax.OverloadVisibility.Value;
         }
     }
-    private static string BuildParameterSignatureKey(IEnumerable<IParameterSymbol> parameters)
+
+    private static string BuildParameterSignatureKey(IEnumerable<ParameterModel> parameters)
     {
         var builder = new StringBuilder();
         foreach (var parameter in parameters)
         {
             builder.Append("|");
-            builder.Append(parameter.Type.ToDisplayString(SignatureDisplayFormat));
+            builder.Append(parameter.SignatureTypeDisplay);
             builder.Append(":");
             builder.Append(parameter.RefKind);
             builder.Append(":");
@@ -793,20 +586,44 @@ internal sealed partial class MethodOverloadsGeneratorCore
         return builder.ToString();
     }
 
-    private static Location? GetGenerateOverloadsAttributeLocation(MethodDeclarationSyntax methodSyntax)
+    private void ReportWindowFailure(WindowSpecFailure failure, GenerateOverloadsArgsModel args, string methodName)
     {
-        foreach (var attributeList in methodSyntax.AttributeLists)
+        var location = args.SyntaxAttributeLocation ?? args.AttributeLocation ?? args.MethodIdentifierLocation;
+        if (failure.Kind == WindowSpecFailureKind.MissingAnchor)
         {
-            foreach (var attribute in attributeList.Attributes)
-            {
-                if (IsAttributeNameMatch(attribute.Name.ToString(), "GenerateOverloads"))
-                {
-                    return attribute.GetLocation();
-                }
-            }
+            Report(
+                GeneratorDiagnostics.InvalidWindowAnchor,
+                location,
+                failure.AnchorKind ?? "anchor",
+                failure.AnchorValue ?? string.Empty);
         }
-
-        return null;
+        else if (failure.Kind == WindowSpecFailureKind.ConflictingAnchors)
+        {
+            Report(
+                GeneratorDiagnostics.ConflictingWindowAnchors,
+                location,
+                methodName);
+        }
+        else if (failure.Kind == WindowSpecFailureKind.RedundantAnchors)
+        {
+            Report(
+                GeneratorDiagnostics.RedundantBeginEndAnchors,
+                location,
+                methodName);
+        }
+        else if (failure.Kind == WindowSpecFailureKind.ConflictingBeginAnchors)
+        {
+            Report(
+                GeneratorDiagnostics.BeginAndBeginExclusiveConflict,
+                location,
+                methodName);
+        }
+        else if (failure.Kind == WindowSpecFailureKind.ConflictingEndAnchors)
+        {
+            Report(
+                GeneratorDiagnostics.EndAndEndExclusiveConflict,
+                location,
+                methodName);
+        }
     }
 }
-

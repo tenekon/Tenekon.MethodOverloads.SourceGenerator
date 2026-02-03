@@ -8,12 +8,12 @@ internal sealed partial class MethodOverloadsGeneratorCore
     /// <summary>
     /// Finds matcher-to-target subsequence alignments.
     /// </summary>
-    private IEnumerable<ParameterMatch> FindSubsequenceMatches(IMethodSymbol matcherMethod, IMethodSymbol targetMethod)
+    private IEnumerable<ParameterMatch> FindSubsequenceMatches(MethodModel matcherMethod, MethodModel targetMethod)
     {
-        var matchMode = ResolveMatchMode(targetMethod, targetMethod.ContainingType, matcherMethod, matcherMethod.ContainingType);
+        var matchMode = ResolveMatchMode(targetMethod, matcherMethod);
 
-        var matcherParams = matcherMethod.Parameters;
-        var targetParams = targetMethod.Parameters;
+        var matcherParams = matcherMethod.Parameters.Items;
+        var targetParams = targetMethod.Parameters.Items;
 
         if (matcherParams.Length == 0 || matcherParams.Length > targetParams.Length)
         {
@@ -27,9 +27,10 @@ internal sealed partial class MethodOverloadsGeneratorCore
             yield return match;
         }
     }
+
     private IEnumerable<ParameterMatch> FindMatchesRecursive(
-        ImmutableArray<IParameterSymbol> matcherParams,
-        ImmutableArray<IParameterSymbol> targetParams,
+        ImmutableArray<ParameterModel> matcherParams,
+        ImmutableArray<ParameterModel> targetParams,
         RangeAnchorMatchMode matchMode,
         int matcherIndex,
         int targetIndex,
@@ -53,9 +54,10 @@ internal sealed partial class MethodOverloadsGeneratorCore
             }
         }
     }
-    private static bool IsMatch(IParameterSymbol matcherParam, IParameterSymbol targetParam, RangeAnchorMatchMode matchMode)
+
+    private static bool IsMatch(ParameterModel matcherParam, ParameterModel targetParam, RangeAnchorMatchMode matchMode)
     {
-        if (!AreTypesEquivalent(matcherParam.Type, targetParam.Type))
+        if (!AreTypesEquivalent(matcherParam.TypeDisplay, targetParam.TypeDisplay))
         {
             return false;
         }
@@ -77,18 +79,16 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         return true;
     }
-    private RangeAnchorMatchMode ResolveMatchMode(
-        IMethodSymbol targetMethod,
-        INamedTypeSymbol targetType,
-        IMethodSymbol matcherMethod,
-        INamedTypeSymbol matcherType)
+
+    private RangeAnchorMatchMode ResolveMatchMode(MethodModel targetMethod, MethodModel matcherMethod)
     {
         if (TryGetRangeAnchorMatchMode(targetMethod, out var matchMode))
         {
             return matchMode;
         }
 
-        if (TryGetRangeAnchorMatchMode(targetType, out matchMode))
+        if (_typesByDisplay.TryGetValue(targetMethod.ContainingTypeDisplay, out var typeModel) &&
+            TryGetRangeAnchorMatchMode(typeModel.Options, out matchMode))
         {
             return matchMode;
         }
@@ -98,17 +98,19 @@ internal sealed partial class MethodOverloadsGeneratorCore
             return matchMode;
         }
 
-        if (TryGetRangeAnchorMatchMode(matcherType, out matchMode))
+        if (_matcherTypesByDisplay.TryGetValue(matcherMethod.ContainingTypeDisplay, out var matcherType) &&
+            TryGetRangeAnchorMatchMode(matcherType.Options, out matchMode))
         {
             return matchMode;
         }
 
         return RangeAnchorMatchMode.TypeOnly;
     }
-    private bool TryGetRangeAnchorMatchMode(ISymbol symbol, out RangeAnchorMatchMode matchMode)
+
+    private bool TryGetRangeAnchorMatchMode(MethodModel method, out RangeAnchorMatchMode matchMode)
     {
         matchMode = RangeAnchorMatchMode.TypeOnly;
-        if (TryGetOverloadOptions(symbol, out var optionsSyntax) &&
+        if (TryGetOverloadOptions(method, out var optionsSyntax) &&
             optionsSyntax.RangeAnchorMatchMode.HasValue)
         {
             matchMode = optionsSyntax.RangeAnchorMatchMode.Value;
@@ -117,20 +119,26 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         return false;
     }
-    private static bool AreTypesEquivalent(ITypeSymbol matcherType, ITypeSymbol targetType)
+
+    private bool TryGetRangeAnchorMatchMode(OverloadOptionsModel options, out RangeAnchorMatchMode matchMode)
     {
-        if (SymbolEqualityComparer.IncludeNullability.Equals(matcherType, targetType))
+        matchMode = RangeAnchorMatchMode.TypeOnly;
+        if (options.RangeAnchorMatchMode.HasValue)
         {
+            matchMode = options.RangeAnchorMatchMode.Value;
             return true;
         }
 
-        var matcherDisplay = matcherType.ToDisplayString(TypeDisplayFormat);
-        var targetDisplay = targetType.ToDisplayString(TypeDisplayFormat);
-        return string.Equals(matcherDisplay, targetDisplay, StringComparison.Ordinal);
+        return false;
     }
-    private static IEnumerable<IMethodSymbol> SelectMatcherMethods(IMethodSymbol[] matcherMethods, int targetParameterCount)
+
+    private static bool AreTypesEquivalent(string matcherType, string targetType)
     {
-        return matcherMethods.Length == 0 ? Array.Empty<IMethodSymbol>() : matcherMethods;
+        return string.Equals(matcherType, targetType, StringComparison.Ordinal);
+    }
+
+    private static IEnumerable<MatcherMethodModel> SelectMatcherMethods(EquatableArray<MatcherMethodModel> matcherMethods, int targetParameterCount)
+    {
+        return matcherMethods.Items.Length == 0 ? Array.Empty<MatcherMethodModel>() : matcherMethods.Items;
     }
 }
-

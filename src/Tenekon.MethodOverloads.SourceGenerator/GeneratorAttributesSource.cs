@@ -2,11 +2,12 @@ namespace Tenekon.MethodOverloads.SourceGenerator;
 
 internal static class GeneratorAttributesSource
 {
-    public const string GenerateOverloadsAttribute = """
+public const string GenerateOverloadsAttribute = """
 #nullable enable
 namespace Tenekon.MethodOverloads.SourceGenerator;
 
 [global::System.AttributeUsage(global::System.AttributeTargets.Method)]
+[global::Microsoft.CodeAnalysis.Embedded]
 public sealed class GenerateOverloadsAttribute : global::System.Attribute
 {
     public GenerateOverloadsAttribute()
@@ -43,11 +44,12 @@ public sealed class GenerateOverloadsAttribute : global::System.Attribute
 }
 """;
 
-    public const string GenerateMethodOverloadsAttribute = """
+public const string GenerateMethodOverloadsAttribute = """
 #nullable enable
 namespace Tenekon.MethodOverloads.SourceGenerator;
 
 [global::System.AttributeUsage(global::System.AttributeTargets.Class | global::System.AttributeTargets.Struct | global::System.AttributeTargets.Interface)]
+[global::Microsoft.CodeAnalysis.Embedded]
 public sealed class GenerateMethodOverloadsAttribute : global::System.Attribute
 {
     public global::System.Type[]? Matchers { get; set; }
@@ -79,6 +81,7 @@ public enum OverloadVisibility
 }
 
 [global::System.AttributeUsage(global::System.AttributeTargets.Class | global::System.AttributeTargets.Struct | global::System.AttributeTargets.Interface | global::System.AttributeTargets.Method)]
+[global::Microsoft.CodeAnalysis.Embedded]
 public sealed class OverloadGenerationOptionsAttribute : global::System.Attribute
 {
     public RangeAnchorMatchMode RangeAnchorMatchMode { get; set; }
@@ -91,10 +94,24 @@ public sealed class OverloadGenerationOptionsAttribute : global::System.Attribut
 #nullable enable
 namespace Tenekon.MethodOverloads.SourceGenerator;
 
-[global::System.AttributeUsage(global::System.AttributeTargets.Method, AllowMultiple = true)]
+[global::System.AttributeUsage(global::System.AttributeTargets.Class, AllowMultiple = true)]
+[global::Microsoft.CodeAnalysis.Embedded]
 internal sealed class MatcherUsageAttribute : global::System.Attribute
 {
-    public MatcherUsageAttribute(global::System.Type matcherType, string methodName)
+    public MatcherUsageAttribute(string methodName)
+    {
+    }
+}
+""";
+
+    public const string EmbeddedAttribute = """
+#nullable enable
+namespace Microsoft.CodeAnalysis;
+
+[global::System.AttributeUsage(global::System.AttributeTargets.All, Inherited = false, AllowMultiple = false)]
+internal sealed class EmbeddedAttribute : global::System.Attribute
+{
+    public EmbeddedAttribute()
     {
     }
 }

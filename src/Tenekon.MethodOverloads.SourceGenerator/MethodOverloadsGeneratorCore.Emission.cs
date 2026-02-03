@@ -41,6 +41,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         EmitMatcherUsageStubs();
     }
+
     private void EmitMatcherUsageStubs()
     {
         foreach (var pair in _matchedMatchersByNamespace)
@@ -76,6 +77,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
             _context.AddSource($"MethodOverloads_{Sanitize(namespaceName)}_MatcherUsage.g.cs", builder.ToString());
         }
     }
+
     private void AppendMatcherUsageAttributes(StringBuilder builder, string namespaceName, string indent)
     {
         if (!_matchedMatchersByNamespace.TryGetValue(namespaceName, out var matchedMatchers) ||
@@ -86,18 +88,14 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         foreach (var matcherMethod in GeneratedMethod.NormalizeMatchedMatcherMethods(matchedMatchers))
         {
-            var matcherType = matcherMethod.ContainingType.ToDisplayString(TypeDisplayFormat);
             builder.Append(indent)
-                .Append("[global::Tenekon.MethodOverloads.SourceGenerator.MatcherUsageAttribute(typeof(")
-                .Append(matcherType)
-                .Append("), nameof(")
-                .Append(matcherType)
-                .Append(".")
-                .Append(matcherMethod.Name)
+                .Append("[global::Tenekon.MethodOverloads.SourceGenerator.MatcherUsageAttribute(nameof(")
+                .Append(matcherMethod.MethodName)
                 .Append("))]")
                 .AppendLine();
         }
     }
+
     private static string Sanitize(string name)
     {
         if (string.IsNullOrEmpty(name))
@@ -113,19 +111,20 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         return builder.ToString();
     }
-    private static string BuildMethodGroupKey(IMethodSymbol method)
+
+    private static string BuildMethodGroupKey(MethodModel method)
     {
         var builder = new StringBuilder();
-        builder.Append(method.ContainingType.ToDisplayString(TypeDisplayFormat));
+        builder.Append(method.ContainingTypeDisplay);
         builder.Append(".");
         builder.Append(method.Name);
         builder.Append("|");
-        builder.Append(method.TypeParameters.Length);
+        builder.Append(method.TypeParameterCount);
 
-        foreach (var parameter in method.Parameters)
+        foreach (var parameter in method.Parameters.Items)
         {
             builder.Append("|");
-            builder.Append(parameter.Type.ToDisplayString(TypeDisplayFormat));
+            builder.Append(parameter.TypeDisplay);
             builder.Append(":");
             builder.Append(parameter.RefKind);
             builder.Append(":");
@@ -134,6 +133,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         return builder.ToString();
     }
+
     private static int Clamp(int value, int min, int max)
     {
         if (value < min)
@@ -149,4 +149,3 @@ internal sealed partial class MethodOverloadsGeneratorCore
         return value;
     }
 }
-

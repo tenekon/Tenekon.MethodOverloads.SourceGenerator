@@ -10,18 +10,18 @@ internal sealed partial class MethodOverloadsGeneratorCore
     /// </summary>
     private sealed class GeneratedMethod
     {
-        private readonly IMethodSymbol _method;
-        private readonly IParameterSymbol[] _keptParameters;
-        private readonly IParameterSymbol[] _omittedParameters;
+        private readonly MethodModel _method;
+        private readonly ParameterModel[] _keptParameters;
+        private readonly ParameterModel[] _omittedParameters;
         private readonly OverloadVisibility _overloadVisibility;
-        private readonly IMethodSymbol[] _matchedMatcherMethods;
+        private readonly MatcherMethodReference[] _matchedMatcherMethods;
 
         public GeneratedMethod(
-            IMethodSymbol method,
-            IParameterSymbol[] keptParameters,
-            IParameterSymbol[] omittedParameters,
+            MethodModel method,
+            ParameterModel[] keptParameters,
+            ParameterModel[] omittedParameters,
             OverloadVisibility overloadVisibility,
-            IReadOnlyCollection<IMethodSymbol>? matchedMatcherMethods)
+            IReadOnlyCollection<MatcherMethodReference>? matchedMatcherMethods)
         {
             _method = method;
             _keptParameters = keptParameters;
@@ -29,11 +29,11 @@ internal sealed partial class MethodOverloadsGeneratorCore
             _overloadVisibility = overloadVisibility;
             _matchedMatcherMethods = NormalizeMatchedMatcherMethods(matchedMatcherMethods);
 
-            Namespace = method.ContainingType.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+            Namespace = method.ContainingNamespace;
         }
 
         public string Namespace { get; }
-        public IMethodSymbol Method => _method;
+        public MethodModel Method => _method;
 
         public string Render()
         {
@@ -46,19 +46,18 @@ internal sealed partial class MethodOverloadsGeneratorCore
         {
             var builder = new StringBuilder();
             var accessibility = RenderAccessibility();
-            var returnType = _method.ReturnType.ToDisplayString(TypeDisplayFormat);
+            var returnType = _method.ReturnTypeDisplay;
             var typeParams = RenderTypeParameters(_method);
-            var constraints = RenderTypeParameterConstraints(_method);
+            var constraints = _method.TypeParameterConstraints;
             var isExtensionMethod = _method.IsExtensionMethod;
-            var receiverParameter = isExtensionMethod ? _method.Parameters.FirstOrDefault() : null;
-            var receiverType = receiverParameter?.Type.ToDisplayString(TypeDisplayFormat)
-                ?? _method.ContainingType.ToDisplayString(TypeDisplayFormat);
+            var receiverParameter = isExtensionMethod ? _method.Parameters.Items.FirstOrDefault() : (ParameterModel?)null;
+            var receiverType = receiverParameter?.TypeDisplay
+                ?? _method.ContainingTypeDisplay;
             var receiverName = receiverParameter?.Name ?? "source";
             var invocationReceiver = isExtensionMethod
-                ? _method.ContainingType.ToDisplayString(TypeDisplayFormat)
+                ? _method.ContainingTypeDisplay
                 : receiverName;
 
-            AppendMatcherUsageAttributes(builder, "    ");
             builder.Append("    ").Append(accessibility).Append(" static ").Append(returnType).Append(" ")
                 .Append(_method.Name).Append(typeParams).Append("(");
 
@@ -66,7 +65,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
             foreach (var parameter in _keptParameters)
             {
-                if (receiverParameter is not null && SymbolEqualityComparer.Default.Equals(parameter, receiverParameter))
+                if (receiverParameter.HasValue && string.Equals(parameter.Name, receiverParameter.Value.Name, StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -90,14 +89,13 @@ internal sealed partial class MethodOverloadsGeneratorCore
         {
             var builder = new StringBuilder();
             var accessibility = RenderAccessibility();
-            var returnType = _method.ReturnType.ToDisplayString(TypeDisplayFormat);
+            var returnType = _method.ReturnTypeDisplay;
             var typeParams = RenderTypeParameters(_method);
-            var constraints = RenderTypeParameterConstraints(_method);
-            var receiverType = _method.ContainingType.ToDisplayString(TypeDisplayFormat);
+            var constraints = _method.TypeParameterConstraints;
+            var receiverType = _method.ContainingTypeDisplay;
 
             builder.AppendLine("    extension(" + receiverType + ")");
             builder.AppendLine("    {");
-            AppendMatcherUsageAttributes(builder, "        ");
             builder.Append("        ").Append(accessibility).Append(" static ").Append(returnType).Append(" ")
                 .Append(_method.Name).Append(typeParams).Append("(");
 
@@ -126,55 +124,20 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
             return builder.ToString();
         }
-        private void AppendMatcherUsageAttributes(StringBuilder builder, string indent)
-        {
-            if (_matchedMatcherMethods.Length == 0)
-            {
-                return;
-            }
 
-            foreach (var matcherMethod in _matchedMatcherMethods)
-            {
-                var matcherType = matcherMethod.ContainingType.ToDisplayString(TypeDisplayFormat);
-                builder.Append(indent)
-                    .Append("[global::Tenekon.MethodOverloads.SourceGenerator.MatcherUsageAttribute(typeof(")
-                    .Append(matcherType)
-                    .Append("), nameof(")
-                    .Append(matcherType)
-                    .Append(".")
-                    .Append(matcherMethod.Name)
-                    .Append("))]")
-                    .AppendLine();
-            }
-        }
-        internal static IMethodSymbol[] NormalizeMatchedMatcherMethods(IReadOnlyCollection<IMethodSymbol>? matchedMatcherMethods)
+        internal static MatcherMethodReference[] NormalizeMatchedMatcherMethods(IReadOnlyCollection<MatcherMethodReference>? matchedMatcherMethods)
         {
             if (matchedMatcherMethods is null || matchedMatcherMethods.Count == 0)
             {
-                return Array.Empty<IMethodSymbol>();
+                return [];
             }
 
             return matchedMatcherMethods
-                .Distinct(MethodSymbolComparer.Instance)
-                .OrderBy(method => method.ContainingType?.ToDisplayString(TypeDisplayFormat) ?? string.Empty, StringComparer.Ordinal)
-                .ThenBy(method => method.Name, StringComparer.Ordinal)
-                .ThenBy(method => method.Parameters.Length)
+                .Distinct()
+                .OrderBy(method => method.ContainingTypeDisplay, StringComparer.Ordinal)
+                .ThenBy(method => method.MethodName, StringComparer.Ordinal)
+                .ThenBy(method => method.ParameterCount)
                 .ToArray();
-        }
-
-        private sealed class MethodSymbolComparer : IEqualityComparer<IMethodSymbol>
-        {
-            public static readonly MethodSymbolComparer Instance = new();
-
-            public bool Equals(IMethodSymbol? x, IMethodSymbol? y)
-            {
-                return SymbolEqualityComparer.Default.Equals(x, y);
-            }
-
-            public int GetHashCode(IMethodSymbol obj)
-            {
-                return SymbolEqualityComparer.Default.GetHashCode(obj);
-            }
         }
 
         private string RenderInvocation(string receiver)
@@ -183,7 +146,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
             builder.Append(receiver).Append(".").Append(_method.Name).Append(RenderTypeArguments(_method)).Append("(");
 
             var first = true;
-            foreach (var parameter in _method.Parameters)
+            foreach (var parameter in _method.Parameters.Items)
             {
                 if (!first)
                 {
@@ -198,9 +161,9 @@ internal sealed partial class MethodOverloadsGeneratorCore
             return builder.ToString();
         }
 
-        private string RenderArgument(IParameterSymbol parameter)
+        private string RenderArgument(ParameterModel parameter)
         {
-            if (_keptParameters.Any(p => SymbolEqualityComparer.Default.Equals(p, parameter)))
+            if (_keptParameters.Any(p => string.Equals(p.Name, parameter.Name, StringComparison.Ordinal)))
             {
                 var name = parameter.Name;
                 return parameter.RefKind switch
@@ -212,9 +175,9 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 };
             }
 
-            if (parameter.IsParams && parameter.Type is IArrayTypeSymbol arrayType)
+            if (parameter.IsParams && parameter.TypeDisplay.EndsWith("[]", StringComparison.Ordinal))
             {
-                var elementType = arrayType.ElementType.ToDisplayString(TypeDisplayFormat);
+                var elementType = parameter.TypeDisplay.Substring(0, parameter.TypeDisplay.Length - 2);
                 return "global::System.Array.Empty<" + elementType + ">()";
             }
 
@@ -261,7 +224,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
             };
         }
 
-        private static string RenderParameter(IParameterSymbol parameter)
+        private static string RenderParameter(ParameterModel parameter)
         {
             var builder = new StringBuilder();
             if (parameter.IsParams)
@@ -277,71 +240,29 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 _ => string.Empty
             });
 
-            builder.Append(parameter.Type.ToDisplayString(TypeDisplayFormat));
+            builder.Append(parameter.TypeDisplay);
             builder.Append(" ").Append(parameter.Name);
             return builder.ToString();
         }
 
-        private static string RenderTypeParameters(IMethodSymbol method)
+        private static string RenderTypeParameters(MethodModel method)
         {
-            if (method.TypeParameters.Length == 0)
+            if (method.TypeParameterCount == 0)
             {
                 return string.Empty;
             }
 
-            return "<" + string.Join(", ", method.TypeParameters.Select(tp => tp.Name)) + ">";
+            return "<" + string.Join(", ", method.TypeParameterNames.Items) + ">";
         }
 
-        private static string RenderTypeArguments(IMethodSymbol method)
+        private static string RenderTypeArguments(MethodModel method)
         {
-            if (method.TypeParameters.Length == 0)
+            if (method.TypeParameterCount == 0)
             {
                 return string.Empty;
             }
 
-            return "<" + string.Join(", ", method.TypeParameters.Select(tp => tp.Name)) + ">";
-        }
-
-        private static string RenderTypeParameterConstraints(IMethodSymbol method)
-        {
-            if (method.TypeParameters.Length == 0)
-            {
-                return string.Empty;
-            }
-
-            var constraints = new List<string>();
-            foreach (var typeParam in method.TypeParameters)
-            {
-                var parts = new List<string>();
-
-                if (typeParam.HasReferenceTypeConstraint)
-                {
-                    parts.Add("class");
-                }
-
-                if (typeParam.HasValueTypeConstraint)
-                {
-                    parts.Add("struct");
-                }
-
-                foreach (var constraintType in typeParam.ConstraintTypes)
-                {
-                    parts.Add(constraintType.ToDisplayString(TypeDisplayFormat));
-                }
-
-                if (typeParam.HasConstructorConstraint)
-                {
-                    parts.Add("new()");
-                }
-
-                if (parts.Count > 0)
-                {
-                    constraints.Add("where " + typeParam.Name + " : " + string.Join(", ", parts));
-                }
-            }
-
-            return string.Join(" ", constraints);
+            return "<" + string.Join(", ", method.TypeParameterNames.Items) + ">";
         }
     }
 }
-

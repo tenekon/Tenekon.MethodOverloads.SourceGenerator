@@ -55,11 +55,8 @@ public class OverloadGenerationOptionsTargets
     }
 }
 
+[MatcherUsage(nameof(GenerateOverloadsTargets.GenerateOverloadsOnMethod))]
 public class MatcherUsageTargets
 {
-    [MatcherUsage(typeof(GenerateOverloadsTargets), nameof(GenerateOverloadsTargets.GenerateOverloadsOnMethod))]
-    public void MatcherUsageOnMethod(int param_1)
-    {
-    }
 }
 #pragma warning restore IDE0051

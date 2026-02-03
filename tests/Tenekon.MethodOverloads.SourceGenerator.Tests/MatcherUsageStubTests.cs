@@ -8,14 +8,14 @@ public sealed class MatcherUsageStubTests
         var fixture = AcceptanceFixtureCache.Instance;
         var stubTree = fixture.GeneratedTrees.FirstOrDefault(tree =>
             tree.FilePath.Contains("_MatcherUsage.g.cs", StringComparison.OrdinalIgnoreCase) &&
-            tree.ToString().Contains("Class_1_Matcher", StringComparison.Ordinal));
+            tree.ToString().Contains("MatcherUsageAttribute(nameof(Match))", StringComparison.Ordinal));
 
         Assert.NotNull(stubTree);
 
         var text = stubTree!.ToString();
         Assert.Contains("public static class MethodOverloads", text, StringComparison.Ordinal);
         Assert.Contains("MatcherUsageAttribute", text, StringComparison.Ordinal);
-        Assert.Contains("Class_1_Matcher", text, StringComparison.Ordinal);
+        Assert.Contains("nameof(Match)", text, StringComparison.Ordinal);
         Assert.DoesNotContain("static void", text, StringComparison.Ordinal);
     }
 }
