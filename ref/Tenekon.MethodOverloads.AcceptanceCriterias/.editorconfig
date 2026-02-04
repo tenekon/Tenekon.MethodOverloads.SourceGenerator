@@ -1,8 +1,0 @@
-[*.cs]
-resharper_inconsistent_naming_highlighting=none
-resharper_prefer_concrete_value_over_default_highlighting=none
-resharper_partial_type_with_single_part_highlighting=none
-resharper_check_namespace_highlighting=none
-
-[*generated.cs]
-generated_code = true

@@ -1,27 +1,65 @@
+
 using System.Collections.Immutable;
 using System.Text;
 using Microsoft.CodeAnalysis;
+using Tenekon.MethodOverloads.SourceGenerator.Helpers;
+using Tenekon.MethodOverloads.SourceGenerator.Model;
 
-namespace Tenekon.MethodOverloads.SourceGenerator;
+namespace Tenekon.MethodOverloads.SourceGenerator.SourceFormatting;
 
-internal sealed partial class MethodOverloadsGeneratorCore
+internal sealed class GenerationEngine
 {
-    /// <summary>
-    /// Generates overload candidates from collected metadata and options.
-    /// </summary>
+    private readonly GeneratorModel _model;
+    private readonly Dictionary<string, TypeModel> _typesByDisplay;
+    private readonly Dictionary<string, TypeTargetModel> _typeTargetsByDisplay;
+    private readonly Dictionary<string, MatcherTypeModel> _matcherTypesByDisplay;
+    private readonly HashSet<string> _matcherTypeDisplays;
+    private readonly Dictionary<string, List<GeneratedMethod>> _methodsByNamespace;
+    private readonly Dictionary<string, HashSet<MatcherMethodReference>> _matchedMatchersByNamespace;
+    private readonly List<EquatableDiagnostic> _diagnostics;
+
+    public GenerationEngine(GeneratorModel model)
+    {
+        _model = model;
+        _typesByDisplay = model.Types.Items.ToDictionary(type => type.DisplayName, type => type, StringComparer.Ordinal);
+        _typeTargetsByDisplay = model.TypeTargets.Items.ToDictionary(target => target.Type.DisplayName, target => target, StringComparer.Ordinal);
+        _matcherTypesByDisplay = model.MatcherTypes.Items.ToDictionary(target => target.Type.DisplayName, target => target, StringComparer.Ordinal);
+        _matcherTypeDisplays = new HashSet<string>(_matcherTypesByDisplay.Keys, StringComparer.Ordinal);
+        _methodsByNamespace = new Dictionary<string, List<GeneratedMethod>>(StringComparer.Ordinal);
+        _matchedMatchersByNamespace = new Dictionary<string, HashSet<MatcherMethodReference>>(StringComparer.Ordinal);
+        _diagnostics = [];
+    }
+
+    public GenerationResult Generate()
+    {
+        GenerateMethods();
+        return new GenerationResult(
+            _methodsByNamespace,
+            _matchedMatchersByNamespace,
+            new EquatableArray<EquatableDiagnostic>([.._diagnostics]));
+    }
+
+    private void Report(DiagnosticDescriptor descriptor, SourceLocationModel? location, params string[] messageArgs)
+    {
+        _diagnostics.Add(new EquatableDiagnostic(
+            descriptor,
+            location,
+            new EquatableArray<string>([..messageArgs])));
+    }
+
     private void GenerateMethods()
     {
         var matcherHasAnyMatch = new Dictionary<MatcherMethodReference, bool>();
         var matcherLocations = new Dictionary<MatcherMethodReference, SourceLocationModel?>();
         var matchedMatchersByTarget = new Dictionary<string, HashSet<MatcherMethodReference>>(StringComparer.Ordinal);
 
-        var methodTargetsByKey = _input.MethodTargets.Items.ToDictionary(
+        var methodTargetsByKey = _model.MethodTargets.Items.ToDictionary(
             target => BuildMethodIdentityKey(target.Method),
             target => target,
             StringComparer.Ordinal);
 
         var candidateMethods = new Dictionary<string, MethodModel>(StringComparer.Ordinal);
-        foreach (var typeTarget in _input.TypeTargets.Items)
+        foreach (var typeTarget in _model.TypeTargets.Items)
         {
             foreach (var method in typeTarget.Type.Methods.Items)
             {
@@ -33,7 +71,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
             }
         }
 
-        foreach (var methodTarget in _input.MethodTargets.Items)
+        foreach (var methodTarget in _model.MethodTargets.Items)
         {
             var key = BuildMethodIdentityKey(methodTarget.Method);
             if (!candidateMethods.ContainsKey(key))
@@ -44,8 +82,6 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         foreach (var method in candidateMethods.Values)
         {
-            _cancellationToken.ThrowIfCancellationRequested();
-
             if (!method.IsOrdinary)
             {
                 continue;
@@ -143,7 +179,6 @@ internal sealed partial class MethodOverloadsGeneratorCore
                     }
                 }
             }
-
             if (useMethodMatchers || useTypeMatchers)
             {
                 var matcherTypes = useMethodMatchers ? methodMatchers : typeTarget.MatcherTypeDisplays;
@@ -314,7 +349,6 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         foreach (var optionalIndices in optionalIndexSpecs)
         {
-            _cancellationToken.ThrowIfCancellationRequested();
             if (optionalIndices.Length == 0)
             {
                 continue;
@@ -326,7 +360,6 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
             foreach (var omittedIndices in omissionSets)
             {
-                _cancellationToken.ThrowIfCancellationRequested();
                 if (omittedIndices.Length == 0)
                 {
                     continue;
@@ -420,7 +453,6 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         return specs;
     }
-
     private static Dictionary<string, bool> BuildDefaultValueMap(MethodModel method)
     {
         var map = new Dictionary<string, bool>(StringComparer.Ordinal);
@@ -570,22 +602,6 @@ internal sealed partial class MethodOverloadsGeneratorCore
         }
     }
 
-    private static string BuildParameterSignatureKey(IEnumerable<ParameterModel> parameters)
-    {
-        var builder = new StringBuilder();
-        foreach (var parameter in parameters)
-        {
-            builder.Append("|");
-            builder.Append(parameter.SignatureTypeDisplay);
-            builder.Append(":");
-            builder.Append(parameter.RefKind);
-            builder.Append(":");
-            builder.Append(parameter.IsParams ? "params" : "noparams");
-        }
-
-        return builder.ToString();
-    }
-
     private void ReportWindowFailure(WindowSpecFailure failure, GenerateOverloadsArgsModel args, string methodName)
     {
         var location = args.SyntaxAttributeLocation ?? args.AttributeLocation ?? args.MethodIdentifierLocation;
@@ -625,5 +641,406 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 location,
                 methodName);
         }
+    }
+
+    private IEnumerable<ParameterMatch> FindSubsequenceMatches(MethodModel matcherMethod, MethodModel targetMethod)
+    {
+        var matchMode = ResolveMatchMode(targetMethod, matcherMethod);
+
+        var matcherParams = matcherMethod.Parameters.Items;
+        var targetParams = targetMethod.Parameters.Items;
+
+        if (matcherParams.Length == 0 || matcherParams.Length > targetParams.Length)
+        {
+            yield break;
+        }
+
+        var indices = new int[matcherParams.Length];
+
+        foreach (var match in FindMatchesRecursive(matcherParams, targetParams, matchMode, 0, 0, indices))
+        {
+            yield return match;
+        }
+    }
+
+    private IEnumerable<ParameterMatch> FindMatchesRecursive(
+        ImmutableArray<ParameterModel> matcherParams,
+        ImmutableArray<ParameterModel> targetParams,
+        RangeAnchorMatchMode matchMode,
+        int matcherIndex,
+        int targetIndex,
+        int[] indices)
+    {
+        if (matcherIndex == matcherParams.Length)
+        {
+            yield return new ParameterMatch(indices.ToArray());
+            yield break;
+        }
+
+        for (var i = targetIndex; i < targetParams.Length; i++)
+        {
+            if (IsMatch(matcherParams[matcherIndex], targetParams[i], matchMode))
+            {
+                indices[matcherIndex] = i;
+                foreach (var match in FindMatchesRecursive(matcherParams, targetParams, matchMode, matcherIndex + 1, i + 1, indices))
+                {
+                    yield return match;
+                }
+            }
+        }
+    }
+
+    private static bool IsMatch(ParameterModel matcherParam, ParameterModel targetParam, RangeAnchorMatchMode matchMode)
+    {
+        if (!AreTypesEquivalent(matcherParam.TypeDisplay, targetParam.TypeDisplay))
+        {
+            return false;
+        }
+
+        if (matcherParam.RefKind != targetParam.RefKind)
+        {
+            return false;
+        }
+
+        if (matcherParam.IsParams != targetParam.IsParams)
+        {
+            return false;
+        }
+
+        if (matchMode == RangeAnchorMatchMode.TypeAndName)
+        {
+            return string.Equals(matcherParam.Name, targetParam.Name, StringComparison.Ordinal);
+        }
+
+        return true;
+    }
+
+    private RangeAnchorMatchMode ResolveMatchMode(MethodModel targetMethod, MethodModel matcherMethod)
+    {
+        if (TryGetRangeAnchorMatchMode(targetMethod, out var matchMode))
+        {
+            return matchMode;
+        }
+
+        if (_typesByDisplay.TryGetValue(targetMethod.ContainingTypeDisplay, out var typeModel) &&
+            TryGetRangeAnchorMatchMode(typeModel.Options, out matchMode))
+        {
+            return matchMode;
+        }
+
+        if (TryGetRangeAnchorMatchMode(matcherMethod, out matchMode))
+        {
+            return matchMode;
+        }
+
+        if (_matcherTypesByDisplay.TryGetValue(matcherMethod.ContainingTypeDisplay, out var matcherType) &&
+            TryGetRangeAnchorMatchMode(matcherType.Options, out matchMode))
+        {
+            return matchMode;
+        }
+
+        return RangeAnchorMatchMode.TypeOnly;
+    }
+
+    private bool TryGetRangeAnchorMatchMode(MethodModel method, out RangeAnchorMatchMode matchMode)
+    {
+        matchMode = RangeAnchorMatchMode.TypeOnly;
+        if (TryGetOverloadOptions(method, out var optionsSyntax) &&
+            optionsSyntax.RangeAnchorMatchMode.HasValue)
+        {
+            matchMode = optionsSyntax.RangeAnchorMatchMode.Value;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryGetRangeAnchorMatchMode(OverloadOptionsModel options, out RangeAnchorMatchMode matchMode)
+    {
+        matchMode = RangeAnchorMatchMode.TypeOnly;
+        if (options.RangeAnchorMatchMode.HasValue)
+        {
+            matchMode = options.RangeAnchorMatchMode.Value;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool AreTypesEquivalent(string matcherType, string targetType)
+    {
+        return string.Equals(matcherType, targetType, StringComparison.Ordinal);
+    }
+
+    private static IEnumerable<MatcherMethodModel> SelectMatcherMethods(EquatableArray<MatcherMethodModel> matcherMethods, int targetParameterCount)
+    {
+        return matcherMethods.Items.Length == 0 ? Array.Empty<MatcherMethodModel>() : matcherMethods.Items;
+    }
+
+    private static bool TryCreateWindowSpecFromArgs(
+        MethodModel targetMethod,
+        MethodModel matcherMethod,
+        GenerateOverloadsArgsModel args,
+        ParameterMatch match,
+        out WindowSpec windowSpec,
+        out WindowSpecFailure failure)
+    {
+        windowSpec = default;
+        failure = new WindowSpecFailure(WindowSpecFailureKind.None, null, null);
+
+        var matcherParams = matcherMethod.Parameters.Items;
+
+        var startIndex = 0;
+        var endIndex = targetMethod.Parameters.Items.Length - 1;
+        if (match.TargetIndices.Length > 0)
+        {
+            startIndex = match.TargetIndices[0];
+            endIndex = match.TargetIndices[match.TargetIndices.Length - 1];
+        }
+
+        if (!string.IsNullOrEmpty(args.BeginEnd) &&
+            (!string.IsNullOrEmpty(args.Begin) ||
+             !string.IsNullOrEmpty(args.End) ||
+             !string.IsNullOrEmpty(args.BeginExclusive) ||
+             !string.IsNullOrEmpty(args.EndExclusive)))
+        {
+            failure = new WindowSpecFailure(WindowSpecFailureKind.ConflictingAnchors, null, null);
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(args.Begin) && !string.IsNullOrEmpty(args.BeginExclusive))
+        {
+            failure = new WindowSpecFailure(WindowSpecFailureKind.ConflictingBeginAnchors, "Begin", args.Begin);
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(args.End) && !string.IsNullOrEmpty(args.EndExclusive))
+        {
+            failure = new WindowSpecFailure(WindowSpecFailureKind.ConflictingEndAnchors, "End", args.End);
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(args.BeginEnd))
+        {
+            args = args with { Begin = args.BeginEnd, End = args.BeginEnd };
+        }
+        else if (!string.IsNullOrEmpty(args.Begin) &&
+                 !string.IsNullOrEmpty(args.End) &&
+                 string.Equals(args.Begin, args.End, StringComparison.Ordinal))
+        {
+            failure = new WindowSpecFailure(WindowSpecFailureKind.RedundantAnchors, "BeginEnd", args.Begin);
+        }
+
+        if (!string.IsNullOrEmpty(args.Begin))
+        {
+            var beginIdx = IndexOfParameter(matcherParams, args.Begin!);
+            if (beginIdx < 0)
+            {
+                failure = new WindowSpecFailure(WindowSpecFailureKind.MissingAnchor, "Begin", args.Begin);
+                return false;
+            }
+
+            startIndex = match.TargetIndices[beginIdx];
+        }
+
+        if (!string.IsNullOrEmpty(args.BeginExclusive))
+        {
+            var beginIdx = IndexOfParameter(matcherParams, args.BeginExclusive!);
+            if (beginIdx < 0)
+            {
+                failure = new WindowSpecFailure(WindowSpecFailureKind.MissingAnchor, "BeginExclusive", args.BeginExclusive);
+                return false;
+            }
+
+            startIndex = match.TargetIndices[beginIdx] + 1;
+        }
+
+        if (!string.IsNullOrEmpty(args.End))
+        {
+            var endIdx = IndexOfParameter(matcherParams, args.End!);
+            if (endIdx < 0)
+            {
+                failure = new WindowSpecFailure(WindowSpecFailureKind.MissingAnchor, "End", args.End);
+                return false;
+            }
+
+            endIndex = match.TargetIndices[endIdx];
+        }
+
+        if (!string.IsNullOrEmpty(args.EndExclusive))
+        {
+            var endIdx = IndexOfParameter(matcherParams, args.EndExclusive!);
+            if (endIdx < 0)
+            {
+                failure = new WindowSpecFailure(WindowSpecFailureKind.MissingAnchor, "EndExclusive", args.EndExclusive);
+                return false;
+            }
+
+            endIndex = match.TargetIndices[endIdx] - 1;
+        }
+
+        windowSpec = new WindowSpec(startIndex, endIndex);
+        return true;
+    }
+
+    private static int IndexOfParameter(ImmutableArray<ParameterModel> parameters, string name)
+    {
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            if (string.Equals(parameters[i].Name, name, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static string BuildMethodGroupKey(MethodModel method)
+    {
+        var builder = new StringBuilder();
+        builder.Append(method.ContainingTypeDisplay);
+        builder.Append(".");
+        builder.Append(method.Name);
+        builder.Append("|");
+        builder.Append(method.TypeParameterCount);
+
+        foreach (var parameter in method.Parameters.Items)
+        {
+            builder.Append("|");
+            builder.Append(parameter.TypeDisplay);
+            builder.Append(":");
+            builder.Append(parameter.RefKind);
+            builder.Append(":");
+            builder.Append(parameter.IsParams ? "params" : "noparams");
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildMethodIdentityKey(MethodModel method)
+    {
+        var builder = new StringBuilder();
+        builder.Append(method.ContainingTypeDisplay);
+        builder.Append("|");
+        builder.Append(method.Name);
+        builder.Append("|");
+        builder.Append(method.TypeParameterCount);
+
+        foreach (var parameter in method.Parameters.Items)
+        {
+            builder.Append("|");
+            builder.Append(parameter.SignatureTypeDisplay);
+            builder.Append(":");
+            builder.Append(parameter.RefKind);
+            builder.Append(":");
+            builder.Append(parameter.IsParams ? "params" : "noparams");
+        }
+
+        return builder.ToString();
+    }
+
+    private bool TryGetOverloadOptions(MethodModel method, out OverloadOptionsModel options)
+    {
+        options = method.Options;
+        return options.HasAny;
+    }
+
+    private static bool TryGetOverloadVisibilityOverride(MethodModel method, out OverloadVisibility visibility)
+    {
+        visibility = default;
+        if (method.OptionsFromAttribute && method.Options.OverloadVisibility.HasValue)
+        {
+            visibility = method.Options.OverloadVisibility.Value;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static int Clamp(int value, int min, int max)
+    {
+        if (value < min)
+        {
+            return min;
+        }
+
+        if (value > max)
+        {
+            return max;
+        }
+
+        return value;
+    }
+
+    private readonly struct WindowSpec
+    {
+        public WindowSpec(int startIndex, int endIndex)
+            : this(startIndex, endIndex, string.Empty)
+        {
+        }
+
+        public WindowSpec(int startIndex, int endIndex, string groupKey)
+        {
+            StartIndex = startIndex;
+            EndIndex = endIndex;
+            GroupKey = groupKey;
+        }
+
+        public int StartIndex { get; }
+        public int EndIndex { get; }
+        public string GroupKey { get; }
+    }
+
+    private readonly struct ParameterMatch
+    {
+        public ParameterMatch(int[] targetIndices)
+        {
+            TargetIndices = targetIndices;
+        }
+
+        public int[] TargetIndices { get; }
+
+        public static ParameterMatch Identity(int length)
+        {
+            var indices = new int[length];
+            for (var i = 0; i < length; i++)
+            {
+                indices[i] = i;
+            }
+
+            return new ParameterMatch(indices);
+        }
+    }
+
+    private struct GenerationOptions
+    {
+        public RangeAnchorMatchMode RangeAnchorMatchMode;
+        public OverloadSubsequenceStrategy SubsequenceStrategy;
+        public OverloadVisibility OverloadVisibility;
+    }
+
+    private enum WindowSpecFailureKind
+    {
+        None,
+        MissingAnchor,
+        ConflictingAnchors,
+        RedundantAnchors,
+        ConflictingBeginAnchors,
+        ConflictingEndAnchors
+    }
+
+    private readonly struct WindowSpecFailure
+    {
+        public WindowSpecFailure(WindowSpecFailureKind kind, string? anchorKind, string? anchorValue)
+        {
+            Kind = kind;
+            AnchorKind = anchorKind;
+            AnchorValue = anchorValue;
+        }
+
+        public WindowSpecFailureKind Kind { get; }
+        public string? AnchorKind { get; }
+        public string? AnchorValue { get; }
     }
 }

@@ -1,16 +1,14 @@
 using System.Text;
 using Microsoft.CodeAnalysis;
+using Tenekon.MethodOverloads.SourceGenerator.Model;
 
-namespace Tenekon.MethodOverloads.SourceGenerator;
+namespace Tenekon.MethodOverloads.SourceGenerator.SourceFormatting;
 
-internal sealed partial class MethodOverloadsGeneratorCore
+internal static partial class SourceFormatter
 {
-    /// <summary>
-    /// Emits generated extension methods into source files.
-    /// </summary>
-    private void EmitMethods()
+    private static void EmitMethods(SourceProductionContext context, GenerationResult result)
     {
-        foreach (var pair in _methodsByNamespace)
+        foreach (var pair in result.MethodsByNamespace)
         {
             var namespaceName = pair.Key;
             var methods = pair.Value;
@@ -25,7 +23,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 builder.AppendLine();
             }
 
-            AppendMatcherUsageAttributes(builder, namespaceName, string.Empty);
+            AppendMatcherUsageAttributes(builder, result, namespaceName, string.Empty);
             builder.AppendLine("public static class MethodOverloads");
             builder.AppendLine("{");
 
@@ -36,15 +34,15 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
             builder.AppendLine("}");
 
-            _context.AddSource($"MethodOverloads_{Sanitize(namespaceName)}.g.cs", builder.ToString());
+            context.AddSource($"MethodOverloads_{Sanitize(namespaceName)}.g.cs", builder.ToString());
         }
 
-        EmitMatcherUsageStubs();
+        EmitMatcherUsageStubs(context, result);
     }
 
-    private void EmitMatcherUsageStubs()
+    private static void EmitMatcherUsageStubs(SourceProductionContext context, GenerationResult result)
     {
-        foreach (var pair in _matchedMatchersByNamespace)
+        foreach (var pair in result.MatchedMatchersByNamespace)
         {
             var namespaceName = pair.Key;
             var matchedMatchers = pair.Value;
@@ -53,7 +51,7 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 continue;
             }
 
-            if (_methodsByNamespace.ContainsKey(namespaceName))
+            if (result.MethodsByNamespace.ContainsKey(namespaceName))
             {
                 continue;
             }
@@ -69,18 +67,18 @@ internal sealed partial class MethodOverloadsGeneratorCore
                 builder.AppendLine();
             }
 
-            AppendMatcherUsageAttributes(builder, namespaceName, string.Empty);
+            AppendMatcherUsageAttributes(builder, result, namespaceName, string.Empty);
             builder.AppendLine("public static class MethodOverloads");
             builder.AppendLine("{");
             builder.AppendLine("}");
 
-            _context.AddSource($"MethodOverloads_{Sanitize(namespaceName)}_MatcherUsage.g.cs", builder.ToString());
+            context.AddSource($"MethodOverloads_{Sanitize(namespaceName)}_MatcherUsage.g.cs", builder.ToString());
         }
     }
 
-    private void AppendMatcherUsageAttributes(StringBuilder builder, string namespaceName, string indent)
+    private static void AppendMatcherUsageAttributes(StringBuilder builder, GenerationResult result, string namespaceName, string indent)
     {
-        if (!_matchedMatchersByNamespace.TryGetValue(namespaceName, out var matchedMatchers) ||
+        if (!result.MatchedMatchersByNamespace.TryGetValue(namespaceName, out var matchedMatchers) ||
             matchedMatchers.Count == 0)
         {
             return;
@@ -88,9 +86,10 @@ internal sealed partial class MethodOverloadsGeneratorCore
 
         foreach (var matcherMethod in GeneratedMethod.NormalizeMatchedMatcherMethods(matchedMatchers))
         {
+            var identifier = matcherMethod.ContainingTypeDisplay + "." + matcherMethod.MethodName;
             builder.Append(indent)
                 .Append("[global::Tenekon.MethodOverloads.SourceGenerator.MatcherUsageAttribute(nameof(")
-                .Append(matcherMethod.MethodName)
+                .Append(identifier)
                 .Append("))]")
                 .AppendLine();
         }
@@ -110,42 +109,5 @@ internal sealed partial class MethodOverloadsGeneratorCore
         }
 
         return builder.ToString();
-    }
-
-    private static string BuildMethodGroupKey(MethodModel method)
-    {
-        var builder = new StringBuilder();
-        builder.Append(method.ContainingTypeDisplay);
-        builder.Append(".");
-        builder.Append(method.Name);
-        builder.Append("|");
-        builder.Append(method.TypeParameterCount);
-
-        foreach (var parameter in method.Parameters.Items)
-        {
-            builder.Append("|");
-            builder.Append(parameter.TypeDisplay);
-            builder.Append(":");
-            builder.Append(parameter.RefKind);
-            builder.Append(":");
-            builder.Append(parameter.IsParams ? "params" : "noparams");
-        }
-
-        return builder.ToString();
-    }
-
-    private static int Clamp(int value, int min, int max)
-    {
-        if (value < min)
-        {
-            return min;
-        }
-
-        if (value > max)
-        {
-            return max;
-        }
-
-        return value;
     }
 }

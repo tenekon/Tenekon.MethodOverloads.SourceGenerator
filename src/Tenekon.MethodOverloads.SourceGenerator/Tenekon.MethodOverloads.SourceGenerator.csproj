@@ -19,7 +19,7 @@
         -->
         <NoWarn>RS2008</NoWarn>
         <PackageId>Tenekon.MethodOverloads.SourceGenerator</PackageId>
-        <Version>0.0.5-rc5</Version>
+        <Version>0.0.5-rc6</Version>
         <Authors>Tenekon authors and contributors</Authors>
         <Company>Tenekon</Company>
         <Description>C# source generator that creates combinatorial extension method overloads by treating a parameter window as optional and emitting legal, unique subsequences.</Description>
@@ -42,15 +42,15 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="$(TargetPath)" Pack="true" PackagePath="analyzers/dotnet/cs"/>
-        <Content Include="..\..\README.md" Pack="true" PackagePath=""/>
-        <Content Include="..\..\LICENSE" Pack="true" PackagePath=""/>
+        <Content Include="$(TargetPath)" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
+        <Content Include="..\..\README.md" Pack="true" PackagePath="" Visible="false"/>
+        <Content Include="..\..\LICENSE" Pack="true" PackagePath="" Visible="false"/>
         <Content Include="..\..\res\icon.jpg" Pack="true" PackagePath="" Visible="false"/>
-        <Content Include="..\..\build\Tenekon.MethodOverloads.SourceGenerator.props" Link="build/Tenekon.MethodOverloads.SourceGenerator.props" Pack="true" PackagePath="build/"/>
-        <Content Include="..\..\buildTransitive\Tenekon.MethodOverloads.SourceGenerator.props" Link="buildTransitive/Tenekon.MethodOverloads.SourceGenerator.props" Pack="true" PackagePath="buildTransitive/"/>
+        <Content Include="..\..\build\Tenekon.MethodOverloads.SourceGenerator.props" Pack="true" PackagePath="build/" Visible="false"/>
+        <Content Include="..\..\buildTransitive\Tenekon.MethodOverloads.SourceGenerator.props" Pack="true" PackagePath="buildTransitive/" Visible="false"/>
     </ItemGroup>
 
     <ItemGroup>
-        <Content Include="..\..\ref\_._" Pack="true" PackagePath="lib/netstandard2.0/"/>
+        <Content Include="..\..\ref\_._" Pack="true" PackagePath="lib/netstandard2.0/" Visible="false"/>
     </ItemGroup>
 </Project>

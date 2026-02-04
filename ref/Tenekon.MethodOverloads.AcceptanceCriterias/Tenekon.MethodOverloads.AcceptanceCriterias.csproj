@@ -1,17 +1,23 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
-    <IsPackable>false</IsPackable>
-    <TenekonMethodOverloadsSourceGeneratorAttributesOnly>true</TenekonMethodOverloadsSourceGeneratorAttributesOnly>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+    </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\src\Tenekon.MethodOverloads.SourceGenerator\Tenekon.MethodOverloads.SourceGenerator.csproj"
-                      OutputItemType="Analyzer"
-                      ReferenceOutputAssembly="false" />
-  </ItemGroup>
+    <PropertyGroup>
+        <TenekonMethodOverloadsSourceGeneratorAttributesOnly Condition="'$(TenekonMethodOverloadsSourceGeneratorAttributesOnly)' == ''">true</TenekonMethodOverloadsSourceGeneratorAttributesOnly>
+    </PropertyGroup>
+
+    <Import Project="..\..\buildTransitive\Tenekon.MethodOverloads.SourceGenerator.props" />
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\src\Tenekon.MethodOverloads.SourceGenerator\Tenekon.MethodOverloads.SourceGenerator.csproj"
+                          OutputItemType="Analyzer"
+                          ReferenceOutputAssembly="false"/>
+        <None Include=".globalconfig" />
+    </ItemGroup>
 
 </Project>

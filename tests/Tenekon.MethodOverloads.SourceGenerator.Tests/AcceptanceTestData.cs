@@ -524,15 +524,55 @@ internal static class AcceptanceTestData
     private static string? GetClassNameFromDiagnostic(Diagnostic diagnostic)
     {
         var location = diagnostic.Location;
-        if (location == Location.None || location.SourceTree is null)
+        if (location == Location.None)
         {
             return null;
         }
 
-        var root = location.SourceTree.GetRoot();
+        var root = location.SourceTree?.GetRoot() ?? GetRootFromPath(location);
+        if (root is null)
+        {
+            return null;
+        }
+
         var node = root.FindNode(location.SourceSpan, getInnermostNodeForTie: true);
         var classDecl = node.FirstAncestorOrSelf<ClassDeclarationSyntax>();
         return classDecl?.Identifier.ValueText;
+    }
+
+    private static SyntaxNode? GetRootFromPath(Location location)
+    {
+        var lineSpan = location.GetLineSpan();
+        var path = lineSpan.Path;
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+        {
+            return null;
+        }
+
+        var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
+        var text = File.ReadAllText(path);
+        var tree = CSharpSyntaxTree.ParseText(text, parseOptions, path);
+        var root = tree.GetRoot();
+        var toRemove = root.DescendantNodes()
+            .OfType<ClassDeclarationSyntax>()
+            .Where(cls => cls.Identifier.ValueText.EndsWith("AcceptanceCriterias", StringComparison.Ordinal))
+            .ToArray();
+
+        if (toRemove.Length > 0)
+        {
+            root = root.RemoveNodes(toRemove, SyntaxRemoveOptions.KeepNoTrivia)!;
+        }
+
+        var normalizedText = root.NormalizeWhitespace().ToFullString();
+        var normalizedTree = CSharpSyntaxTree.ParseText(normalizedText, parseOptions, path);
+        var normalizedRoot = normalizedTree.GetRoot();
+        var sourceText = normalizedTree.GetText();
+        if (location.SourceSpan.End > sourceText.Length)
+        {
+            return null;
+        }
+
+        return normalizedRoot;
     }
 
     public sealed record SourceFile(string Path, string Content);

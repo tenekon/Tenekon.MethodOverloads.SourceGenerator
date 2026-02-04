@@ -1,0 +1,5 @@
+// This is part of the acceptance criterias testing.
+// Add here diagnostic that are errors and not suppressable.
+dotnet_diagnostic.MOG007.severity = warning
+dotnet_diagnostic.MOG009.severity = warning
+dotnet_diagnostic.MOG010.severity = warning
