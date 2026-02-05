@@ -5,27 +5,34 @@ namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 [Collection("Projects")]
 public sealed class RefProjectBuildTests
 {
-    private static readonly string RepoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    private static readonly string RepoRoot = Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
 
     [Fact]
-    public void AcceptanceCriterias_project_builds_with_generator()
+    public void AcceptanceCriterias_project_builds_with_generator_attributes_only()
     {
-        var projectPath = Path.Combine(RepoRoot, "ref", "Tenekon.MethodOverloads.AcceptanceCriterias", "Tenekon.MethodOverloads.AcceptanceCriterias.csproj");
+        var projectPath = Path.Combine(
+            RepoRoot,
+            "ref",
+            "Tenekon.MethodOverloads.AcceptanceCriterias",
+            "Tenekon.MethodOverloads.AcceptanceCriterias.csproj");
         Assert.True(File.Exists(projectPath), "AcceptanceCriterias project file not found.");
 
-        var result = RunProcess(
-            "dotnet",
-            $"build \"{projectPath}\" -c Release",
-            RepoRoot,
-            TimeSpan.FromMinutes(2));
+        var result = RunProcess("dotnet", $"build \"{projectPath}\" -c Release", RepoRoot, TimeSpan.FromMinutes(2));
 
-        Assert.True(result.ExitCode == 0, $"dotnet build failed.\nExitCode: {result.ExitCode}\nStdOut:\n{result.StdOut}\nStdErr:\n{result.StdErr}");
+        Assert.True(
+            result.ExitCode == 0,
+            $"dotnet build failed.\nExitCode: {result.ExitCode}\nStdOut:\n{result.StdOut}\nStdErr:\n{result.StdErr}");
     }
 
     [Fact]
     public void AcceptanceCriterias_project_builds_with_generator_attributes_only_disabled()
     {
-        var projectPath = Path.Combine(RepoRoot, "ref", "Tenekon.MethodOverloads.AcceptanceCriterias", "Tenekon.MethodOverloads.AcceptanceCriterias.csproj");
+        var projectPath = Path.Combine(
+            RepoRoot,
+            "ref",
+            "Tenekon.MethodOverloads.AcceptanceCriterias",
+            "Tenekon.MethodOverloads.AcceptanceCriterias.csproj");
         Assert.True(File.Exists(projectPath), "AcceptanceCriterias project file not found.");
 
         var result = RunProcess(
@@ -34,10 +41,16 @@ public sealed class RefProjectBuildTests
             RepoRoot,
             TimeSpan.FromMinutes(2));
 
-        Assert.True(result.ExitCode == 0, $"dotnet build failed.\nExitCode: {result.ExitCode}\nStdOut:\n{result.StdOut}\nStdErr:\n{result.StdErr}");
+        Assert.True(
+            result.ExitCode == 0,
+            $"dotnet build failed.\nExitCode: {result.ExitCode}\nStdOut:\n{result.StdOut}\nStdErr:\n{result.StdErr}");
     }
 
-    private static ProcessResult RunProcess(string fileName, string arguments, string workingDirectory, TimeSpan timeout)
+    private static ProcessResult RunProcess(
+        string fileName,
+        string arguments,
+        string workingDirectory,
+        TimeSpan timeout)
     {
         using var process = new Process();
         process.StartInfo = new ProcessStartInfo(fileName, arguments)

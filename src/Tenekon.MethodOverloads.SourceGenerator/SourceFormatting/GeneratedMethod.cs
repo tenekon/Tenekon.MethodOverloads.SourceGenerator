@@ -177,7 +177,7 @@ internal sealed class GeneratedMethod
             return "global::System.Array.Empty<" + elementType + ">()";
         }
 
-        return "default";
+        return "default(" + parameter.TypeDisplay + ")";
     }
 
     private string RenderAccessibility()
