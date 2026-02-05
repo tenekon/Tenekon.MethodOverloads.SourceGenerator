@@ -6,8 +6,7 @@ namespace Tenekon.MethodOverloads.SourceGenerator.Parsing;
 internal readonly record struct TypeTargetInput(
     TypeModel Type,
     EquatableArray<string> MatcherTypeDisplays,
-    EquatableArray<MatcherTypeModel> MatcherTypes,
-    SourceFileModel SourceFile);
+    EquatableArray<MatcherTypeModel> MatcherTypes);
 
 internal readonly record struct MethodTargetInput(
     MethodModel Method,
@@ -18,5 +17,4 @@ internal readonly record struct MethodTargetInput(
     OverloadOptionsModel OptionsFromAttributeOrSyntax,
     OverloadOptionsModel? SyntaxOptions,
     bool OptionsFromAttribute,
-    EquatableArray<MatcherTypeModel> MatcherTypes,
-    SourceFileModel SourceFile);
+    EquatableArray<MatcherTypeModel> MatcherTypes);

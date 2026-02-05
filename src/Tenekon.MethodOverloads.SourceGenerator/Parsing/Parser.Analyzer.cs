@@ -1,5 +1,4 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Tenekon.MethodOverloads.SourceGenerator.Helpers;
 using Tenekon.MethodOverloads.SourceGenerator.Model;
 
@@ -18,13 +17,10 @@ internal static partial class Parser
 
         var typeModel = BuildTypeModel(typeSymbol, cancellationToken);
         var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attribute, cancellationToken);
-        var sourceFile = CreateSourceFileModelFromSymbol(typeSymbol, attribute, cancellationToken);
-
         return new TypeTargetInput(
             typeModel,
             new EquatableArray<string>(matcherDisplays),
-            new EquatableArray<MatcherTypeModel>(matcherModels),
-            sourceFile);
+            new EquatableArray<MatcherTypeModel>(matcherModels));
     }
 
     public static MethodTargetInput? CreateMethodTargetFromSymbol(
@@ -42,8 +38,6 @@ internal static partial class Parser
             out var syntaxOptions,
             out var optionsFromAttribute);
         var typeModel = BuildTypeModel(methodSymbol.ContainingType, cancellationToken);
-        var sourceFile = CreateSourceFileModelFromSymbol(methodSymbol, attribute, cancellationToken);
-
         var (attributeArgs, syntaxArgs) = ExtractGenerateOverloadsArgs(methodSymbol, cancellationToken);
         var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attribute, cancellationToken);
 
@@ -56,30 +50,6 @@ internal static partial class Parser
             methodModel.Options,
             syntaxOptions.HasAny ? syntaxOptions : null,
             optionsFromAttribute,
-            new EquatableArray<MatcherTypeModel>(matcherModels),
-            sourceFile);
-    }
-
-    private static SourceFileModel CreateSourceFileModelFromSymbol(
-        ISymbol symbol,
-        AttributeData? attribute,
-        CancellationToken cancellationToken)
-    {
-        var tree = attribute?.ApplicationSyntaxReference?.SyntaxTree;
-        if (tree is null)
-        {
-            var syntaxRef = symbol.DeclaringSyntaxReferences.FirstOrDefault();
-            tree = syntaxRef?.SyntaxTree;
-        }
-
-        if (tree is null)
-        {
-            var location = symbol.Locations.FirstOrDefault(loc => loc.SourceTree is not null);
-            tree = location?.SourceTree;
-        }
-
-        if (tree is null) return new SourceFileModel(string.Empty, string.Empty, LanguageVersion.Default);
-
-        return CreateSourceFileModel(tree, cancellationToken);
+            new EquatableArray<MatcherTypeModel>(matcherModels));
     }
 }

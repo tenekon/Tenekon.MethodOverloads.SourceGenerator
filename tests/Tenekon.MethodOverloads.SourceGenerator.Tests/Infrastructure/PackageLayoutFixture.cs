@@ -24,15 +24,11 @@ public sealed class PackageLayoutFixture : IDisposable
 
         Directory.CreateDirectory(outputPath);
 
-        var result = RunProcess(
-            "dotnet",
-            $"pack \"{projectPath}\" -c Release -p:PackageOutputPath=\"{outputPath}\"");
+        var result = RunProcess("dotnet", $"pack \"{projectPath}\" -c Release -p:PackageOutputPath=\"{outputPath}\"");
         Assert.True(result.ExitCode == 0, $"dotnet pack failed with exit code {result.ExitCode}\n{result.Output}");
 
         var nupkg = Directory.GetFiles(outputPath, "*.nupkg").SingleOrDefault();
-        Assert.False(
-            string.IsNullOrWhiteSpace(nupkg),
-            "Expected exactly one .nupkg in the package output directory.");
+        Assert.False(string.IsNullOrWhiteSpace(nupkg), "Expected exactly one .nupkg in the package output directory.");
 
         using var zip = ZipFile.OpenRead(nupkg!);
         Entries = zip.Entries.Select(e => e.FullName).ToArray();
@@ -42,10 +38,7 @@ public sealed class PackageLayoutFixture : IDisposable
 
     public void Dispose()
     {
-        if (Directory.Exists(_outputRoot))
-        {
-            Directory.Delete(_outputRoot, recursive: true);
-        }
+        if (Directory.Exists(_outputRoot)) Directory.Delete(_outputRoot, recursive: true);
     }
 
     private static ProcessResult RunProcess(string fileName, string arguments)

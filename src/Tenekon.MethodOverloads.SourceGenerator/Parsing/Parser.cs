@@ -18,16 +18,13 @@ internal static partial class Parser
         cancellationToken.ThrowIfCancellationRequested();
 
         var typeModel = BuildTypeModel(typeSymbol, cancellationToken);
-        var sourceFile = CreateSourceFileModel(attributeContext.TargetNode.SyntaxTree, cancellationToken);
-
         var attribute = RoslynHelpers.GetAttribute(typeSymbol, "GenerateMethodOverloadsAttribute");
         var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attribute, cancellationToken);
 
         return new TypeTargetInput(
             typeModel,
             new EquatableArray<string>(matcherDisplays),
-            new EquatableArray<MatcherTypeModel>(matcherModels),
-            sourceFile);
+            new EquatableArray<MatcherTypeModel>(matcherModels));
     }
 
     public static MethodTargetInput? CreateMethodTarget(
@@ -44,8 +41,6 @@ internal static partial class Parser
             out var syntaxOptions,
             out var optionsFromAttribute);
         var typeModel = BuildTypeModel(methodSymbol.ContainingType, cancellationToken);
-        var sourceFile = CreateSourceFileModel(attributeContext.TargetNode.SyntaxTree, cancellationToken);
-
         var (attributeArgs, syntaxArgs) = ExtractGenerateOverloadsArgs(methodSymbol, cancellationToken);
         var attribute = RoslynHelpers.GetAttribute(methodSymbol, "GenerateOverloadsAttribute");
         var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attribute, cancellationToken);
@@ -59,8 +54,7 @@ internal static partial class Parser
             methodModel.Options,
             syntaxOptions.HasAny ? syntaxOptions : null,
             optionsFromAttribute,
-            new EquatableArray<MatcherTypeModel>(matcherModels),
-            sourceFile);
+            new EquatableArray<MatcherTypeModel>(matcherModels));
     }
 
     public static GeneratorModel? Parse(
@@ -74,14 +68,12 @@ internal static partial class Parser
         var typeTargetsByDisplay = new Dictionary<string, TypeTargetModel>(StringComparer.Ordinal);
         var methodTargetsByKey = new Dictionary<string, MethodTargetModel>(StringComparer.Ordinal);
         var matcherTypesByDisplay = new Dictionary<string, MatcherTypeModel>(StringComparer.Ordinal);
-        var sourceFilesByPath = new Dictionary<string, SourceFileModel>(StringComparer.Ordinal);
         var diagnostics = new List<EquatableDiagnostic>();
 
         foreach (var input in typeTargets)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            AddSourceFile(sourceFilesByPath, input.SourceFile);
             AddType(typesByDisplay, input.Type);
 
             if (!typeTargetsByDisplay.TryGetValue(input.Type.DisplayName, out var existingTarget))
@@ -108,7 +100,6 @@ internal static partial class Parser
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            AddSourceFile(sourceFilesByPath, input.SourceFile);
             AddType(typesByDisplay, input.ContainingType);
             AddType(typesByDisplay, input.Method.ContainingTypeDisplay, input.ContainingType);
 
@@ -143,24 +134,12 @@ internal static partial class Parser
         [
             ..matcherTypesByDisplay.Values.OrderBy(t => t.Type.DisplayName, StringComparer.Ordinal)
         ]);
-        var sourceFiles = new EquatableArray<SourceFileModel>(
-        [
-            ..sourceFilesByPath.Values.OrderBy(f => f.Path, StringComparer.Ordinal)
-        ]);
-
         return new GeneratorModel(
             types,
             typeTargetsArray,
             methodTargetsArray,
             matcherTypesArray,
-            sourceFiles,
             new EquatableArray<EquatableDiagnostic>([..diagnostics]));
-    }
-
-    private static void AddSourceFile(Dictionary<string, SourceFileModel> sourceFilesByPath, SourceFileModel sourceFile)
-    {
-        if (!string.IsNullOrEmpty(sourceFile.Path) && !sourceFilesByPath.ContainsKey(sourceFile.Path))
-            sourceFilesByPath[sourceFile.Path] = sourceFile;
     }
 
     private static void AddType(Dictionary<string, TypeModel> typesByDisplay, TypeModel type)

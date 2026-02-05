@@ -1,17 +1,7 @@
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Tenekon.MethodOverloads.SourceGenerator.Helpers;
-
-internal readonly record struct SourceFileModel(string Path, string Text, LanguageVersion LanguageVersion)
-{
-    public SyntaxTree CreateSyntaxTree()
-    {
-        var options = new CSharpParseOptions(LanguageVersion);
-        return CSharpSyntaxTree.ParseText(Text, options, Path);
-    }
-}
 
 internal readonly record struct SourceLocationModel(
     string Path,

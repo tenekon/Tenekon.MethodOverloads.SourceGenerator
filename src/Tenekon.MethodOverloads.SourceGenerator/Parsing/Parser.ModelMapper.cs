@@ -510,13 +510,6 @@ internal static partial class Parser
         }
     }
 
-    private static SourceFileModel CreateSourceFileModel(SyntaxTree tree, CancellationToken cancellationToken)
-    {
-        var text = tree.GetText(cancellationToken).ToString();
-        var languageVersion = (tree.Options as CSharpParseOptions)?.LanguageVersion ?? LanguageVersion.Default;
-        return new SourceFileModel(tree.FilePath ?? string.Empty, text, languageVersion);
-    }
-
     private static string BuildMethodIdentityKey(MethodModel method)
     {
         var builder = new StringBuilder();

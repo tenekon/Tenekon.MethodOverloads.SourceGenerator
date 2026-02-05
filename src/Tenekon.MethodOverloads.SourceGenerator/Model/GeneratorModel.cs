@@ -8,7 +8,6 @@ internal sealed record GeneratorModel(
     EquatableArray<TypeTargetModel> TypeTargets,
     EquatableArray<MethodTargetModel> MethodTargets,
     EquatableArray<MatcherTypeModel> MatcherTypes,
-    EquatableArray<SourceFileModel> SourceFiles,
     EquatableArray<EquatableDiagnostic> Diagnostics);
 
 internal readonly record struct EquatableDiagnostic(

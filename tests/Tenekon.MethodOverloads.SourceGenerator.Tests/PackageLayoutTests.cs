@@ -1,6 +1,6 @@
 namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 
-using Tenekon.MethodOverloads.SourceGenerator.Tests.Infrastructure;
+using Infrastructure;
 
 public sealed class PackageLayoutTests(PackageLayoutFixture fixture) : IClassFixture<PackageLayoutFixture>
 {
