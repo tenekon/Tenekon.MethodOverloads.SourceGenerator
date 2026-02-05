@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.Diagnostics;
+using Tenekon.MethodOverloads.SourceGenerator.Tests.Infrastructure;
 
 namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 

@@ -1,80 +1,32 @@
-using System.Diagnostics;
-using System.IO.Compression;
-
 namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 
-public sealed class PackageLayoutTests
+using Tenekon.MethodOverloads.SourceGenerator.Tests.Infrastructure;
+
+public sealed class PackageLayoutTests(PackageLayoutFixture fixture) : IClassFixture<PackageLayoutFixture>
 {
+    [Theory]
+    [InlineData("analyzers/dotnet/cs/Tenekon.MethodOverloads.SourceGenerator.dll")]
+    [InlineData("build/Tenekon.MethodOverloads.SourceGenerator.props")]
+    [InlineData("buildTransitive/Tenekon.MethodOverloads.SourceGenerator.props")]
+    [InlineData("Tenekon.MethodOverloads.SourceGenerator.Common.props")]
+    [InlineData("lib/netstandard2.0/_._")]
+    public void Package_Contains_Expected_Entries(string entry)
+    {
+        Assert.Contains(entry, fixture.Entries);
+    }
+
     [Fact]
-    public void Package_PlacesAnalyzerUnderAnalyzersFolder_AndUsesLibPlaceholder()
+    public void Package_DoesNotPlaceAnalyzerUnderNetstandard()
     {
-        var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-        var projectPath = Path.Combine(
-            repoRoot,
-            "src",
-            "Tenekon.MethodOverloads.SourceGenerator",
-            "Tenekon.MethodOverloads.SourceGenerator.csproj");
-        var outputRoot = Path.Combine(
-            Path.GetTempPath(),
-            "Tenekon.MethodOverloads.SourceGenerator.PackTests",
-            Guid.NewGuid().ToString("N"));
-        var outputPath = Path.Combine(outputRoot, "pkgs");
-
-        Directory.CreateDirectory(outputPath);
-
-        try
-        {
-            var result = RunProcess(
-                "dotnet",
-                $"pack \"{projectPath}\" -c Release -p:PackageOutputPath=\"{outputPath}\"");
-            Assert.True(result.ExitCode == 0, $"dotnet pack failed with exit code {result.ExitCode}\n{result.Output}");
-
-            var nupkg = Directory.GetFiles(outputPath, "*.nupkg").SingleOrDefault();
-            Assert.False(
-                string.IsNullOrWhiteSpace(nupkg),
-                "Expected exactly one .nupkg in the package output directory.");
-
-            using var zip = ZipFile.OpenRead(nupkg!);
-            var entries = zip.Entries.Select(e => e.FullName).ToArray();
-
-            Assert.Contains("analyzers/dotnet/cs/Tenekon.MethodOverloads.SourceGenerator.dll", entries);
-            Assert.DoesNotContain(
-                entries,
-                e => e.StartsWith("analyzers/dotnet/cs/netstandard", StringComparison.OrdinalIgnoreCase));
-
-            Assert.Contains("build/Tenekon.MethodOverloads.SourceGenerator.props", entries);
-            Assert.Contains("buildTransitive/Tenekon.MethodOverloads.SourceGenerator.props", entries);
-
-            var libEntries = entries.Where(e => e.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)).ToArray();
-            Assert.Equal(new[] { "lib/netstandard2.0/_._" }, libEntries);
-        }
-        finally
-        {
-            if (Directory.Exists(outputRoot)) Directory.Delete(outputRoot, recursive: true);
-        }
+        Assert.DoesNotContain(
+            fixture.Entries,
+            e => e.StartsWith("analyzers/dotnet/cs/netstandard", StringComparison.OrdinalIgnoreCase));
     }
 
-    private static ProcessResult RunProcess(string fileName, string arguments)
+    [Fact]
+    public void Package_UsesLibPlaceholderOnly()
     {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = fileName,
-            Arguments = arguments,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        using var process = new Process { StartInfo = startInfo };
-        process.Start();
-
-        var output = process.StandardOutput.ReadToEnd();
-        var error = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-
-        return new ProcessResult(process.ExitCode, string.Concat(output, error));
+        var libEntries = fixture.Entries.Where(e => e.StartsWith("lib/", StringComparison.OrdinalIgnoreCase)).ToArray();
+        Assert.Equal(new[] { "lib/netstandard2.0/_._" }, libEntries);
     }
-
-    private sealed record ProcessResult(int ExitCode, string Output);
 }

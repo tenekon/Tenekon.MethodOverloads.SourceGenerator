@@ -1,6 +1,6 @@
 using System.Collections;
 
-namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
+namespace Tenekon.MethodOverloads.SourceGenerator.Tests.Infrastructure;
 
 public sealed class AcceptanceDiagnosticsData : IEnumerable<object[]>
 {

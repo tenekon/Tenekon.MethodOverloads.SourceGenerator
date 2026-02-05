@@ -1,0 +1,3 @@
+<Project>
+    <Import Project="$(MSBuildThisFileDirectory)../Tenekon.MethodOverloads.SourceGenerator.Common.props"/>
+</Project>

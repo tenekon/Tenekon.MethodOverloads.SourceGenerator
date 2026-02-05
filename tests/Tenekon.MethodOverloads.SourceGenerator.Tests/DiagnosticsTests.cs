@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Text.Json;
 using Microsoft.CodeAnalysis;
+using Tenekon.MethodOverloads.SourceGenerator.Tests.Infrastructure;
 
 namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 

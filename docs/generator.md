@@ -1,4 +1,4 @@
-# Method Overloads Source Generator � Architecture & Behavior
+# Method Overloads Source Generator - Architecture & Behavior
 
 This doc explains what the generator looks at, how it decides what to emit, and the rules it enforces.
 
@@ -93,17 +93,26 @@ Given a window:
 - Instance targets -> classic extension methods (this T source).
 - Static targets -> C# 14 extension blocks:
   extension(SomeStaticType) { public static ... }
+- Omitted parameters are passed as typed defaults, e.g. default(int) or default(string?).
 
-## 10) Entry point & files
+## 10) Diagnostics
+
+Diagnostics are reported by the analyzer (not by the generator):
+- Analyzer: src/Tenekon.MethodOverloads.SourceGenerator/MethodOverloadsDiagnosticsAnalyzer.cs
+- Generator: src/Tenekon.MethodOverloads.SourceGenerator/MethodOverloadsGenerator.cs
+
+Attributes-only mode suppresses diagnostics the same way it suppresses overload generation.
+
+## 11) Entry point & files
 
 - Generator: src/Tenekon.MethodOverloads.SourceGenerator/MethodOverloadsGenerator.cs
 - Attributes are emitted via RegisterPostInitializationOutput.
 
-## 11) Known non-goals
+## 12) Known non-goals
 
-See docs/Unsupported.md for out-of-scope behavior.
+See docs/unsupported.md for out-of-scope behavior.
 
-## 12) GenerateOverloads shorthand
+## 13) GenerateOverloads shorthand
 
 If the optional window is a single parameter, you can use the ctor shorthand:
 ```
@@ -114,5 +123,4 @@ This is equivalent to:
 [GenerateOverloads(Begin = nameof(param_2), End = nameof(param_2))]
 ```
 
-The ctor shorthand cannot be combined with Begin/End/BeginExclusive/EndExclusive. If mixed, the generator reports an error diagnostic and skips overload generation for that method.\r\n
-
+The ctor shorthand cannot be combined with Begin/End/BeginExclusive/EndExclusive. If mixed, the generator reports an error diagnostic and skips overload generation for that method.

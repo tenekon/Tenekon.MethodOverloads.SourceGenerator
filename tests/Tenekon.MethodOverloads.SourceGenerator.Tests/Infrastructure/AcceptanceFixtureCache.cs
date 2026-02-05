@@ -1,4 +1,4 @@
-namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
+namespace Tenekon.MethodOverloads.SourceGenerator.Tests.Infrastructure;
 
 public static class AcceptanceFixtureCache
 {

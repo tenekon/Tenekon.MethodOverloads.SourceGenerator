@@ -11,7 +11,7 @@
         <TenekonMethodOverloadsSourceGeneratorAttributesOnly Condition="'$(TenekonMethodOverloadsSourceGeneratorAttributesOnly)' == ''">true</TenekonMethodOverloadsSourceGeneratorAttributesOnly>
     </PropertyGroup>
 
-    <Import Project="..\..\buildTransitive\Tenekon.MethodOverloads.SourceGenerator.props" />
+    <Import Project="..\..\pack\buildTransitive\Tenekon.MethodOverloads.SourceGenerator.props" />
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\Tenekon.MethodOverloads.SourceGenerator\Tenekon.MethodOverloads.SourceGenerator.csproj"

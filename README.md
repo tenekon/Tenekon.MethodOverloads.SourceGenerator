@@ -47,13 +47,13 @@ namespace Demo;
 public static class MethodOverloads
 {
     public static void Add(this Calculator source, int param_1) =>
-        source.Add(param_1, param_2: default, param_3: default);
+        source.Add(param_1, param_2: default(string?), param_3: default(bool));
 
     public static void Add(this Calculator source, int param_1, string? param_2) =>
-        source.Add(param_1, param_2, param_3: default);
+        source.Add(param_1, param_2, param_3: default(bool));
 
     public static void Add(this Calculator source, int param_1, bool param_3) =>
-        source.Add(param_1, param_2: default, param_3);
+        source.Add(param_1, param_2: default(string?), param_3);
 }
 ```
 
@@ -68,13 +68,13 @@ using Tenekon.MethodOverloads.SourceGenerator;
 public sealed class Customer
 {
     [GenerateOverloads(Matchers = [typeof(CustomerMatcher)])]
-    public void Update(string param_1, int param_2) { }
+    public void Update(string param_1, int param_2, bool param_3) { }
 }
 
 internal interface CustomerMatcher
 {
-    [GenerateOverloads(nameof(param_2))]
-    void Update(string param_1, int param_2);
+    [GenerateOverloads(nameof(param_3))]
+    void Update(int param_2, bool param_3);
 }
 ```
 
@@ -84,8 +84,8 @@ namespace Demo;
 
 public static class MethodOverloads
 {
-    public static void Update(this Customer source, string param_1) =>
-        source.Update(param_1, param_2: default);
+    public static void Update(this Customer source, string param_1, int param_2) =>
+        source.Update(param_1, param_2, param_3: default(bool));
 }
 ```
 
@@ -100,13 +100,13 @@ using Tenekon.MethodOverloads.SourceGenerator;
 [GenerateMethodOverloads(Matchers = [typeof(MathMatchers)])]
 public static class MathUtils
 {
-    public static void Multiply(int param_1, int param_2) { }
+    public static void Multiply(int param_1, int param_2, bool param_3) { }
 }
 
 internal interface MathMatchers
 {
-    [GenerateOverloads(nameof(param_2))]
-    void Multiply(int param_1, int param_2);
+    [GenerateOverloads(nameof(param_3))]
+    void Multiply(int param_2, bool param_3);
 }
 ```
 
@@ -118,8 +118,8 @@ public static class MethodOverloads
 {
     extension(MathUtils)
     {
-        public static void Multiply(int param_1) =>
-            MathUtils.Multiply(param_1, param_2: default);
+        public static void Multiply(int param_1, int param_2) =>
+            MathUtils.Multiply(param_1, param_2, param_3: default(bool));
     }
 }
 ```
@@ -129,4 +129,4 @@ public static class MethodOverloads
 - Omits only legal subsets (no ref/out/in removal).
 - Dedupes by signature and never duplicates existing overloads.
 
-See [docs/Generator.md](docs/Generator.md) for full behavior and rules.
+See [docs/generator.md](docs/generator.md) for full behavior and rules.

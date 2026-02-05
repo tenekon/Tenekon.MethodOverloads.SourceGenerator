@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
+namespace Tenekon.MethodOverloads.SourceGenerator.Tests.Infrastructure;
 
 internal static class AcceptanceTestData
 {

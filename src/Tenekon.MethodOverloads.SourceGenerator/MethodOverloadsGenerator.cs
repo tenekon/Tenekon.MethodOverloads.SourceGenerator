@@ -6,9 +6,13 @@ using Tenekon.MethodOverloads.SourceGenerator.SourceFormatting;
 
 namespace Tenekon.MethodOverloads.SourceGenerator;
 
+/// <summary>
+/// Generates method overloads based on GenerateOverloads attributes.
+/// </summary>
 [Generator(LanguageNames.CSharp)]
 public sealed class MethodOverloadsGenerator : IIncrementalGenerator
 {
+    /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         DebugGuard.MaybeLaunchDebuggerOnStartup();

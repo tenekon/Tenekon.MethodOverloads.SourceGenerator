@@ -1,6 +1,6 @@
-# Testing the Generator
+# Testing the Generator and Analyzer
 
-Tests are acceptance-criteria driven: expected overloads live in the ref files and the generator output is compared against them.
+Tests are acceptance-criteria driven: expected overloads live in the ref files and the generator output is compared against them, while diagnostics are validated from analyzer output.
 
 ## Quickstart
 
@@ -40,7 +40,12 @@ Each file defines:
 6. Compare
    - Expected and actual signatures are compared as sets
    - Any missing or extra signatures fail the test, with a diff list
-   - Expected diagnostics are compared by ID per Class_* file
+   - Expected diagnostics are compared by ID per Class_* file (from analyzer output)
+
+## Test infrastructure
+
+Non-test helpers (fixtures, data, models) live under:
+- tests/Tenekon.MethodOverloads.SourceGenerator.Tests/Infrastructure
 
 ## Running tests
 
