@@ -20,7 +20,7 @@
         -->
         <NoWarn>RS2008</NoWarn>
         <PackageId>Tenekon.MethodOverloads.SourceGenerator</PackageId>
-        <Version>0.0.5-rc.13</Version>
+        <Version>0.0.5-rc.14</Version>
         <Authors>Tenekon authors and contributors</Authors>
         <Company>Tenekon</Company>
         <Description>C# source generator that creates combinatorial extension method overloads by treating a parameter window as optional and emitting legal, unique subsequences.</Description>

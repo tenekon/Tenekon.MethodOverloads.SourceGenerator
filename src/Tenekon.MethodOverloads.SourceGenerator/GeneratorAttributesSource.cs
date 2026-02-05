@@ -103,17 +103,4 @@ internal static class GeneratorAttributesSource
             }
         }
         """;
-
-    public const string EmbeddedAttribute = """
-        #nullable enable
-        namespace Microsoft.CodeAnalysis;
-
-        [global::System.AttributeUsage(global::System.AttributeTargets.All, Inherited = false, AllowMultiple = false)]
-        internal sealed class EmbeddedAttribute : global::System.Attribute
-        {
-            public EmbeddedAttribute()
-            {
-            }
-        }
-        """;
 }

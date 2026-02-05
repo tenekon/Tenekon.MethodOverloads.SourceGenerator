@@ -19,16 +19,23 @@ public sealed class MethodOverloadsGenerator : IIncrementalGenerator
 
         context.RegisterPostInitializationOutput(static postContext =>
         {
-            postContext.AddSource("EmbeddedAttribute.g.cs", GeneratorAttributesSource.EmbeddedAttribute);
+            // This generates the correct "internal sealed partial class" definition of EmbeddedAttribute
+            // as expected by the Roslyn compiler.
+            // See: https://github.com/dotnet/roslyn/issues/76584
+            postContext.AddEmbeddedAttributeDefinition();
+            
             postContext.AddSource(
                 "GenerateOverloadsAttribute.g.cs",
                 GeneratorAttributesSource.GenerateOverloadsAttribute);
+            
             postContext.AddSource(
                 "GenerateMethodOverloadsAttribute.g.cs",
                 GeneratorAttributesSource.GenerateMethodOverloadsAttribute);
+            
             postContext.AddSource(
                 "OverloadGenerationOptionsAttribute.g.cs",
                 GeneratorAttributesSource.OverloadGenerationOptionsAttribute);
+            
             postContext.AddSource("MatcherUsageAttribute.g.cs", GeneratorAttributesSource.MatcherUsageAttribute);
         });
 
