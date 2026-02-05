@@ -9,7 +9,9 @@ namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 
 internal static class AcceptanceTestData
 {
-    private static readonly string RepoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+    private static readonly string RepoRoot = Path.GetFullPath(
+        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+
     private static readonly SymbolDisplayFormat TypeDisplayFormat =
         SymbolDisplayFormat.FullyQualifiedFormat.WithMiscellaneousOptions(
             SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
@@ -35,7 +37,8 @@ internal static class AcceptanceTestData
     internal static ImmutableArray<ExpectedDiagnostic> ExtractExpectedDiagnostics(ImmutableArray<SourceFile> sources)
     {
         var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
-        var trees = sources.Select(source => CSharpSyntaxTree.ParseText(source.Content, parseOptions, source.Path)).ToArray();
+        var trees = sources.Select(source => CSharpSyntaxTree.ParseText(source.Content, parseOptions, source.Path))
+            .ToArray();
         var expected = new List<ExpectedDiagnostic>();
 
         foreach (var tree in trees)
@@ -43,31 +46,16 @@ internal static class AcceptanceTestData
             var root = tree.GetRoot();
             foreach (var attribute in root.DescendantNodes().OfType<AttributeSyntax>())
             {
-                if (!IsAttributeNameMatch(attribute.Name.ToString(), "SuppressMessage"))
-                {
-                    continue;
-                }
+                if (!IsAttributeNameMatch(attribute.Name.ToString(), "SuppressMessage")) continue;
 
-                if (attribute.ArgumentList is null)
-                {
-                    continue;
-                }
+                if (attribute.ArgumentList is null) continue;
 
-                if (!TryGetSuppressMessageId(attribute, out var diagnosticId))
-                {
-                    continue;
-                }
+                if (!TryGetSuppressMessageId(attribute, out var diagnosticId)) continue;
 
-                if (!diagnosticId.StartsWith("MOG", StringComparison.Ordinal))
-                {
-                    continue;
-                }
+                if (!diagnosticId.StartsWith("MOG", StringComparison.Ordinal)) continue;
 
                 var classDecl = attribute.FirstAncestorOrSelf<ClassDeclarationSyntax>();
-                if (classDecl is null)
-                {
-                    continue;
-                }
+                if (classDecl is null) continue;
 
                 expected.Add(new ExpectedDiagnostic(classDecl.Identifier.ValueText, diagnosticId));
             }
@@ -79,7 +67,8 @@ internal static class AcceptanceTestData
     internal static ImmutableArray<ExpectedSignature> ExtractExpectedSignatures(ImmutableArray<SourceFile> sources)
     {
         var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
-        var trees = sources.Select(source => CSharpSyntaxTree.ParseText(source.Content, parseOptions, source.Path)).ToArray();
+        var trees = sources.Select(source => CSharpSyntaxTree.ParseText(source.Content, parseOptions, source.Path))
+            .ToArray();
         var compilation = CreateCompilation(trees);
 
         var expected = new List<ExpectedSignature>();
@@ -92,29 +81,30 @@ internal static class AcceptanceTestData
             foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
             {
                 var name = classDecl.Identifier.ValueText;
-                if (!name.EndsWith("AcceptanceCriterias", StringComparison.Ordinal))
-                {
-                    continue;
-                }
+                if (!name.EndsWith("AcceptanceCriterias", StringComparison.Ordinal)) continue;
 
                 foreach (var method in classDecl.Members.OfType<MethodDeclarationSyntax>())
                 {
                     var symbol = model.GetDeclaredSymbol(method) as IMethodSymbol;
-                    if (symbol is null || symbol.Parameters.Length == 0)
-                    {
-                        continue;
-                    }
+                    if (symbol is null || symbol.Parameters.Length == 0) continue;
 
-                    var receiver = symbol.Parameters[0].Type.ToDisplayString(TypeDisplayFormat);
-                    var parameters = symbol.Parameters.Skip(1).Select(ToParameterSignature).ToImmutableArray();
-                    expected.Add(new ExpectedSignature(
-                        KeyFrom(symbol.Name, receiver, symbol.TypeParameters.Length, parameters, symbol.DeclaredAccessibility, "classic"),
-                        symbol.Name,
-                        receiver,
-                        symbol.TypeParameters.Length,
-                        symbol.DeclaredAccessibility,
-                        parameters,
-                        "classic"));
+                    var receiver = symbol.Parameters[index: 0].Type.ToDisplayString(TypeDisplayFormat);
+                    var parameters = symbol.Parameters.Skip(count: 1).Select(ToParameterSignature).ToImmutableArray();
+                    expected.Add(
+                        new ExpectedSignature(
+                            KeyFrom(
+                                symbol.Name,
+                                receiver,
+                                symbol.TypeParameters.Length,
+                                parameters,
+                                symbol.DeclaredAccessibility,
+                                "classic"),
+                            symbol.Name,
+                            receiver,
+                            symbol.TypeParameters.Length,
+                            symbol.DeclaredAccessibility,
+                            parameters,
+                            "classic"));
                 }
             }
 
@@ -139,10 +129,7 @@ internal static class AcceptanceTestData
                 .Where(cls => cls.Identifier.ValueText.EndsWith("AcceptanceCriterias", StringComparison.Ordinal))
                 .ToArray();
 
-            if (toRemove.Length > 0)
-            {
-                root = root.RemoveNodes(toRemove, SyntaxRemoveOptions.KeepNoTrivia)!;
-            }
+            if (toRemove.Length > 0) root = root.RemoveNodes(toRemove, SyntaxRemoveOptions.KeepNoTrivia)!;
 
             filtered.Add(new SourceFile(source.Path, root.NormalizeWhitespace().ToFullString()));
         }
@@ -150,7 +137,9 @@ internal static class AcceptanceTestData
         return filtered.ToImmutableArray();
     }
 
-    internal static ImmutableArray<ExpectedSignature> ExtractActualSignatures(Compilation compilation, SyntaxTree[] generatedTrees)
+    internal static ImmutableArray<ExpectedSignature> ExtractActualSignatures(
+        Compilation compilation,
+        SyntaxTree[] generatedTrees)
     {
         var results = new List<ExpectedSignature>();
 
@@ -162,23 +151,28 @@ internal static class AcceptanceTestData
             foreach (var method in root.DescendantNodes().OfType<MethodDeclarationSyntax>())
             {
                 var symbol = model.GetDeclaredSymbol(method) as IMethodSymbol;
-                if (symbol is null)
-                {
-                    continue;
-                }
+                if (symbol is null) continue;
 
-                if (method.ParameterList.Parameters.Count > 0 && method.ParameterList.Parameters[0].Modifiers.Any(m => m.IsKind(SyntaxKind.ThisKeyword)))
+                if (method.ParameterList.Parameters.Count > 0 && method.ParameterList.Parameters[index: 0]
+                        .Modifiers.Any(m => m.IsKind(SyntaxKind.ThisKeyword)))
                 {
-                    var receiver = symbol.Parameters[0].Type.ToDisplayString(TypeDisplayFormat);
-                    var parameters = symbol.Parameters.Skip(1).Select(ToParameterSignature).ToImmutableArray();
-                    results.Add(new ExpectedSignature(
-                        KeyFrom(symbol.Name, receiver, symbol.TypeParameters.Length, parameters, symbol.DeclaredAccessibility, "classic"),
-                        symbol.Name,
-                        receiver,
-                        symbol.TypeParameters.Length,
-                        symbol.DeclaredAccessibility,
-                        parameters,
-                        "classic"));
+                    var receiver = symbol.Parameters[index: 0].Type.ToDisplayString(TypeDisplayFormat);
+                    var parameters = symbol.Parameters.Skip(count: 1).Select(ToParameterSignature).ToImmutableArray();
+                    results.Add(
+                        new ExpectedSignature(
+                            KeyFrom(
+                                symbol.Name,
+                                receiver,
+                                symbol.TypeParameters.Length,
+                                parameters,
+                                symbol.DeclaredAccessibility,
+                                "classic"),
+                            symbol.Name,
+                            receiver,
+                            symbol.TypeParameters.Length,
+                            symbol.DeclaredAccessibility,
+                            parameters,
+                            "classic"));
                 }
             }
 
@@ -192,13 +186,17 @@ internal static class AcceptanceTestData
         ImmutableArray<ExpectedSignature> expected,
         ImmutableArray<ExpectedSignature> actual)
     {
-        var expectedByClass = expected
-            .GroupBy(entry => GetReceiverName(entry.Receiver), StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.Select(e => e.Key).ToHashSet(StringComparer.Ordinal), StringComparer.Ordinal);
+        var expectedByClass = expected.GroupBy(entry => GetReceiverName(entry.Receiver), StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(e => e.Key).ToHashSet(StringComparer.Ordinal),
+                StringComparer.Ordinal);
 
-        var actualByClass = actual
-            .GroupBy(entry => GetReceiverName(entry.Receiver), StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.Select(e => e.Key).ToHashSet(StringComparer.Ordinal), StringComparer.Ordinal);
+        var actualByClass = actual.GroupBy(entry => GetReceiverName(entry.Receiver), StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(e => e.Key).ToHashSet(StringComparer.Ordinal),
+                StringComparer.Ordinal);
 
         var classNames = expectedByClass.Keys.Union(actualByClass.Keys, StringComparer.Ordinal)
             .OrderBy(name => name, StringComparer.Ordinal)
@@ -210,10 +208,11 @@ internal static class AcceptanceTestData
             expectedByClass.TryGetValue(className, out var expectedKeys);
             actualByClass.TryGetValue(className, out var actualKeys);
 
-            cases.Add(new CaseResult(
-                className,
-                expectedKeys ?? new HashSet<string>(StringComparer.Ordinal),
-                actualKeys ?? new HashSet<string>(StringComparer.Ordinal)));
+            cases.Add(
+                new CaseResult(
+                    className,
+                    expectedKeys ?? new HashSet<string>(StringComparer.Ordinal),
+                    actualKeys ?? new HashSet<string>(StringComparer.Ordinal)));
         }
 
         return cases;
@@ -223,16 +222,20 @@ internal static class AcceptanceTestData
         ImmutableArray<ExpectedDiagnostic> expected,
         IEnumerable<Diagnostic> actualDiagnostics)
     {
-        var expectedByClass = expected
-            .GroupBy(entry => entry.ClassName, StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.Select(e => e.Id).ToHashSet(StringComparer.Ordinal), StringComparer.Ordinal);
+        var expectedByClass = expected.GroupBy(entry => entry.ClassName, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(e => e.Id).ToHashSet(StringComparer.Ordinal),
+                StringComparer.Ordinal);
 
-        var actualByClass = actualDiagnostics
-            .Where(diag => diag.Id.StartsWith("MOG", StringComparison.Ordinal))
+        var actualByClass = actualDiagnostics.Where(diag => diag.Id.StartsWith("MOG", StringComparison.Ordinal))
             .Select(diag => new { diag.Id, ClassName = GetClassNameFromDiagnostic(diag) })
             .Where(entry => !string.IsNullOrEmpty(entry.ClassName))
             .GroupBy(entry => entry.ClassName!, StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.Select(e => e.Id).ToHashSet(StringComparer.Ordinal), StringComparer.Ordinal);
+            .ToDictionary(
+                group => group.Key,
+                group => group.Select(e => e.Id).ToHashSet(StringComparer.Ordinal),
+                StringComparer.Ordinal);
 
         var classNames = expectedByClass.Keys.Union(actualByClass.Keys, StringComparer.Ordinal)
             .OrderBy(name => name, StringComparer.Ordinal)
@@ -244,10 +247,11 @@ internal static class AcceptanceTestData
             expectedByClass.TryGetValue(className, out var expectedIds);
             actualByClass.TryGetValue(className, out var actualIds);
 
-            cases.Add(new DiagnosticCaseResult(
-                className,
-                expectedIds ?? new HashSet<string>(StringComparer.Ordinal),
-                actualIds ?? new HashSet<string>(StringComparer.Ordinal)));
+            cases.Add(
+                new DiagnosticCaseResult(
+                    className,
+                    expectedIds ?? new HashSet<string>(StringComparer.Ordinal),
+                    actualIds ?? new HashSet<string>(StringComparer.Ordinal)));
         }
 
         return cases;
@@ -257,8 +261,9 @@ internal static class AcceptanceTestData
     public static CSharpCompilation CreateCompilation(IEnumerable<SourceFile> sources)
     {
         var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
-        var trees = sources.Select(source => CSharpSyntaxTree.ParseText(source.Content, parseOptions, source.Path)).ToList();
-        trees.Add(CSharpSyntaxTree.ParseText("global using System;", parseOptions, path: "ImplicitUsings.g.cs"));
+        var trees = sources.Select(source => CSharpSyntaxTree.ParseText(source.Content, parseOptions, source.Path))
+            .ToList();
+        trees.Add(CSharpSyntaxTree.ParseText("global using System;", parseOptions, "ImplicitUsings.g.cs"));
         return CreateCompilation(trees);
     }
 
@@ -269,7 +274,8 @@ internal static class AcceptanceTestData
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
             MetadataReference.CreateFromFile(typeof(CancellationToken).Assembly.Location),
-            MetadataReference.CreateFromFile(typeof(System.Runtime.CompilerServices.ExtensionAttribute).Assembly.Location)
+            MetadataReference.CreateFromFile(
+                typeof(System.Runtime.CompilerServices.ExtensionAttribute).Assembly.Location)
         };
 
         var runtimeAssembly = Assembly.Load("System.Runtime");
@@ -279,7 +285,9 @@ internal static class AcceptanceTestData
             "AcceptanceCriteria",
             trees,
             references,
-            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+            new CSharpCompilationOptions(
+                OutputKind.DynamicallyLinkedLibrary,
+                nullableContextOptions: NullableContextOptions.Enable));
     }
 
     private static ParameterSignature ToParameterSignature(IParameterSymbol parameter)
@@ -290,7 +298,13 @@ internal static class AcceptanceTestData
             parameter.IsParams);
     }
 
-    private static string KeyFrom(string name, string receiver, int arity, ImmutableArray<ParameterSignature> parameters, Accessibility accessibility, string kind)
+    private static string KeyFrom(
+        string name,
+        string receiver,
+        int arity,
+        ImmutableArray<ParameterSignature> parameters,
+        Accessibility accessibility,
+        string kind)
     {
         var parts = new List<string>
         {
@@ -314,31 +328,36 @@ internal static class AcceptanceTestData
     private static IEnumerable<ExpectedSignature> ExtractExtensionBlockSignatures(string text)
     {
         var results = new List<ExpectedSignature>();
-        var extensionRegex = new Regex(@"extension\s*\(([^)]+)\)\s*\{(.*?)\}", RegexOptions.Singleline | RegexOptions.Compiled);
-        var methodRegex = new Regex(@"(public|internal|private|protected)\s+static\s+([^\s]+)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)", RegexOptions.Compiled);
+        var extensionRegex = new Regex(
+            @"extension\s*\(([^)]+)\)\s*\{(.*?)\}",
+            RegexOptions.Singleline | RegexOptions.Compiled);
+        var methodRegex = new Regex(
+            @"(public|internal|private|protected)\s+static\s+([^\s]+)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)",
+            RegexOptions.Compiled);
 
         foreach (Match extensionMatch in extensionRegex.Matches(text))
         {
-            var receiverType = NormalizeType(extensionMatch.Groups[1].Value);
-            var body = extensionMatch.Groups[2].Value;
+            var receiverType = NormalizeType(extensionMatch.Groups[groupnum: 1].Value);
+            var body = extensionMatch.Groups[groupnum: 2].Value;
 
             foreach (Match methodMatch in methodRegex.Matches(body))
             {
-                var accessibilityText = methodMatch.Groups[1].Value;
-                var methodName = methodMatch.Groups[3].Value;
-                var parametersText = methodMatch.Groups[4].Value;
+                var accessibilityText = methodMatch.Groups[groupnum: 1].Value;
+                var methodName = methodMatch.Groups[groupnum: 3].Value;
+                var parametersText = methodMatch.Groups[groupnum: 4].Value;
 
                 var parameters = ParseParameterSignatures(parametersText);
                 var accessibility = ParseAccessibility(accessibilityText);
 
-                results.Add(new ExpectedSignature(
-                    KeyFrom(methodName, receiverType, 0, parameters, accessibility, "extension"),
-                    methodName,
-                    receiverType,
-                    0,
-                    accessibility,
-                    parameters,
-                    "extension"));
+                results.Add(
+                    new ExpectedSignature(
+                        KeyFrom(methodName, receiverType, arity: 0, parameters, accessibility, "extension"),
+                        methodName,
+                        receiverType,
+                        Arity: 0,
+                        accessibility,
+                        parameters,
+                        "extension"));
             }
         }
 
@@ -347,12 +366,9 @@ internal static class AcceptanceTestData
 
     private static ImmutableArray<ParameterSignature> ParseParameterSignatures(string parametersText)
     {
-        if (string.IsNullOrWhiteSpace(parametersText))
-        {
-            return ImmutableArray<ParameterSignature>.Empty;
-        }
+        if (string.IsNullOrWhiteSpace(parametersText)) return ImmutableArray<ParameterSignature>.Empty;
 
-        var parameters = parametersText.Split(',')
+        var parameters = parametersText.Split(separator: ',')
             .Select(p => p.Trim())
             .Where(p => p.Length > 0)
             .Select(ParseParameterSignature)
@@ -394,20 +410,11 @@ internal static class AcceptanceTestData
     {
         var trimmed = typeName.Trim();
         var isNullable = trimmed.EndsWith("?", StringComparison.Ordinal);
-        if (isNullable)
-        {
-            trimmed = trimmed.Substring(0, trimmed.Length - 1);
-        }
+        if (isNullable) trimmed = trimmed.Substring(startIndex: 0, trimmed.Length - 1);
 
-        if (trimmed.StartsWith("global::", StringComparison.Ordinal))
-        {
-            trimmed = trimmed.Substring("global::".Length);
-        }
+        if (trimmed.StartsWith("global::", StringComparison.Ordinal)) trimmed = trimmed.Substring("global::".Length);
 
-        if (trimmed.Contains('.'))
-        {
-            trimmed = trimmed.Split('.').Last();
-        }
+        if (trimmed.Contains(value: '.')) trimmed = trimmed.Split(separator: '.').Last();
 
         var normalized = trimmed switch
         {
@@ -442,10 +449,7 @@ internal static class AcceptanceTestData
     private static string GetReceiverName(string receiver)
     {
         var name = receiver.Trim();
-        if (name.StartsWith("global::", StringComparison.Ordinal))
-        {
-            name = name.Substring("global::".Length);
-        }
+        if (name.StartsWith("global::", StringComparison.Ordinal)) name = name.Substring("global::".Length);
 
         if (name.Contains("::"))
         {
@@ -453,10 +457,7 @@ internal static class AcceptanceTestData
             name = parts.Length > 0 ? parts[parts.Length - 1] : name;
         }
 
-        if (name.Contains('.'))
-        {
-            name = name.Split('.').Last();
-        }
+        if (name.Contains(value: '.')) name = name.Split(separator: '.').Last();
 
         return name;
     }
@@ -470,40 +471,25 @@ internal static class AcceptanceTestData
         foreach (var argument in attribute.ArgumentList!.Arguments)
         {
             var value = argument.Expression as LiteralExpressionSyntax;
-            if (value is null || !value.IsKind(SyntaxKind.StringLiteralExpression))
-            {
-                continue;
-            }
+            if (value is null || !value.IsKind(SyntaxKind.StringLiteralExpression)) continue;
 
             if (argument.NameEquals is null)
             {
-                if (positionalIndex == 1)
-                {
-                    checkId ??= value.Token.ValueText;
-                }
+                if (positionalIndex == 1) checkId ??= value.Token.ValueText;
 
                 positionalIndex++;
             }
             else
             {
                 var name = argument.NameEquals.Name.Identifier.ValueText;
-                if (string.Equals(name, "CheckId", StringComparison.Ordinal))
-                {
-                    checkId = value.Token.ValueText;
-                }
+                if (string.Equals(name, "CheckId", StringComparison.Ordinal)) checkId = value.Token.ValueText;
             }
         }
 
-        if (string.IsNullOrWhiteSpace(checkId))
-        {
-            return false;
-        }
+        if (string.IsNullOrWhiteSpace(checkId)) return false;
 
-        var index = checkId.IndexOf(':');
-        if (index >= 0)
-        {
-            checkId = checkId.Substring(0, index);
-        }
+        var index = checkId.IndexOf(value: ':');
+        if (index >= 0) checkId = checkId.Substring(startIndex: 0, index);
 
         id = checkId;
         return true;
@@ -511,29 +497,24 @@ internal static class AcceptanceTestData
 
     private static bool IsAttributeNameMatch(string name, string expected)
     {
-        if (string.Equals(name, expected, StringComparison.Ordinal) ||
-            string.Equals(name, expected + "Attribute", StringComparison.Ordinal))
-        {
+        if (string.Equals(name, expected, StringComparison.Ordinal) || string.Equals(
+                name,
+                expected + "Attribute",
+                StringComparison.Ordinal))
             return true;
-        }
 
-        return name.EndsWith("." + expected, StringComparison.Ordinal) ||
-               name.EndsWith("." + expected + "Attribute", StringComparison.Ordinal);
+        return name.EndsWith("." + expected, StringComparison.Ordinal) || name.EndsWith(
+            "." + expected + "Attribute",
+            StringComparison.Ordinal);
     }
 
     private static string? GetClassNameFromDiagnostic(Diagnostic diagnostic)
     {
         var location = diagnostic.Location;
-        if (location == Location.None)
-        {
-            return null;
-        }
+        if (location == Location.None) return null;
 
         var root = location.SourceTree?.GetRoot() ?? GetRootFromPath(location);
-        if (root is null)
-        {
-            return null;
-        }
+        if (root is null) return null;
 
         var node = root.FindNode(location.SourceSpan, getInnermostNodeForTie: true);
         var classDecl = node.FirstAncestorOrSelf<ClassDeclarationSyntax>();
@@ -544,10 +525,7 @@ internal static class AcceptanceTestData
     {
         var lineSpan = location.GetLineSpan();
         var path = lineSpan.Path;
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-        {
-            return null;
-        }
+        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
 
         var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
         var text = File.ReadAllText(path);
@@ -558,19 +536,13 @@ internal static class AcceptanceTestData
             .Where(cls => cls.Identifier.ValueText.EndsWith("AcceptanceCriterias", StringComparison.Ordinal))
             .ToArray();
 
-        if (toRemove.Length > 0)
-        {
-            root = root.RemoveNodes(toRemove, SyntaxRemoveOptions.KeepNoTrivia)!;
-        }
+        if (toRemove.Length > 0) root = root.RemoveNodes(toRemove, SyntaxRemoveOptions.KeepNoTrivia)!;
 
         var normalizedText = root.NormalizeWhitespace().ToFullString();
         var normalizedTree = CSharpSyntaxTree.ParseText(normalizedText, parseOptions, path);
         var normalizedRoot = normalizedTree.GetRoot();
         var sourceText = normalizedTree.GetText();
-        if (location.SourceSpan.End > sourceText.Length)
-        {
-            return null;
-        }
+        if (location.SourceSpan.End > sourceText.Length) return null;
 
         return normalizedRoot;
     }
@@ -598,10 +570,12 @@ internal static class AcceptanceTestData
         Method
     }
 
-    internal static Dictionary<string, HashSet<AttributeTargetKind>> ExtractAttributeTargets(ImmutableArray<SourceFile> sources)
+    internal static Dictionary<string, HashSet<AttributeTargetKind>> ExtractAttributeTargets(
+        ImmutableArray<SourceFile> sources)
     {
         var parseOptions = new CSharpParseOptions(LanguageVersion.Preview);
-        var trees = sources.Select(source => CSharpSyntaxTree.ParseText(source.Content, parseOptions, source.Path)).ToArray();
+        var trees = sources.Select(source => CSharpSyntaxTree.ParseText(source.Content, parseOptions, source.Path))
+            .ToArray();
         var targetsByAttribute = new Dictionary<string, HashSet<AttributeTargetKind>>(StringComparer.Ordinal);
 
         foreach (var tree in trees)
@@ -609,24 +583,19 @@ internal static class AcceptanceTestData
             var root = tree.GetRoot();
 
             foreach (var classDecl in root.DescendantNodes().OfType<ClassDeclarationSyntax>())
-            {
                 CollectAttributeTargets(classDecl.AttributeLists, AttributeTargetKind.Class, targetsByAttribute);
-            }
 
             foreach (var structDecl in root.DescendantNodes().OfType<StructDeclarationSyntax>())
-            {
                 CollectAttributeTargets(structDecl.AttributeLists, AttributeTargetKind.Struct, targetsByAttribute);
-            }
 
             foreach (var interfaceDecl in root.DescendantNodes().OfType<InterfaceDeclarationSyntax>())
-            {
-                CollectAttributeTargets(interfaceDecl.AttributeLists, AttributeTargetKind.Interface, targetsByAttribute);
-            }
+                CollectAttributeTargets(
+                    interfaceDecl.AttributeLists,
+                    AttributeTargetKind.Interface,
+                    targetsByAttribute);
 
             foreach (var methodDecl in root.DescendantNodes().OfType<MethodDeclarationSyntax>())
-            {
                 CollectAttributeTargets(methodDecl.AttributeLists, AttributeTargetKind.Method, targetsByAttribute);
-            }
         }
 
         return targetsByAttribute;
@@ -638,43 +607,30 @@ internal static class AcceptanceTestData
         Dictionary<string, HashSet<AttributeTargetKind>> targetsByAttribute)
     {
         foreach (var attributeList in attributeLists)
+        foreach (var attribute in attributeList.Attributes)
         {
-            foreach (var attribute in attributeList.Attributes)
+            var name = NormalizeAttributeName(attribute.Name.ToString());
+            if (string.IsNullOrWhiteSpace(name)) continue;
+
+            if (!targetsByAttribute.TryGetValue(name, out var targets))
             {
-                var name = NormalizeAttributeName(attribute.Name.ToString());
-                if (string.IsNullOrWhiteSpace(name))
-                {
-                    continue;
-                }
-
-                if (!targetsByAttribute.TryGetValue(name, out var targets))
-                {
-                    targets = new HashSet<AttributeTargetKind>();
-                    targetsByAttribute[name] = targets;
-                }
-
-                targets.Add(targetKind);
+                targets = new HashSet<AttributeTargetKind>();
+                targetsByAttribute[name] = targets;
             }
+
+            targets.Add(targetKind);
         }
     }
 
     private static string NormalizeAttributeName(string name)
     {
-        if (string.IsNullOrWhiteSpace(name))
-        {
-            return string.Empty;
-        }
+        if (string.IsNullOrWhiteSpace(name)) return string.Empty;
 
         var trimmed = name.Trim();
         if (trimmed.EndsWith("Attribute", StringComparison.Ordinal))
-        {
-            trimmed = trimmed.Substring(0, trimmed.Length - "Attribute".Length);
-        }
+            trimmed = trimmed.Substring(startIndex: 0, trimmed.Length - "Attribute".Length);
 
-        if (trimmed.Contains("."))
-        {
-            trimmed = trimmed.Split('.').Last();
-        }
+        if (trimmed.Contains(".")) trimmed = trimmed.Split(separator: '.').Last();
 
         return trimmed;
     }

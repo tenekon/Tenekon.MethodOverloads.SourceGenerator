@@ -28,10 +28,11 @@ internal static partial class Parser
                     .Select(p => new ParameterSignatureModel(p.SignatureTypeDisplay, p.RefKind, p.IsParams))
                     .ToImmutableArray();
 
-                signatures.Add(new MethodSignatureModel(
-                    methodModel.Name,
-                    methodModel.TypeParameterCount,
-                    new EquatableArray<ParameterSignatureModel>(signatureParameters)));
+                signatures.Add(
+                    new MethodSignatureModel(
+                        methodModel.Name,
+                        methodModel.TypeParameterCount,
+                        new EquatableArray<ParameterSignatureModel>(signatureParameters)));
             }
         }
 
@@ -63,9 +64,7 @@ internal static partial class Parser
             {
                 identifierLocation ??= SourceLocationModel.FromSyntaxToken(methodSyntax.Identifier);
                 foreach (var parameter in methodSyntax.ParameterList.Parameters)
-                {
                     defaultMap[parameter.Identifier.ValueText] = parameter.Default is not null;
-                }
             }
         }
 
@@ -75,20 +74,19 @@ internal static partial class Parser
             var name = parameter.Name;
             var hasDefault = defaultMap.TryGetValue(name, out var isDefault) && isDefault;
 
-            parameters.Add(new ParameterModel(
-                name,
-                parameter.Type.ToDisplayString(RoslynHelpers.TypeDisplayFormat),
-                parameter.Type.ToDisplayString(RoslynHelpers.SignatureDisplayFormat),
-                parameter.RefKind,
-                parameter.IsParams,
-                parameter.IsOptional,
-                parameter.HasExplicitDefaultValue,
-                hasDefault));
+            parameters.Add(
+                new ParameterModel(
+                    name,
+                    parameter.Type.ToDisplayString(RoslynHelpers.TypeDisplayFormat),
+                    parameter.Type.ToDisplayString(RoslynHelpers.SignatureDisplayFormat),
+                    parameter.RefKind,
+                    parameter.IsParams,
+                    parameter.IsOptional,
+                    parameter.HasExplicitDefaultValue,
+                    hasDefault));
         }
 
-        var typeParameterNames = methodSymbol.TypeParameters
-            .Select(tp => tp.Name)
-            .ToImmutableArray();
+        var typeParameterNames = methodSymbol.TypeParameters.Select(tp => tp.Name).ToImmutableArray();
 
         var constraints = BuildTypeParameterConstraints(methodSymbol);
         var (options, fromAttribute) = ExtractOverloadOptions(methodSymbol, cancellationToken, out syntaxOptions);
@@ -114,40 +112,23 @@ internal static partial class Parser
 
     private static string BuildTypeParameterConstraints(IMethodSymbol method)
     {
-        if (method.TypeParameters.Length == 0)
-        {
-            return string.Empty;
-        }
+        if (method.TypeParameters.Length == 0) return string.Empty;
 
         var constraints = new List<string>();
         foreach (var typeParam in method.TypeParameters)
         {
             var parts = new List<string>();
 
-            if (typeParam.HasReferenceTypeConstraint)
-            {
-                parts.Add("class");
-            }
+            if (typeParam.HasReferenceTypeConstraint) parts.Add("class");
 
-            if (typeParam.HasValueTypeConstraint)
-            {
-                parts.Add("struct");
-            }
+            if (typeParam.HasValueTypeConstraint) parts.Add("struct");
 
             foreach (var constraintType in typeParam.ConstraintTypes)
-            {
                 parts.Add(constraintType.ToDisplayString(RoslynHelpers.TypeDisplayFormat));
-            }
 
-            if (typeParam.HasConstructorConstraint)
-            {
-                parts.Add("new()");
-            }
+            if (typeParam.HasConstructorConstraint) parts.Add("new()");
 
-            if (parts.Count > 0)
-            {
-                constraints.Add("where " + typeParam.Name + " : " + string.Join(", ", parts));
-            }
+            if (parts.Count > 0) constraints.Add("where " + typeParam.Name + " : " + string.Join(", ", parts));
         }
 
         return string.Join(" ", constraints);
@@ -163,15 +144,20 @@ internal static partial class Parser
         if (attribute is not null)
         {
             var attrSyntax = attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken);
-            SourceLocationModel? attributeLocation = attrSyntax is null ? null : SourceLocationModel.FromSyntaxNode(attrSyntax);
-            attributeArgs = ExtractGenerateOverloadsArgsFromAttribute(attribute, attributeLocation, GetMethodIdentifierLocation(methodSymbol, cancellationToken));
+            SourceLocationModel? attributeLocation = attrSyntax is null
+                ? null
+                : SourceLocationModel.FromSyntaxNode(attrSyntax);
+            attributeArgs = ExtractGenerateOverloadsArgsFromAttribute(
+                attribute,
+                attributeLocation,
+                GetMethodIdentifierLocation(methodSymbol, cancellationToken));
         }
 
         var syntax = GetMethodSyntax(methodSymbol, cancellationToken);
         if (syntax is not null)
-        {
-            syntaxArgs = ExtractGenerateOverloadsArgsFromSyntax(syntax, GetMethodIdentifierLocation(methodSymbol, cancellationToken));
-        }
+            syntaxArgs = ExtractGenerateOverloadsArgsFromSyntax(
+                syntax,
+                GetMethodIdentifierLocation(methodSymbol, cancellationToken));
 
         return (attributeArgs, syntaxArgs);
     }
@@ -184,21 +170,12 @@ internal static partial class Parser
         syntaxOptions = default;
 
         var syntax = GetMemberSyntax(symbol, cancellationToken);
-        if (syntax is not null)
-        {
-            syntaxOptions = ExtractOverloadOptionsFromSyntax(syntax);
-        }
+        if (syntax is not null) syntaxOptions = ExtractOverloadOptionsFromSyntax(syntax);
 
         var attribute = RoslynHelpers.GetAttribute(symbol, "OverloadGenerationOptionsAttribute");
-        if (attribute is not null)
-        {
-            return (ExtractOverloadOptionsFromAttribute(attribute), true);
-        }
+        if (attribute is not null) return (ExtractOverloadOptionsFromAttribute(attribute), true);
 
-        if (syntaxOptions.HasAny)
-        {
-            return (syntaxOptions, false);
-        }
+        if (syntaxOptions.HasAny) return (syntaxOptions, false);
 
         return (default, false);
     }
@@ -210,29 +187,18 @@ internal static partial class Parser
         OverloadVisibility? overloadVisibility = null;
 
         foreach (var arg in attribute.NamedArguments)
-        {
             if (string.Equals(arg.Key, "RangeAnchorMatchMode", StringComparison.Ordinal))
             {
-                if (TryGetEnumConstant(arg.Value, out RangeAnchorMatchMode value))
-                {
-                    rangeAnchorMatchMode = value;
-                }
+                if (TryGetEnumConstant(arg.Value, out RangeAnchorMatchMode value)) rangeAnchorMatchMode = value;
             }
             else if (string.Equals(arg.Key, "SubsequenceStrategy", StringComparison.Ordinal))
             {
-                if (TryGetEnumConstant(arg.Value, out OverloadSubsequenceStrategy value))
-                {
-                    subsequenceStrategy = value;
-                }
+                if (TryGetEnumConstant(arg.Value, out OverloadSubsequenceStrategy value)) subsequenceStrategy = value;
             }
             else if (string.Equals(arg.Key, "OverloadVisibility", StringComparison.Ordinal))
             {
-                if (TryGetEnumConstant(arg.Value, out OverloadVisibility value))
-                {
-                    overloadVisibility = value;
-                }
+                if (TryGetEnumConstant(arg.Value, out OverloadVisibility value)) overloadVisibility = value;
             }
-        }
 
         return new OverloadOptionsModel(rangeAnchorMatchMode, subsequenceStrategy, overloadVisibility);
     }
@@ -244,48 +210,31 @@ internal static partial class Parser
         OverloadVisibility? overloadVisibility = null;
 
         foreach (var attributeList in syntax.AttributeLists)
+        foreach (var attribute in attributeList.Attributes)
         {
-            foreach (var attribute in attributeList.Attributes)
+            if (!RoslynHelpers.IsAttributeNameMatch(attribute.Name.ToString(), "OverloadGenerationOptions")) continue;
+
+            if (attribute.ArgumentList is null) continue;
+
+            foreach (var argument in attribute.ArgumentList.Arguments)
             {
-                if (!RoslynHelpers.IsAttributeNameMatch(attribute.Name.ToString(), "OverloadGenerationOptions"))
+                if (argument.NameEquals is null) continue;
+
+                var name = argument.NameEquals.Name.Identifier.ValueText;
+                if (string.Equals(name, "RangeAnchorMatchMode", StringComparison.Ordinal))
                 {
-                    continue;
+                    if (TryParseEnumValue(argument.Expression, out RangeAnchorMatchMode value))
+                        rangeAnchorMatchMode = value;
                 }
-
-                if (attribute.ArgumentList is null)
+                else if (string.Equals(name, "SubsequenceStrategy", StringComparison.Ordinal))
                 {
-                    continue;
+                    if (TryParseEnumValue(argument.Expression, out OverloadSubsequenceStrategy value))
+                        subsequenceStrategy = value;
                 }
-
-                foreach (var argument in attribute.ArgumentList.Arguments)
+                else if (string.Equals(name, "OverloadVisibility", StringComparison.Ordinal))
                 {
-                    if (argument.NameEquals is null)
-                    {
-                        continue;
-                    }
-
-                    var name = argument.NameEquals.Name.Identifier.ValueText;
-                    if (string.Equals(name, "RangeAnchorMatchMode", StringComparison.Ordinal))
-                    {
-                        if (TryParseEnumValue(argument.Expression, out RangeAnchorMatchMode value))
-                        {
-                            rangeAnchorMatchMode = value;
-                        }
-                    }
-                    else if (string.Equals(name, "SubsequenceStrategy", StringComparison.Ordinal))
-                    {
-                        if (TryParseEnumValue(argument.Expression, out OverloadSubsequenceStrategy value))
-                        {
-                            subsequenceStrategy = value;
-                        }
-                    }
-                    else if (string.Equals(name, "OverloadVisibility", StringComparison.Ordinal))
-                    {
-                        if (TryParseEnumValue(argument.Expression, out OverloadVisibility value))
-                        {
-                            overloadVisibility = value;
-                        }
-                    }
+                    if (TryParseEnumValue(argument.Expression, out OverloadVisibility value))
+                        overloadVisibility = value;
                 }
             }
         }
@@ -297,33 +246,22 @@ internal static partial class Parser
         AttributeData? attribute,
         CancellationToken cancellationToken)
     {
-        if (attribute is null)
-        {
-            return (ImmutableArray<string>.Empty, ImmutableArray<MatcherTypeModel>.Empty);
-        }
+        if (attribute is null) return (ImmutableArray<string>.Empty, ImmutableArray<MatcherTypeModel>.Empty);
 
         foreach (var named in attribute.NamedArguments)
         {
-            if (!string.Equals(named.Key, "Matchers", StringComparison.Ordinal))
-            {
-                continue;
-            }
+            if (!string.Equals(named.Key, "Matchers", StringComparison.Ordinal)) continue;
 
-            if (named.Value.Kind != TypedConstantKind.Array)
-            {
-                continue;
-            }
+            if (named.Value.Kind != TypedConstantKind.Array) continue;
 
             var symbols = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
             var displays = ImmutableArray.CreateBuilder<string>();
             foreach (var constant in named.Value.Values)
-            {
                 if (constant.Value is INamedTypeSymbol matcherType)
                 {
                     symbols.Add(matcherType);
                     displays.Add(matcherType.ToDisplayString(RoslynHelpers.TypeDisplayFormat));
                 }
-            }
 
             var models = BuildMatcherTypeModels(symbols.ToImmutable(), cancellationToken);
             return (displays.ToImmutable(), models);
@@ -336,10 +274,7 @@ internal static partial class Parser
         ImmutableArray<INamedTypeSymbol> matcherSymbols,
         CancellationToken cancellationToken)
     {
-        if (matcherSymbols.IsDefaultOrEmpty)
-        {
-            return ImmutableArray<MatcherTypeModel>.Empty;
-        }
+        if (matcherSymbols.IsDefaultOrEmpty) return ImmutableArray<MatcherTypeModel>.Empty;
 
         var builder = ImmutableArray.CreateBuilder<MatcherTypeModel>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -349,10 +284,7 @@ internal static partial class Parser
             cancellationToken.ThrowIfCancellationRequested();
 
             var display = matcherTypeSymbol.ToDisplayString(RoslynHelpers.TypeDisplayFormat);
-            if (!seen.Add(display))
-            {
-                continue;
-            }
+            if (!seen.Add(display)) continue;
 
             var typeModel = BuildTypeModel(matcherTypeSymbol, cancellationToken);
             var matcherMethods = new List<MatcherMethodModel>();
@@ -361,26 +293,29 @@ internal static partial class Parser
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (!HasGenerateOverloadsAttribute(member))
-                {
-                    continue;
-                }
+                if (!HasGenerateOverloadsAttribute(member)) continue;
 
-                var methodModel = BuildMethodModel(member, cancellationToken, out var syntaxOptions, out var optionsFromAttribute);
+                var methodModel = BuildMethodModel(
+                    member,
+                    cancellationToken,
+                    out var syntaxOptions,
+                    out var optionsFromAttribute);
                 var (attributeArgs, syntaxArgs) = ExtractGenerateOverloadsArgs(member, cancellationToken);
 
-                matcherMethods.Add(new MatcherMethodModel(
-                    methodModel,
-                    attributeArgs,
-                    syntaxArgs,
-                    methodModel.Options,
-                    syntaxOptions.HasAny ? syntaxOptions : null));
+                matcherMethods.Add(
+                    new MatcherMethodModel(
+                        methodModel,
+                        attributeArgs,
+                        syntaxArgs,
+                        methodModel.Options,
+                        syntaxOptions.HasAny ? syntaxOptions : null));
             }
 
-            builder.Add(new MatcherTypeModel(
-                typeModel,
-                typeModel.Options,
-                new EquatableArray<MatcherMethodModel>([..matcherMethods])));
+            builder.Add(
+                new MatcherTypeModel(
+                    typeModel,
+                    typeModel.Options,
+                    new EquatableArray<MatcherMethodModel>([..matcherMethods])));
         }
 
         return builder.ToImmutable();
@@ -402,36 +337,22 @@ internal static partial class Parser
         string? end = null;
         string? endExclusive = null;
 
-        if (attribute.ConstructorArguments.Length > 0 &&
-            attribute.ConstructorArguments[0].Kind == TypedConstantKind.Primitive &&
-            attribute.ConstructorArguments[0].Value is string ctorValue)
-        {
+        if (attribute.ConstructorArguments.Length > 0
+            && attribute.ConstructorArguments[index: 0].Kind == TypedConstantKind.Primitive
+            && attribute.ConstructorArguments[index: 0].Value is string ctorValue)
             beginEnd = ctorValue;
-        }
 
         foreach (var arg in attribute.NamedArguments)
         {
-            if (arg.Value.Kind != TypedConstantKind.Primitive || arg.Value.Value is not string value)
-            {
-                continue;
-            }
+            if (arg.Value.Kind != TypedConstantKind.Primitive || arg.Value.Value is not string value) continue;
 
             if (string.Equals(arg.Key, "Begin", StringComparison.Ordinal))
-            {
                 begin = value;
-            }
             else if (string.Equals(arg.Key, "BeginExclusive", StringComparison.Ordinal))
-            {
                 beginExclusive = value;
-            }
             else if (string.Equals(arg.Key, "End", StringComparison.Ordinal))
-            {
                 end = value;
-            }
-            else if (string.Equals(arg.Key, "EndExclusive", StringComparison.Ordinal))
-            {
-                endExclusive = value;
-            }
+            else if (string.Equals(arg.Key, "EndExclusive", StringComparison.Ordinal)) endExclusive = value;
         }
 
         return new GenerateOverloadsArgsModel(
@@ -442,7 +363,7 @@ internal static partial class Parser
             endExclusive,
             attributeLocation,
             identifierLocation,
-            null);
+            SyntaxAttributeLocation: null);
     }
 
     private static GenerateOverloadsArgsModel? ExtractGenerateOverloadsArgsFromSyntax(
@@ -450,75 +371,53 @@ internal static partial class Parser
         SourceLocationModel? identifierLocation)
     {
         foreach (var attributeList in methodSyntax.AttributeLists)
+        foreach (var attribute in attributeList.Attributes)
         {
-            foreach (var attribute in attributeList.Attributes)
-            {
-                if (!RoslynHelpers.IsAttributeNameMatch(attribute.Name.ToString(), "GenerateOverloads"))
-                {
-                    continue;
-                }
+            if (!RoslynHelpers.IsAttributeNameMatch(attribute.Name.ToString(), "GenerateOverloads")) continue;
 
-                string? beginEnd = null;
-                string? begin = null;
-                string? beginExclusive = null;
-                string? end = null;
-                string? endExclusive = null;
+            string? beginEnd = null;
+            string? begin = null;
+            string? beginExclusive = null;
+            string? end = null;
+            string? endExclusive = null;
 
-                if (attribute.ArgumentList is not null)
+            if (attribute.ArgumentList is not null)
+                foreach (var argument in attribute.ArgumentList.Arguments)
                 {
-                    foreach (var argument in attribute.ArgumentList.Arguments)
+                    if (argument.NameEquals is null)
                     {
-                        if (argument.NameEquals is null)
+                        if (beginEnd is null)
                         {
-                            if (beginEnd is null)
-                            {
-                                var positionalValue = GetAttributeStringValue(argument.Expression);
-                                if (!string.IsNullOrEmpty(positionalValue))
-                                {
-                                    beginEnd = positionalValue;
-                                }
-                            }
-
-                            continue;
+                            var positionalValue = GetAttributeStringValue(argument.Expression);
+                            if (!string.IsNullOrEmpty(positionalValue)) beginEnd = positionalValue;
                         }
 
-                        var name = argument.NameEquals.Name.Identifier.ValueText;
-                        var value = GetAttributeStringValue(argument.Expression);
-
-                        if (string.IsNullOrEmpty(value))
-                        {
-                            continue;
-                        }
-
-                        if (string.Equals(name, "Begin", StringComparison.Ordinal))
-                        {
-                            begin = value;
-                        }
-                        else if (string.Equals(name, "BeginExclusive", StringComparison.Ordinal))
-                        {
-                            beginExclusive = value;
-                        }
-                        else if (string.Equals(name, "End", StringComparison.Ordinal))
-                        {
-                            end = value;
-                        }
-                        else if (string.Equals(name, "EndExclusive", StringComparison.Ordinal))
-                        {
-                            endExclusive = value;
-                        }
+                        continue;
                     }
+
+                    var name = argument.NameEquals.Name.Identifier.ValueText;
+                    var value = GetAttributeStringValue(argument.Expression);
+
+                    if (string.IsNullOrEmpty(value)) continue;
+
+                    if (string.Equals(name, "Begin", StringComparison.Ordinal))
+                        begin = value;
+                    else if (string.Equals(name, "BeginExclusive", StringComparison.Ordinal))
+                        beginExclusive = value;
+                    else if (string.Equals(name, "End", StringComparison.Ordinal))
+                        end = value;
+                    else if (string.Equals(name, "EndExclusive", StringComparison.Ordinal)) endExclusive = value;
                 }
 
-                return new GenerateOverloadsArgsModel(
-                    beginEnd,
-                    begin,
-                    beginExclusive,
-                    end,
-                    endExclusive,
-                    null,
-                    identifierLocation,
-                    SourceLocationModel.FromSyntaxNode(attribute));
-            }
+            return new GenerateOverloadsArgsModel(
+                beginEnd,
+                begin,
+                beginExclusive,
+                end,
+                endExclusive,
+                AttributeLocation: null,
+                identifierLocation,
+                SourceLocationModel.FromSyntaxNode(attribute));
         }
 
         return null;
@@ -527,16 +426,14 @@ internal static partial class Parser
     private static string? GetAttributeStringValue(ExpressionSyntax expression)
     {
         if (expression is LiteralExpressionSyntax literal && literal.IsKind(SyntaxKind.StringLiteralExpression))
-        {
             return literal.Token.ValueText;
-        }
 
-        if (expression is InvocationExpressionSyntax invocation &&
-            invocation.Expression is IdentifierNameSyntax identifier &&
-            string.Equals(identifier.Identifier.ValueText, "nameof", StringComparison.Ordinal) &&
-            invocation.ArgumentList.Arguments.Count == 1)
+        if (expression is InvocationExpressionSyntax invocation
+            && invocation.Expression is IdentifierNameSyntax identifier
+            && string.Equals(identifier.Identifier.ValueText, "nameof", StringComparison.Ordinal)
+            && invocation.ArgumentList.Arguments.Count == 1)
         {
-            var argExpression = invocation.ArgumentList.Arguments[0].Expression;
+            var argExpression = invocation.ArgumentList.Arguments[index: 0].Expression;
             return argExpression switch
             {
                 IdentifierNameSyntax id => id.Identifier.ValueText,
@@ -548,21 +445,21 @@ internal static partial class Parser
         return null;
     }
 
-    private static SourceLocationModel? GetMethodIdentifierLocation(IMethodSymbol methodSymbol, CancellationToken cancellationToken)
+    private static SourceLocationModel? GetMethodIdentifierLocation(
+        IMethodSymbol methodSymbol,
+        CancellationToken cancellationToken)
     {
         var syntax = GetMethodSyntax(methodSymbol, cancellationToken);
         return syntax is null ? null : SourceLocationModel.FromSyntaxToken(syntax.Identifier);
     }
 
-    private static MethodDeclarationSyntax? GetMethodSyntax(IMethodSymbol methodSymbol, CancellationToken cancellationToken)
+    private static MethodDeclarationSyntax? GetMethodSyntax(
+        IMethodSymbol methodSymbol,
+        CancellationToken cancellationToken)
     {
         foreach (var syntaxRef in methodSymbol.DeclaringSyntaxReferences)
-        {
             if (syntaxRef.GetSyntax(cancellationToken) is MethodDeclarationSyntax methodSyntax)
-            {
                 return methodSyntax;
-            }
-        }
 
         return null;
     }
@@ -570,18 +467,13 @@ internal static partial class Parser
     private static MemberDeclarationSyntax? GetMemberSyntax(ISymbol symbol, CancellationToken cancellationToken)
     {
         foreach (var syntaxRef in symbol.DeclaringSyntaxReferences)
-        {
             if (syntaxRef.GetSyntax(cancellationToken) is MemberDeclarationSyntax memberSyntax)
-            {
                 return memberSyntax;
-            }
-        }
 
         return null;
     }
 
-    private static bool TryParseEnumValue<TEnum>(ExpressionSyntax expression, out TEnum value)
-        where TEnum : struct
+    private static bool TryParseEnumValue<TEnum>(ExpressionSyntax expression, out TEnum value) where TEnum : struct
     {
         value = default;
         var name = expression switch
@@ -596,23 +488,16 @@ internal static partial class Parser
             var text = expression.ToString();
             var parts = text.Split('.');
             name = parts.Length > 0 ? parts[parts.Length - 1] : string.Empty;
-            if (string.IsNullOrEmpty(name))
-            {
-                return false;
-            }
+            if (string.IsNullOrEmpty(name)) return false;
         }
 
         return Enum.TryParse(name, out value);
     }
 
-    private static bool TryGetEnumConstant<TEnum>(TypedConstant constant, out TEnum value)
-        where TEnum : struct
+    private static bool TryGetEnumConstant<TEnum>(TypedConstant constant, out TEnum value) where TEnum : struct
     {
         value = default;
-        if (constant.Value is null)
-        {
-            return false;
-        }
+        if (constant.Value is null) return false;
 
         try
         {

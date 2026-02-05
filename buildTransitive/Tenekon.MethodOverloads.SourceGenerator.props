@@ -1,5 +1,5 @@
 <Project>
-  <ItemGroup>
-    <CompilerVisibleProperty Include="TenekonMethodOverloadsSourceGeneratorAttributesOnly" />
-  </ItemGroup>
+    <ItemGroup>
+        <CompilerVisibleProperty Include="TenekonMethodOverloadsSourceGeneratorAttributesOnly"/>
+    </ItemGroup>
 </Project>

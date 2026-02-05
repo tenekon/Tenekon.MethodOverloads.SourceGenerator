@@ -12,7 +12,4 @@ internal readonly record struct ParameterModel(
     bool HasExplicitDefaultValue,
     bool HasDefaultFromSyntax);
 
-internal readonly record struct ParameterSignatureModel(
-    string SignatureTypeDisplay,
-    RefKind RefKind,
-    bool IsParams);
+internal readonly record struct ParameterSignatureModel(string SignatureTypeDisplay, RefKind RefKind, bool IsParams);

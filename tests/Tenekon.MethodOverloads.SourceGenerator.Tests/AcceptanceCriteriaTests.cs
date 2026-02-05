@@ -22,7 +22,8 @@ public sealed class AcceptanceCriteriaTests
             var missing = expectedKeys.Except(actualKeys).OrderBy(x => x, StringComparer.Ordinal).ToArray();
             var extra = actualKeys.Except(expectedKeys).OrderBy(x => x, StringComparer.Ordinal).ToArray();
 
-            var message = "[" + caseResult.ClassName + "]\nMissing:\n" + string.Join("\n", missing) + "\n\nExtra:\n" + string.Join("\n", extra);
+            var message = "[" + caseResult.ClassName + "]\nMissing:\n" + string.Join("\n", missing) + "\n\nExtra:\n"
+                + string.Join("\n", extra);
             Assert.Fail(message);
         }
     }

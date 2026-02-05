@@ -18,7 +18,11 @@ public sealed class RefProjectBuildTests
             "Tenekon.MethodOverloads.AcceptanceCriterias.csproj");
         Assert.True(File.Exists(projectPath), "AcceptanceCriterias project file not found.");
 
-        var result = RunProcess("dotnet", $"build \"{projectPath}\" -c Release", RepoRoot, TimeSpan.FromMinutes(2));
+        var result = RunProcess(
+            "dotnet",
+            $"build \"{projectPath}\" -c Release",
+            RepoRoot,
+            TimeSpan.FromMinutes(value: 2));
 
         Assert.True(
             result.ExitCode == 0,
@@ -39,7 +43,7 @@ public sealed class RefProjectBuildTests
             "dotnet",
             $"build \"{projectPath}\" -c Release /p:TenekonMethodOverloadsSourceGeneratorAttributesOnly=false",
             RepoRoot,
-            TimeSpan.FromMinutes(2));
+            TimeSpan.FromMinutes(value: 2));
 
         Assert.True(
             result.ExitCode == 0,
@@ -77,7 +81,7 @@ public sealed class RefProjectBuildTests
                 // Ignore shutdown errors; we'll report timeout as failure.
             }
 
-            return new ProcessResult(-1, "Process timed out.", string.Empty);
+            return new ProcessResult(ExitCode: -1, "Process timed out.", string.Empty);
         }
 
         Task.WaitAll(stdOut, stdErr);

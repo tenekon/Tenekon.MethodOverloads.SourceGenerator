@@ -11,7 +11,7 @@ public class DiagnosticsTests
     {
         var ids = typeof(GeneratorDiagnostics).GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(f => f.FieldType == typeof(DiagnosticDescriptor))
-            .Select(f => (DiagnosticDescriptor?)f.GetValue(null)!)
+            .Select(f => (DiagnosticDescriptor?)f.GetValue(obj: null)!)
             .Select(descriptor => new DiagnosticDescriptorRecord
             {
                 Id = descriptor.Id,

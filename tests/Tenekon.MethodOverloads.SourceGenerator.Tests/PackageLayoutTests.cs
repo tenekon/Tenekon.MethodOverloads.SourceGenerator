@@ -9,25 +9,38 @@ public sealed class PackageLayoutTests
     public void Package_PlacesAnalyzerUnderAnalyzersFolder_AndUsesLibPlaceholder()
     {
         var repoRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-        var projectPath = Path.Combine(repoRoot, "src", "Tenekon.MethodOverloads.SourceGenerator", "Tenekon.MethodOverloads.SourceGenerator.csproj");
-        var outputRoot = Path.Combine(Path.GetTempPath(), "Tenekon.MethodOverloads.SourceGenerator.PackTests", Guid.NewGuid().ToString("N"));
+        var projectPath = Path.Combine(
+            repoRoot,
+            "src",
+            "Tenekon.MethodOverloads.SourceGenerator",
+            "Tenekon.MethodOverloads.SourceGenerator.csproj");
+        var outputRoot = Path.Combine(
+            Path.GetTempPath(),
+            "Tenekon.MethodOverloads.SourceGenerator.PackTests",
+            Guid.NewGuid().ToString("N"));
         var outputPath = Path.Combine(outputRoot, "pkgs");
 
         Directory.CreateDirectory(outputPath);
 
         try
         {
-            var result = RunProcess("dotnet", $"pack \"{projectPath}\" -c Release -p:PackageOutputPath=\"{outputPath}\"");
+            var result = RunProcess(
+                "dotnet",
+                $"pack \"{projectPath}\" -c Release -p:PackageOutputPath=\"{outputPath}\"");
             Assert.True(result.ExitCode == 0, $"dotnet pack failed with exit code {result.ExitCode}\n{result.Output}");
 
             var nupkg = Directory.GetFiles(outputPath, "*.nupkg").SingleOrDefault();
-            Assert.False(string.IsNullOrWhiteSpace(nupkg), "Expected exactly one .nupkg in the package output directory.");
+            Assert.False(
+                string.IsNullOrWhiteSpace(nupkg),
+                "Expected exactly one .nupkg in the package output directory.");
 
             using var zip = ZipFile.OpenRead(nupkg!);
             var entries = zip.Entries.Select(e => e.FullName).ToArray();
 
             Assert.Contains("analyzers/dotnet/cs/Tenekon.MethodOverloads.SourceGenerator.dll", entries);
-            Assert.DoesNotContain(entries, e => e.StartsWith("analyzers/dotnet/cs/netstandard", StringComparison.OrdinalIgnoreCase));
+            Assert.DoesNotContain(
+                entries,
+                e => e.StartsWith("analyzers/dotnet/cs/netstandard", StringComparison.OrdinalIgnoreCase));
 
             Assert.Contains("build/Tenekon.MethodOverloads.SourceGenerator.props", entries);
             Assert.Contains("buildTransitive/Tenekon.MethodOverloads.SourceGenerator.props", entries);
@@ -37,10 +50,7 @@ public sealed class PackageLayoutTests
         }
         finally
         {
-            if (Directory.Exists(outputRoot))
-            {
-                Directory.Delete(outputRoot, recursive: true);
-            }
+            if (Directory.Exists(outputRoot)) Directory.Delete(outputRoot, recursive: true);
         }
     }
 

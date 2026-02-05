@@ -16,37 +16,44 @@ public sealed class MethodOverloadsGenerator : IIncrementalGenerator
         context.RegisterPostInitializationOutput(static postContext =>
         {
             postContext.AddSource("EmbeddedAttribute.g.cs", GeneratorAttributesSource.EmbeddedAttribute);
-            postContext.AddSource("GenerateOverloadsAttribute.g.cs", GeneratorAttributesSource.GenerateOverloadsAttribute);
-            postContext.AddSource("GenerateMethodOverloadsAttribute.g.cs", GeneratorAttributesSource.GenerateMethodOverloadsAttribute);
-            postContext.AddSource("OverloadGenerationOptionsAttribute.g.cs", GeneratorAttributesSource.OverloadGenerationOptionsAttribute);
+            postContext.AddSource(
+                "GenerateOverloadsAttribute.g.cs",
+                GeneratorAttributesSource.GenerateOverloadsAttribute);
+            postContext.AddSource(
+                "GenerateMethodOverloadsAttribute.g.cs",
+                GeneratorAttributesSource.GenerateMethodOverloadsAttribute);
+            postContext.AddSource(
+                "OverloadGenerationOptionsAttribute.g.cs",
+                GeneratorAttributesSource.OverloadGenerationOptionsAttribute);
             postContext.AddSource("MatcherUsageAttribute.g.cs", GeneratorAttributesSource.MatcherUsageAttribute);
         });
 
-        var attributesOnlyProvider = context.AnalyzerConfigOptionsProvider
-            .Select(static (provider, _) =>
-            {
-                if (provider.GlobalOptions.TryGetValue(
-                        "build_property.TenekonMethodOverloadsSourceGeneratorAttributesOnly",
-                        out var raw))
-                {
-                    return string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase) ||
-                           string.Equals(raw, "1", StringComparison.Ordinal);
-                }
+        var attributesOnlyProvider = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) =>
+        {
+            if (provider.GlobalOptions.TryGetValue(
+                    "build_property.TenekonMethodOverloadsSourceGeneratorAttributesOnly",
+                    out var raw))
+                return string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(raw, "1", StringComparison.Ordinal);
 
-                return false;
-            });
+            return false;
+        });
 
         var typeTargets = context.SyntaxProvider.ForAttributeWithMetadataName(
                 AttributeNames.GenerateMethodOverloadsAttribute,
                 static (node, _) => node is BaseTypeDeclarationSyntax,
-                static (attributeContext, cancellationToken) => Parser.CreateTypeTarget(attributeContext, cancellationToken))
+                static (attributeContext, cancellationToken) => Parser.CreateTypeTarget(
+                    attributeContext,
+                    cancellationToken))
             .Where(static input => input.HasValue)
             .Select(static (input, _) => input!.Value);
 
         var methodTargets = context.SyntaxProvider.ForAttributeWithMetadataName(
                 AttributeNames.GenerateOverloadsAttribute,
                 static (node, _) => node is MethodDeclarationSyntax,
-                static (attributeContext, cancellationToken) => Parser.CreateMethodTarget(attributeContext, cancellationToken))
+                static (attributeContext, cancellationToken) => Parser.CreateMethodTarget(
+                    attributeContext,
+                    cancellationToken))
             .Where(static input => input.HasValue)
             .Select(static (input, _) => input!.Value);
 
@@ -56,15 +63,14 @@ public sealed class MethodOverloadsGenerator : IIncrementalGenerator
 
         var combined = modelProvider.Combine(attributesOnlyProvider);
 
-        context.RegisterSourceOutput(combined, static (productionContext, pair) =>
-        {
-            var model = pair.Left;
-            if (pair.Right || model is null)
+        context.RegisterSourceOutput(
+            combined,
+            static (productionContext, pair) =>
             {
-                return;
-            }
+                var model = pair.Left;
+                if (pair.Right || model is null) return;
 
-            SourceFormatter.GenerateSourceFiles(productionContext, model);
-        });
+                SourceFormatter.GenerateSourceFiles(productionContext, model);
+            });
     }
 }

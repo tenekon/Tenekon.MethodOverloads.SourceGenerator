@@ -47,34 +47,34 @@ internal sealed class GeneratedMethod
         var constraints = _method.TypeParameterConstraints;
         var isExtensionMethod = _method.IsExtensionMethod;
         var receiverParameter = isExtensionMethod ? _method.Parameters.Items.FirstOrDefault() : (ParameterModel?)null;
-        var receiverType = receiverParameter?.TypeDisplay
-            ?? _method.ContainingTypeDisplay;
+        var receiverType = receiverParameter?.TypeDisplay ?? _method.ContainingTypeDisplay;
         var receiverName = receiverParameter?.Name ?? "source";
-        var invocationReceiver = isExtensionMethod
-            ? _method.ContainingTypeDisplay
-            : receiverName;
+        var invocationReceiver = isExtensionMethod ? _method.ContainingTypeDisplay : receiverName;
 
-        builder.Append("    ").Append(accessibility).Append(" static ").Append(returnType).Append(" ")
-            .Append(_method.Name).Append(typeParams).Append("(");
+        builder.Append("    ")
+            .Append(accessibility)
+            .Append(" static ")
+            .Append(returnType)
+            .Append(" ")
+            .Append(_method.Name)
+            .Append(typeParams)
+            .Append("(");
 
         builder.Append("this ").Append(receiverType).Append(" ").Append(receiverName);
 
         foreach (var parameter in _keptParameters)
         {
-            if (receiverParameter.HasValue && string.Equals(parameter.Name, receiverParameter.Value.Name, StringComparison.Ordinal))
-            {
-                continue;
-            }
+            if (receiverParameter.HasValue && string.Equals(
+                    parameter.Name,
+                    receiverParameter.Value.Name,
+                    StringComparison.Ordinal)) continue;
 
             builder.Append(", ").Append(RenderParameter(parameter));
         }
 
         builder.Append(")");
 
-        if (!string.IsNullOrWhiteSpace(constraints))
-        {
-            builder.Append(" ").Append(constraints);
-        }
+        if (!string.IsNullOrWhiteSpace(constraints)) builder.Append(" ").Append(constraints);
 
         builder.Append(" => ").Append(RenderInvocation(invocationReceiver)).Append(";");
 
@@ -92,16 +92,19 @@ internal sealed class GeneratedMethod
 
         builder.AppendLine("    extension(" + receiverType + ")");
         builder.AppendLine("    {");
-        builder.Append("        ").Append(accessibility).Append(" static ").Append(returnType).Append(" ")
-            .Append(_method.Name).Append(typeParams).Append("(");
+        builder.Append("        ")
+            .Append(accessibility)
+            .Append(" static ")
+            .Append(returnType)
+            .Append(" ")
+            .Append(_method.Name)
+            .Append(typeParams)
+            .Append("(");
 
         var first = true;
         foreach (var parameter in _keptParameters)
         {
-            if (!first)
-            {
-                builder.Append(", ");
-            }
+            if (!first) builder.Append(", ");
 
             builder.Append(RenderParameter(parameter));
             first = false;
@@ -109,10 +112,7 @@ internal sealed class GeneratedMethod
 
         builder.Append(")");
 
-        if (!string.IsNullOrWhiteSpace(constraints))
-        {
-            builder.Append(" ").Append(constraints);
-        }
+        if (!string.IsNullOrWhiteSpace(constraints)) builder.Append(" ").Append(constraints);
 
         builder.Append(" => ").Append(RenderInvocation(receiverType)).Append(";");
         builder.AppendLine();
@@ -121,15 +121,12 @@ internal sealed class GeneratedMethod
         return builder.ToString();
     }
 
-    internal static MatcherMethodReference[] NormalizeMatchedMatcherMethods(IReadOnlyCollection<MatcherMethodReference>? matchedMatcherMethods)
+    internal static MatcherMethodReference[] NormalizeMatchedMatcherMethods(
+        IReadOnlyCollection<MatcherMethodReference>? matchedMatcherMethods)
     {
-        if (matchedMatcherMethods is null || matchedMatcherMethods.Count == 0)
-        {
-            return [];
-        }
+        if (matchedMatcherMethods is null || matchedMatcherMethods.Count == 0) return [];
 
-        return matchedMatcherMethods
-            .Distinct()
+        return matchedMatcherMethods.Distinct()
             .OrderBy(method => method.ContainingTypeDisplay, StringComparer.Ordinal)
             .ThenBy(method => method.MethodName, StringComparer.Ordinal)
             .ThenBy(method => method.ParameterCount)
@@ -144,10 +141,7 @@ internal sealed class GeneratedMethod
         var first = true;
         foreach (var parameter in _method.Parameters.Items)
         {
-            if (!first)
-            {
-                builder.Append(", ");
-            }
+            if (!first) builder.Append(", ");
 
             builder.Append(RenderArgument(parameter));
             first = false;
@@ -173,7 +167,7 @@ internal sealed class GeneratedMethod
 
         if (parameter.IsParams && parameter.TypeDisplay.EndsWith("[]", StringComparison.Ordinal))
         {
-            var elementType = parameter.TypeDisplay.Substring(0, parameter.TypeDisplay.Length - 2);
+            var elementType = parameter.TypeDisplay.Substring(startIndex: 0, parameter.TypeDisplay.Length - 2);
             return "global::System.Array.Empty<" + elementType + ">()";
         }
 
@@ -190,9 +184,8 @@ internal sealed class GeneratedMethod
             _ => _method.DeclaredAccessibility
         };
 
-        if (_overloadVisibility == OverloadVisibility.MatchTarget &&
-            TryGetOverloadVisibilityOverride(_method, out var overrideVisibility))
-        {
+        if (_overloadVisibility == OverloadVisibility.MatchTarget
+            && TryGetOverloadVisibilityOverride(_method, out var overrideVisibility))
             accessibility = overrideVisibility switch
             {
                 OverloadVisibility.Public => Accessibility.Public,
@@ -200,13 +193,10 @@ internal sealed class GeneratedMethod
                 OverloadVisibility.Private => Accessibility.Private,
                 _ => accessibility
             };
-        }
 
-        if (_overloadVisibility == OverloadVisibility.MatchTarget &&
-            (accessibility == Accessibility.ProtectedOrInternal || accessibility == Accessibility.ProtectedAndInternal))
-        {
+        if (_overloadVisibility == OverloadVisibility.MatchTarget && (accessibility == Accessibility.ProtectedOrInternal
+                || accessibility == Accessibility.ProtectedAndInternal))
             accessibility = Accessibility.Internal;
-        }
 
         return accessibility switch
         {
@@ -223,18 +213,16 @@ internal sealed class GeneratedMethod
     private static string RenderParameter(ParameterModel parameter)
     {
         var builder = new StringBuilder();
-        if (parameter.IsParams)
-        {
-            builder.Append("params ");
-        }
+        if (parameter.IsParams) builder.Append("params ");
 
-        builder.Append(parameter.RefKind switch
-        {
-            RefKind.Ref => "ref ",
-            RefKind.Out => "out ",
-            RefKind.In => "in ",
-            _ => string.Empty
-        });
+        builder.Append(
+            parameter.RefKind switch
+            {
+                RefKind.Ref => "ref ",
+                RefKind.Out => "out ",
+                RefKind.In => "in ",
+                _ => string.Empty
+            });
 
         builder.Append(parameter.TypeDisplay);
         builder.Append(" ").Append(parameter.Name);
@@ -243,20 +231,14 @@ internal sealed class GeneratedMethod
 
     private static string RenderTypeParameters(MethodModel method)
     {
-        if (method.TypeParameterCount == 0)
-        {
-            return string.Empty;
-        }
+        if (method.TypeParameterCount == 0) return string.Empty;
 
         return "<" + string.Join(", ", method.TypeParameterNames.Items) + ">";
     }
 
     private static string RenderTypeArguments(MethodModel method)
     {
-        if (method.TypeParameterCount == 0)
-        {
-            return string.Empty;
-        }
+        if (method.TypeParameterCount == 0) return string.Empty;
 
         return "<" + string.Join(", ", method.TypeParameterNames.Items) + ">";
     }

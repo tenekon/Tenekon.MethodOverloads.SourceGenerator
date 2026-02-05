@@ -7,8 +7,10 @@ public sealed class MatcherUsageStubTests
     {
         var fixture = AcceptanceFixtureCache.Instance;
         var stubTree = fixture.GeneratedTrees.FirstOrDefault(tree =>
-            tree.FilePath.Contains("_MatcherUsage.g.cs", StringComparison.OrdinalIgnoreCase) &&
-            tree.ToString().Contains("MatcherUsageAttribute(nameof(global::Tenekon.MethodOverloads.AcceptanceCriterias.MatcherUsage.Class_MatcherUsage_1_Matcher.Match))", StringComparison.Ordinal));
+            tree.FilePath.Contains("_MatcherUsage.g.cs", StringComparison.OrdinalIgnoreCase) && tree.ToString()
+                .Contains(
+                    "MatcherUsageAttribute(nameof(global::Tenekon.MethodOverloads.AcceptanceCriterias.MatcherUsage.Class_MatcherUsage_1_Matcher.Match))",
+                    StringComparison.Ordinal));
 
         Assert.NotNull(stubTree);
 

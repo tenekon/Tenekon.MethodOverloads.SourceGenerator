@@ -23,7 +23,7 @@ public sealed class AttributesOnlyTests
         var compilation = AcceptanceTestData.CreateCompilation(
             new[]
             {
-                CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Preview), path: "Sample.cs")
+                CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Preview), "Sample.cs")
             });
 
         var generator = new MethodOverloadsGenerator();
@@ -67,8 +67,15 @@ public sealed class AttributesOnlyTests
 
         public override AnalyzerConfigOptions GlobalOptions => _globalOptions;
 
-        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) => _globalOptions;
-        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => _globalOptions;
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree)
+        {
+            return _globalOptions;
+        }
+
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile)
+        {
+            return _globalOptions;
+        }
     }
 
     private sealed class TestAnalyzerConfigOptions(Dictionary<string, string> values) : AnalyzerConfigOptions

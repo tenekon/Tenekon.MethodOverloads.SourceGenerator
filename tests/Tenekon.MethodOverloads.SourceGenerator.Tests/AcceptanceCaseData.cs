@@ -6,11 +6,11 @@ public sealed class AcceptanceCaseData : IEnumerable<object[]>
 {
     public IEnumerator<object[]> GetEnumerator()
     {
-        foreach (var caseResult in AcceptanceFixtureCache.Instance.Cases)
-        {
-            yield return new object[] { caseResult };
-        }
+        foreach (var caseResult in AcceptanceFixtureCache.Instance.Cases) yield return new object[] { caseResult };
     }
 
-    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+    IEnumerator IEnumerable.GetEnumerator()
+    {
+        return GetEnumerator();
+    }
 }

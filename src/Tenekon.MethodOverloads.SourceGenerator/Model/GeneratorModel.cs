@@ -18,9 +18,7 @@ internal readonly record struct EquatableDiagnostic(
 {
     public Diagnostic CreateDiagnostic()
     {
-        var args = MessageArgs.Items.Length == 0
-            ? []
-            : MessageArgs.Items.Cast<object?>().ToArray();
+        var args = MessageArgs.Items.Length == 0 ? [] : MessageArgs.Items.Cast<object?>().ToArray();
         return Diagnostic.Create(Descriptor, Location?.ToLocation(), args);
     }
 }

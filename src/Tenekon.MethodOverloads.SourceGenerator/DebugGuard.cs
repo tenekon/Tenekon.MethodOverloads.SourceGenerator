@@ -9,10 +9,7 @@ internal static class DebugGuard
 
     public static void MaybeLaunchDebuggerOnStartup()
     {
-        if (GetBooleanEnvironmentVariable(LaunchDebuggerOnStartEnvVar))
-        {
-            Debugger.Launch();
-        }
+        if (GetBooleanEnvironmentVariable(LaunchDebuggerOnStartEnvVar)) Debugger.Launch();
     }
 
     public static void Invoke<T1, T2>(this Action<T1, T2> action, T1 arg1, T2 arg2)
@@ -43,10 +40,7 @@ internal static class DebugGuard
 
     private static void MaybeLaunchDebuggerOnException()
     {
-        if (GetBooleanEnvironmentVariable(LaunchDebuggerOnExceptionEnvVar))
-        {
-            Debugger.Launch();
-        }
+        if (GetBooleanEnvironmentVariable(LaunchDebuggerOnExceptionEnvVar)) Debugger.Launch();
     }
 
     private static bool GetBooleanEnvironmentVariable(string envVarName)
@@ -54,11 +48,10 @@ internal static class DebugGuard
 #pragma warning disable RS1035 // Do not use APIs banned for analyzers
         if (Environment.GetEnvironmentVariable(envVarName) is not string value)
 #pragma warning restore RS1035 // Do not use APIs banned for analyzers
-        {
             return false;
-        }
 
-        return int.TryParse(value, out int intResult) ? intResult is not 0 :
-            bool.TryParse(value, out bool boolResult) && boolResult;
+        return int.TryParse(value, out var intResult)
+            ? intResult is not 0
+            : bool.TryParse(value, out var boolResult) && boolResult;
     }
 }

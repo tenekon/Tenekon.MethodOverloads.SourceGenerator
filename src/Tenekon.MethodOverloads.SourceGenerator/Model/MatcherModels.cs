@@ -47,9 +47,6 @@ internal readonly record struct GenerateOverloadsArgsModel(
     SourceLocationModel? SyntaxAttributeLocation)
 {
     public bool HasAny =>
-        !string.IsNullOrEmpty(BeginEnd) ||
-        !string.IsNullOrEmpty(Begin) ||
-        !string.IsNullOrEmpty(BeginExclusive) ||
-        !string.IsNullOrEmpty(End) ||
-        !string.IsNullOrEmpty(EndExclusive);
+        !string.IsNullOrEmpty(BeginEnd) || !string.IsNullOrEmpty(Begin) || !string.IsNullOrEmpty(BeginExclusive)
+        || !string.IsNullOrEmpty(End) || !string.IsNullOrEmpty(EndExclusive);
 }

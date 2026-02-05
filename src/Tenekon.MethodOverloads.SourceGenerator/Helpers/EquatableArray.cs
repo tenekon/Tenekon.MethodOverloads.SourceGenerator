@@ -10,18 +10,11 @@ internal readonly record struct EquatableArray<T>(ImmutableArray<T> Items)
     {
         var left = Items;
         var right = other.Items;
-        if (left.Length != right.Length)
-        {
-            return false;
-        }
+        if (left.Length != right.Length) return false;
 
         for (var i = 0; i < left.Length; i++)
-        {
             if (!EqualityComparer<T>.Default.Equals(left[i], right[i]))
-            {
                 return false;
-            }
-        }
 
         return true;
     }
@@ -29,10 +22,7 @@ internal readonly record struct EquatableArray<T>(ImmutableArray<T> Items)
     public override int GetHashCode()
     {
         var hash = 17;
-        foreach (var item in Items)
-        {
-            hash = (hash * 31) + (item is null ? 0 : item.GetHashCode());
-        }
+        foreach (var item in Items) hash = hash * 31 + (item is null ? 0 : item.GetHashCode());
 
         return hash;
     }

@@ -25,6 +25,5 @@ internal readonly record struct OverloadOptionsModel(
     OverloadSubsequenceStrategy? SubsequenceStrategy,
     OverloadVisibility? OverloadVisibility)
 {
-    public bool HasAny =>
-        RangeAnchorMatchMode.HasValue || SubsequenceStrategy.HasValue || OverloadVisibility.HasValue;
+    public bool HasAny => RangeAnchorMatchMode.HasValue || SubsequenceStrategy.HasValue || OverloadVisibility.HasValue;
 }

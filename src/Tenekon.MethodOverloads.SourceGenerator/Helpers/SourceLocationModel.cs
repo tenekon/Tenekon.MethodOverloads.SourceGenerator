@@ -25,10 +25,7 @@ internal readonly record struct SourceLocationModel(
     public Location ToLocation()
     {
         var span = new TextSpan(SpanStart, SpanLength);
-        if (string.IsNullOrEmpty(Path))
-        {
-            return Location.None;
-        }
+        if (string.IsNullOrEmpty(Path)) return Location.None;
 
         var lineSpan = new LinePositionSpan(
             new LinePosition(StartLine, StartCharacter),
