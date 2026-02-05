@@ -1,6 +1,6 @@
 using Tenekon.MethodOverloads.SourceGenerator.Helpers;
 
-namespace Tenekon.MethodOverloads.SourceGenerator.Model;
+namespace Tenekon.MethodOverloads.SourceGenerator.Models;
 
 internal readonly record struct TypeModel(
     string DisplayName,

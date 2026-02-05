@@ -1,4 +1,4 @@
-namespace Tenekon.MethodOverloads.SourceGenerator.Model;
+namespace Tenekon.MethodOverloads.SourceGenerator.Models;
 
 internal enum RangeAnchorMatchMode
 {

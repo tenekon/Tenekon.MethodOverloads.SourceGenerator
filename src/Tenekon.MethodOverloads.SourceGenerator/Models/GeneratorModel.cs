@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Tenekon.MethodOverloads.SourceGenerator.Helpers;
 
-namespace Tenekon.MethodOverloads.SourceGenerator.Model;
+namespace Tenekon.MethodOverloads.SourceGenerator.Models;
 
 internal sealed record GeneratorModel(
     EquatableArray<TypeModel> Types,

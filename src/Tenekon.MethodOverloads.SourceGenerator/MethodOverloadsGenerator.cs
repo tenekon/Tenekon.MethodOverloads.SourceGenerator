@@ -1,6 +1,6 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Tenekon.MethodOverloads.SourceGenerator.Model;
+using Tenekon.MethodOverloads.SourceGenerator.Models;
 using Tenekon.MethodOverloads.SourceGenerator.Parsing;
 using Tenekon.MethodOverloads.SourceGenerator.SourceFormatting;
 

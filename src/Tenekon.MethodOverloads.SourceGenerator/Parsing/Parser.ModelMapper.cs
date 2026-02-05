@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Tenekon.MethodOverloads.SourceGenerator.Helpers;
-using Tenekon.MethodOverloads.SourceGenerator.Model;
+using Tenekon.MethodOverloads.SourceGenerator.Models;
 
 namespace Tenekon.MethodOverloads.SourceGenerator.Parsing;
 

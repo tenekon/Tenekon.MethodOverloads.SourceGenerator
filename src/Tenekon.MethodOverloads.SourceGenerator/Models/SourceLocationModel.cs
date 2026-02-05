@@ -1,7 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 
-namespace Tenekon.MethodOverloads.SourceGenerator.Helpers;
+namespace Tenekon.MethodOverloads.SourceGenerator.Models;
 
 internal readonly record struct SourceLocationModel(
     string Path,

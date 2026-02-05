@@ -1,5 +1,5 @@
 using Microsoft.CodeAnalysis;
-using Tenekon.MethodOverloads.SourceGenerator.Model;
+using Tenekon.MethodOverloads.SourceGenerator.Models;
 
 namespace Tenekon.MethodOverloads.SourceGenerator.SourceFormatting;
 
