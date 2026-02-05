@@ -35,8 +35,8 @@ using Tenekon.MethodOverloads.SourceGenerator;
 
 public sealed class Calculator
 {
-    [GenerateOverloads(Begin = nameof(param_2))]
-    public void Add(int param_1, string? param_2, bool param_3) { }
+    [GenerateOverloads(Begin = nameof(unit))]
+    public void Add(int value, string? unit, bool useRounding) { }
 }
 ```
 
@@ -46,14 +46,14 @@ namespace Demo;
 
 public static class MethodOverloads
 {
-    public static void Add(this Calculator source, int param_1) =>
-        source.Add(param_1, param_2: default(string?), param_3: default(bool));
+    public static void Add(this Calculator source, int value) =>
+        source.Add(value, unit: default(string?), useRounding: default(bool));
 
-    public static void Add(this Calculator source, int param_1, string? param_2) =>
-        source.Add(param_1, param_2, param_3: default(bool));
+    public static void Add(this Calculator source, int value, string? unit) =>
+        source.Add(value, unit, useRounding: default(bool));
 
-    public static void Add(this Calculator source, int param_1, bool param_3) =>
-        source.Add(param_1, param_2: default(string?), param_3);
+    public static void Add(this Calculator source, int value, bool useRounding) =>
+        source.Add(value, unit: default(string?), useRounding);
 }
 ```
 
@@ -68,13 +68,13 @@ using Tenekon.MethodOverloads.SourceGenerator;
 public sealed class Customer
 {
     [GenerateOverloads(Matchers = [typeof(CustomerMatcher)])]
-    public void Update(string param_1, int param_2, bool param_3) { }
+    public void Update(string name, int loyaltyLevel, bool isActive) { }
 }
 
 internal interface CustomerMatcher
 {
-    [GenerateOverloads(nameof(param_3))]
-    void Update(int param_2, bool param_3);
+    [GenerateOverloads(nameof(paramB))]
+    void Update(int paramA, bool paramB);
 }
 ```
 
@@ -84,8 +84,8 @@ namespace Demo;
 
 public static class MethodOverloads
 {
-    public static void Update(this Customer source, string param_1, int param_2) =>
-        source.Update(param_1, param_2, param_3: default(bool));
+    public static void Update(this Customer source, string name, int loyaltyLevel) =>
+        source.Update(name, loyaltyLevel, isActive: default(bool));
 }
 ```
 
@@ -100,13 +100,13 @@ using Tenekon.MethodOverloads.SourceGenerator;
 [GenerateMethodOverloads(Matchers = [typeof(MathMatchers)])]
 public static class MathUtils
 {
-    public static void Multiply(int param_1, int param_2, bool param_3) { }
+    public static void Multiply(int left, int right, bool checkedOverflow) { }
 }
 
 internal interface MathMatchers
 {
-    [GenerateOverloads(nameof(param_3))]
-    void Multiply(int param_2, bool param_3);
+    [GenerateOverloads(nameof(paramB))]
+    void Multiply(int paramA, bool paramB);
 }
 ```
 
@@ -118,8 +118,8 @@ public static class MethodOverloads
 {
     extension(MathUtils)
     {
-        public static void Multiply(int param_1, int param_2) =>
-            MathUtils.Multiply(param_1, param_2, param_3: default(bool));
+        public static void Multiply(int left, int right) =>
+            MathUtils.Multiply(left, right, checkedOverflow: default(bool));
     }
 }
 ```

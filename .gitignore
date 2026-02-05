@@ -517,5 +517,6 @@ http-client.private.env.json
 .idea/**/copilot.data.migration.*.xml
 
 # Custom
+.ai/
 debug_*.txt
 *.received.txt

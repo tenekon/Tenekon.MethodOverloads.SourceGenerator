@@ -110,7 +110,7 @@ Attributes-only mode suppresses diagnostics the same way it suppresses overload 
 
 ## 12) Known non-goals
 
-See docs/unsupported.md for out-of-scope behavior.
+See [unsupported.md](unsupported.md) for out-of-scope behavior.
 
 ## 13) GenerateOverloads shorthand
 
