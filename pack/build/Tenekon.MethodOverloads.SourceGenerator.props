@@ -1,7 +1,3 @@
 <Project>
-    <PropertyGroup>
-        <TenekonMethodOverloadsSourceGeneratorAttributesOnly Condition="'$(TenekonMethodOverloadsSourceGeneratorAttributesOnly)' == ''">false</TenekonMethodOverloadsSourceGeneratorAttributesOnly>
-    </PropertyGroup>
-
     <Import Project="$(MSBuildThisFileDirectory)../Tenekon.MethodOverloads.SourceGenerator.Common.props"/>
 </Project>

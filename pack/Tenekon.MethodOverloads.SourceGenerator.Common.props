@@ -1,4 +1,8 @@
 <Project>
+    <PropertyGroup>
+        <TenekonMethodOverloadsSourceGeneratorAttributesOnly Condition="'$(TenekonMethodOverloadsSourceGeneratorAttributesOnly)' == ''">false</TenekonMethodOverloadsSourceGeneratorAttributesOnly>
+    </PropertyGroup>
+
     <ItemGroup>
         <CompilerVisibleProperty Include="TenekonMethodOverloadsSourceGeneratorAttributesOnly"/>
     </ItemGroup>
