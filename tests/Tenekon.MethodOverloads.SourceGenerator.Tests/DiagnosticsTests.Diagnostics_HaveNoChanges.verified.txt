@@ -86,5 +86,13 @@
     Category: MethodOverloadsGenerator,
     DefaultSeverity: 2,
     IsEnabledByDefault: true
+  },
+  {
+    Id: MOG012,
+    Title: GenerateOverloads cannot combine window anchors and matchers,
+    MessageFormat: GenerateOverloads on method '{0}' cannot specify window anchors and Matchers at the same time,
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 3,
+    IsEnabledByDefault: true
   }
 ]

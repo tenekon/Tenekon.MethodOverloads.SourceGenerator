@@ -6,7 +6,7 @@ internal static class GeneratorAttributesSource
         #nullable enable
         namespace Tenekon.MethodOverloads.SourceGenerator;
 
-        [global::System.AttributeUsage(global::System.AttributeTargets.Method)]
+        [global::System.AttributeUsage(global::System.AttributeTargets.Method, AllowMultiple = true)]
         [global::Microsoft.CodeAnalysis.Embedded]
         public sealed class GenerateOverloadsAttribute : global::System.Attribute
         {
@@ -48,7 +48,11 @@ internal static class GeneratorAttributesSource
         #nullable enable
         namespace Tenekon.MethodOverloads.SourceGenerator;
 
-        [global::System.AttributeUsage(global::System.AttributeTargets.Class | global::System.AttributeTargets.Struct | global::System.AttributeTargets.Interface)]
+        [global::System.AttributeUsage(
+            global::System.AttributeTargets.Class
+            | global::System.AttributeTargets.Struct
+            | global::System.AttributeTargets.Interface,
+            AllowMultiple = true)]
         [global::Microsoft.CodeAnalysis.Embedded]
         public sealed class GenerateMethodOverloadsAttribute : global::System.Attribute
         {

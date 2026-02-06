@@ -12,11 +12,11 @@ internal static partial class Parser
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var attribute = RoslynHelpers.GetAttribute(typeSymbol, "GenerateMethodOverloadsAttribute");
-        if (attribute is null) return null;
+        var attributes = RoslynHelpers.GetAttributes(typeSymbol, "GenerateMethodOverloadsAttribute");
+        if (attributes.IsDefaultOrEmpty) return null;
 
         var typeModel = BuildTypeModel(typeSymbol, cancellationToken);
-        var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attribute, cancellationToken);
+        var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attributes, cancellationToken);
         return new TypeTargetInput(
             typeModel,
             new EquatableArray<string>(matcherDisplays),
@@ -29,8 +29,8 @@ internal static partial class Parser
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        var attribute = RoslynHelpers.GetAttribute(methodSymbol, "GenerateOverloadsAttribute");
-        if (attribute is null) return null;
+        var attributes = RoslynHelpers.GetAttributes(methodSymbol, "GenerateOverloadsAttribute");
+        if (attributes.IsDefaultOrEmpty) return null;
 
         var methodModel = BuildMethodModel(
             methodSymbol,
@@ -38,14 +38,14 @@ internal static partial class Parser
             out var syntaxOptions,
             out var optionsFromAttribute);
         var typeModel = BuildTypeModel(methodSymbol.ContainingType, cancellationToken);
-        var (attributeArgs, syntaxArgs) = ExtractGenerateOverloadsArgs(methodSymbol, cancellationToken);
-        var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attribute, cancellationToken);
+        var (attributeModels, syntaxModels) = ExtractGenerateOverloadsAttributes(methodSymbol, cancellationToken);
+        var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attributes, cancellationToken);
 
         return new MethodTargetInput(
             methodModel,
             typeModel,
-            attributeArgs,
-            syntaxArgs,
+            new EquatableArray<GenerateOverloadsAttributeModel>(attributeModels),
+            new EquatableArray<GenerateOverloadsAttributeModel>(syntaxModels),
             new EquatableArray<string>(matcherDisplays),
             methodModel.Options,
             syntaxOptions.HasAny ? syntaxOptions : null,

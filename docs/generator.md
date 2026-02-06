@@ -25,7 +25,7 @@ Create extension overloads from a single method by treating a parameter span as 
 
 The generator scans all syntax trees and records:
 - All declared types and their methods.
-- GenerateMethodOverloads on types (type-level matchers).
+- GenerateMethodOverloads on types (type-level matchers). Multiple attributes are allowed; matcher types are unioned.
 - GenerateOverloads on methods, including Matchers = [...] on the method (method-level matchers).
 
 Only ordinary methods are considered (no constructors, operators, etc.).
@@ -37,7 +37,10 @@ Methods are skipped if they are:
 ## 4) Optional window rules
 
 For each target method, the generator builds one or more windows:
-- Direct: from GenerateOverloads on the method itself.
+- Direct: from one or more GenerateOverloads attributes on the method itself.
+- Any GenerateOverloads attribute that specifies Matchers must not specify window anchors; if it does, MOG012 is reported and no overloads are generated for that method.
+- Multiple Matchers-only GenerateOverloads attributes are allowed; their matcher types are unioned.
+- Direct windows and matcher-derived windows can be combined on the same target method.
 - Matcher: from GenerateOverloads on the matcher method that matched the target.
 - When a matcher method matches a target in multiple places, each matched subsequence becomes its own window.
 - If a matcher method has multiple windows, a union window is computed only within that matcher group (never across different matcher methods).

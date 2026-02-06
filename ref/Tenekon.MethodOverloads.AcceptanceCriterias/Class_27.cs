@@ -11,10 +11,10 @@ internal interface Class_27_Matcher
     void Matcher_2(int param_1, string? param_2, bool param_3);
 }
 
-[GenerateMethodOverloads(Matchers = [typeof(Class_27_Matcher)])]
 /// <summary>
 /// Multiple matcher methods apply to a single target method.
 /// </summary>
+[GenerateMethodOverloads(Matchers = [typeof(Class_27_Matcher)])]
 public abstract class Class_27
 {
     public abstract void Case_1(int param_1, string? param_2, bool param_3);

@@ -18,6 +18,7 @@
                           OutputItemType="Analyzer"
                           ReferenceOutputAssembly="false"/>
         <None Include=".globalconfig" />
+        <EditorConfig Include=".editorconfig" />
     </ItemGroup>
 
 </Project>

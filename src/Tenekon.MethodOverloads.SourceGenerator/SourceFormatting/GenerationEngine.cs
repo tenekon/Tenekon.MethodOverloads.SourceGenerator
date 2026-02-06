@@ -97,34 +97,46 @@ internal sealed class GenerationEngine
 
             var windowSpecs = new List<WindowSpec>();
             var methodMatchers = EquatableArray<string>.Empty;
+            var methodAttributes = EquatableArray<GenerateOverloadsAttributeModel>.Empty;
 
-            if (hasMethodGenerate) methodMatchers = methodTarget.MatcherTypeDisplays;
+            if (hasMethodGenerate)
+            {
+                methodMatchers = methodTarget.MatcherTypeDisplays;
+                methodAttributes = SelectGenerateAttributes(
+                    methodTarget.GenerateAttributesFromAttribute,
+                    methodTarget.GenerateAttributesFromSyntax);
+            }
 
             if (hasMethodGenerate && method.Parameters.Items.Length == 0)
             {
-                var location = methodTarget.GenerateArgsFromAttribute?.AttributeLocation
-                    ?? methodTarget.GenerateArgsFromSyntax?.SyntaxAttributeLocation ?? method.IdentifierLocation;
+                var location = GetAttributeLocation(methodAttributes) ?? method.IdentifierLocation;
                 Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, method.Name);
                 continue;
             }
 
+            if (hasMethodGenerate && HasMatchersWindowConflict(method, methodAttributes))
+                continue;
+
             var useMethodMatchers = methodMatchers.Items.Length > 0;
-            var useDirectGenerateOverloads = hasMethodGenerate && !useMethodMatchers;
+            var directAttributes = methodAttributes.Items.Where(attr => !attr.HasMatchers).ToArray();
+            var useDirectGenerateOverloads = hasMethodGenerate && directAttributes.Length > 0;
             var useTypeMatchers = !hasMethodGenerate && hasTypeGenerate;
 
             if (useDirectGenerateOverloads)
             {
-                if (methodTarget.GenerateArgsFromAttribute is not null)
+                for (var index = 0; index < directAttributes.Length; index++)
                 {
+                    var attribute = directAttributes[index];
+                    var groupKey = "direct:" + BuildMethodGroupKey(method) + "#" + index;
+
                     if (TryCreateWindowSpecFromArgs(
                             method,
                             method,
-                            methodTarget.GenerateArgsFromAttribute.Value,
+                            attribute.Args,
                             ParameterMatch.Identity(method.Parameters.Items.Length),
                             out var windowSpecFromAttribute,
                             out var windowFailureFromAttribute))
                     {
-                        var groupKey = "direct:" + BuildMethodGroupKey(method);
                         windowSpecs.Add(
                             new WindowSpec(
                                 windowSpecFromAttribute.StartIndex,
@@ -134,45 +146,14 @@ internal sealed class GenerationEngine
                         if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.RedundantAnchors)
                             Report(
                                 GeneratorDiagnostics.RedundantBeginEndAnchors,
-                                methodTarget.GenerateArgsFromAttribute.Value.AttributeLocation
+                                attribute.Args.AttributeLocation
+                                ?? attribute.Args.SyntaxAttributeLocation
                                 ?? method.IdentifierLocation,
                                 method.Name);
                     }
                     else
                     {
-                        ReportWindowFailure(
-                            windowFailureFromAttribute,
-                            methodTarget.GenerateArgsFromAttribute.Value,
-                            method.Name);
-                    }
-                }
-                else if (methodTarget.GenerateArgsFromSyntax is not null)
-                {
-                    if (TryCreateWindowSpecFromArgs(
-                            method,
-                            method,
-                            methodTarget.GenerateArgsFromSyntax.Value,
-                            ParameterMatch.Identity(method.Parameters.Items.Length),
-                            out var windowSpecFromSyntax,
-                            out var windowFailureFromSyntax))
-                    {
-                        var groupKey = "direct:" + BuildMethodGroupKey(method);
-                        windowSpecs.Add(
-                            new WindowSpec(windowSpecFromSyntax.StartIndex, windowSpecFromSyntax.EndIndex, groupKey));
-
-                        if (windowFailureFromSyntax.Kind == WindowSpecFailureKind.RedundantAnchors)
-                            Report(
-                                GeneratorDiagnostics.RedundantBeginEndAnchors,
-                                methodTarget.GenerateArgsFromSyntax.Value.SyntaxAttributeLocation
-                                ?? method.IdentifierLocation,
-                                method.Name);
-                    }
-                    else
-                    {
-                        ReportWindowFailure(
-                            windowFailureFromSyntax,
-                            methodTarget.GenerateArgsFromSyntax.Value,
-                            method.Name);
+                        ReportWindowFailure(windowFailureFromAttribute, attribute.Args, method.Name);
                     }
                 }
             }
@@ -190,14 +171,25 @@ internal sealed class GenerationEngine
                         var matcherMethodModel = matcherMethod.Method;
                         if (!matcherMethodModel.IsOrdinary) continue;
 
+                        var matcherAttributes = SelectGenerateAttributes(
+                            matcherMethod.GenerateAttributesFromAttribute,
+                            matcherMethod.GenerateAttributesFromSyntax);
+
                         if (matcherMethodModel.Parameters.Items.Length == 0)
                         {
-                            var location = matcherMethod.GenerateArgsFromAttribute?.AttributeLocation
-                                ?? matcherMethod.GenerateArgsFromSyntax?.SyntaxAttributeLocation
+                            var location = GetAttributeLocation(matcherAttributes)
                                 ?? matcherMethodModel.IdentifierLocation;
                             Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, matcherMethodModel.Name);
                             continue;
                         }
+
+                        if (HasMatchersWindowConflict(matcherMethodModel, matcherAttributes))
+                            continue;
+
+                        var matcherDirectAttributes = matcherAttributes.Items
+                            .Where(attribute => !attribute.HasMatchers)
+                            .ToArray();
+                        if (matcherDirectAttributes.Length == 0) continue;
 
                         var matcherRef = new MatcherMethodReference(
                             matcherMethodModel.ContainingTypeDisplay,
@@ -238,29 +230,31 @@ internal sealed class GenerationEngine
 
                         foreach (var match in matches)
                         {
-                            var args = matcherMethod.GenerateArgsFromAttribute ?? matcherMethod.GenerateArgsFromSyntax;
-                            if (args is null) continue;
-
-                            if (TryCreateWindowSpecFromArgs(
-                                    method,
-                                    matcherMethodModel,
-                                    args.Value,
-                                    match,
-                                    out var windowSpec,
-                                    out var windowFailure))
+                            foreach (var attribute in matcherDirectAttributes)
                             {
-                                windowSpecs.Add(new WindowSpec(windowSpec.StartIndex, windowSpec.EndIndex, groupKey));
+                                if (TryCreateWindowSpecFromArgs(
+                                        method,
+                                        matcherMethodModel,
+                                        attribute.Args,
+                                        match,
+                                        out var windowSpec,
+                                        out var windowFailure))
+                                {
+                                    windowSpecs.Add(
+                                        new WindowSpec(windowSpec.StartIndex, windowSpec.EndIndex, groupKey));
 
-                                if (windowFailure.Kind == WindowSpecFailureKind.RedundantAnchors)
-                                    Report(
-                                        GeneratorDiagnostics.RedundantBeginEndAnchors,
-                                        args.Value.AttributeLocation ?? args.Value.SyntaxAttributeLocation
-                                        ?? matcherMethodModel.IdentifierLocation,
-                                        matcherMethodModel.Name);
-                            }
-                            else
-                            {
-                                ReportWindowFailure(windowFailure, args.Value, matcherMethodModel.Name);
+                                    if (windowFailure.Kind == WindowSpecFailureKind.RedundantAnchors)
+                                        Report(
+                                            GeneratorDiagnostics.RedundantBeginEndAnchors,
+                                            attribute.Args.AttributeLocation
+                                            ?? attribute.Args.SyntaxAttributeLocation
+                                            ?? matcherMethodModel.IdentifierLocation,
+                                            matcherMethodModel.Name);
+                                }
+                                else
+                                {
+                                    ReportWindowFailure(windowFailure, attribute.Args, matcherMethodModel.Name);
+                                }
                             }
                         }
                     }
@@ -388,6 +382,45 @@ internal sealed class GenerationEngine
                     matchedMatcherMethods);
             }
         }
+    }
+
+    private static EquatableArray<GenerateOverloadsAttributeModel> SelectGenerateAttributes(
+        EquatableArray<GenerateOverloadsAttributeModel> fromAttribute,
+        EquatableArray<GenerateOverloadsAttributeModel> fromSyntax)
+    {
+        return fromAttribute.Items.Length > 0 ? fromAttribute : fromSyntax;
+    }
+
+    private static SourceLocationModel? GetAttributeLocation(
+        EquatableArray<GenerateOverloadsAttributeModel> attributes)
+    {
+        foreach (var attribute in attributes.Items)
+        {
+            var location = attribute.Args.AttributeLocation
+                ?? attribute.Args.SyntaxAttributeLocation
+                ?? attribute.Args.MethodIdentifierLocation;
+            if (location is not null) return location;
+        }
+
+        return null;
+    }
+
+    private bool HasMatchersWindowConflict(
+        MethodModel method,
+        EquatableArray<GenerateOverloadsAttributeModel> attributes)
+    {
+        foreach (var attribute in attributes.Items)
+        {
+            if (!attribute.HasMatchers || !attribute.Args.HasAny) continue;
+
+            var location = attribute.Args.AttributeLocation
+                ?? attribute.Args.SyntaxAttributeLocation
+                ?? method.IdentifierLocation;
+            Report(GeneratorDiagnostics.WindowAndMatchersConflict, location, method.Name);
+            return true;
+        }
+
+        return false;
     }
 
     private static List<int[]> BuildOptionalIndexSpecs(List<WindowSpec> windowSpecs, int parameterCount)

@@ -134,32 +134,18 @@ internal static partial class Parser
         return string.Join(" ", constraints);
     }
 
-    private static (GenerateOverloadsArgsModel? AttributeArgs, GenerateOverloadsArgsModel? SyntaxArgs)
-        ExtractGenerateOverloadsArgs(IMethodSymbol methodSymbol, CancellationToken cancellationToken)
+    private static (ImmutableArray<GenerateOverloadsAttributeModel> AttributeModels,
+            ImmutableArray<GenerateOverloadsAttributeModel> SyntaxModels)
+        ExtractGenerateOverloadsAttributes(IMethodSymbol methodSymbol, CancellationToken cancellationToken)
     {
-        GenerateOverloadsArgsModel? attributeArgs = null;
-        GenerateOverloadsArgsModel? syntaxArgs = null;
+        var attributes = RoslynHelpers.GetAttributes(methodSymbol, "GenerateOverloadsAttribute");
+        var attributeModels = ExtractGenerateOverloadsAttributesFromAttributeData(
+            attributes,
+            methodSymbol,
+            cancellationToken);
+        var syntaxModels = ExtractGenerateOverloadsAttributesFromSyntax(methodSymbol, cancellationToken);
 
-        var attribute = RoslynHelpers.GetAttribute(methodSymbol, "GenerateOverloadsAttribute");
-        if (attribute is not null)
-        {
-            var attrSyntax = attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken);
-            SourceLocationModel? attributeLocation = attrSyntax is null
-                ? null
-                : SourceLocationModel.FromSyntaxNode(attrSyntax);
-            attributeArgs = ExtractGenerateOverloadsArgsFromAttribute(
-                attribute,
-                attributeLocation,
-                GetMethodIdentifierLocation(methodSymbol, cancellationToken));
-        }
-
-        var syntax = GetMethodSyntax(methodSymbol, cancellationToken);
-        if (syntax is not null)
-            syntaxArgs = ExtractGenerateOverloadsArgsFromSyntax(
-                syntax,
-                GetMethodIdentifierLocation(methodSymbol, cancellationToken));
-
-        return (attributeArgs, syntaxArgs);
+        return (attributeModels, syntaxModels);
     }
 
     private static (OverloadOptionsModel Options, bool FromAttribute) ExtractOverloadOptions(
@@ -243,31 +229,36 @@ internal static partial class Parser
     }
 
     private static (ImmutableArray<string> Displays, ImmutableArray<MatcherTypeModel> Models) ExtractMatcherTypes(
-        AttributeData? attribute,
+        ImmutableArray<AttributeData> attributes,
         CancellationToken cancellationToken)
     {
-        if (attribute is null) return (ImmutableArray<string>.Empty, ImmutableArray<MatcherTypeModel>.Empty);
+        if (attributes.IsDefaultOrEmpty)
+            return (ImmutableArray<string>.Empty, ImmutableArray<MatcherTypeModel>.Empty);
 
+        var symbols = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
+        var displays = ImmutableArray.CreateBuilder<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var attribute in attributes)
         foreach (var named in attribute.NamedArguments)
         {
             if (!string.Equals(named.Key, "Matchers", StringComparison.Ordinal)) continue;
 
             if (named.Value.Kind != TypedConstantKind.Array) continue;
 
-            var symbols = ImmutableArray.CreateBuilder<INamedTypeSymbol>();
-            var displays = ImmutableArray.CreateBuilder<string>();
             foreach (var constant in named.Value.Values)
                 if (constant.Value is INamedTypeSymbol matcherType)
                 {
-                    symbols.Add(matcherType);
-                    displays.Add(matcherType.ToDisplayString(RoslynHelpers.TypeDisplayFormat));
-                }
+                    var display = matcherType.ToDisplayString(RoslynHelpers.TypeDisplayFormat);
+                    if (!seen.Add(display)) continue;
 
-            var models = BuildMatcherTypeModels(symbols.ToImmutable(), cancellationToken);
-            return (displays.ToImmutable(), models);
+                    symbols.Add(matcherType);
+                    displays.Add(display);
+                }
         }
 
-        return (ImmutableArray<string>.Empty, ImmutableArray<MatcherTypeModel>.Empty);
+        var models = BuildMatcherTypeModels(symbols.ToImmutable(), cancellationToken);
+        return (displays.ToImmutable(), models);
     }
 
     private static ImmutableArray<MatcherTypeModel> BuildMatcherTypeModels(
@@ -300,13 +291,13 @@ internal static partial class Parser
                     cancellationToken,
                     out var syntaxOptions,
                     out var optionsFromAttribute);
-                var (attributeArgs, syntaxArgs) = ExtractGenerateOverloadsArgs(member, cancellationToken);
+                var (attributeModels, syntaxModels) = ExtractGenerateOverloadsAttributes(member, cancellationToken);
 
                 matcherMethods.Add(
                     new MatcherMethodModel(
                         methodModel,
-                        attributeArgs,
-                        syntaxArgs,
+                        new EquatableArray<GenerateOverloadsAttributeModel>(attributeModels),
+                        new EquatableArray<GenerateOverloadsAttributeModel>(syntaxModels),
                         methodModel.Options,
                         syntaxOptions.HasAny ? syntaxOptions : null));
             }
@@ -323,7 +314,69 @@ internal static partial class Parser
 
     private static bool HasGenerateOverloadsAttribute(IMethodSymbol methodSymbol)
     {
-        return RoslynHelpers.GetAttribute(methodSymbol, "GenerateOverloadsAttribute") is not null;
+        return !RoslynHelpers.GetAttributes(methodSymbol, "GenerateOverloadsAttribute").IsDefaultOrEmpty;
+    }
+
+    private static ImmutableArray<GenerateOverloadsAttributeModel>
+        ExtractGenerateOverloadsAttributesFromAttributeData(
+            ImmutableArray<AttributeData> attributes,
+            IMethodSymbol methodSymbol,
+            CancellationToken cancellationToken)
+    {
+        if (attributes.IsDefaultOrEmpty) return ImmutableArray<GenerateOverloadsAttributeModel>.Empty;
+
+        var builder = ImmutableArray.CreateBuilder<GenerateOverloadsAttributeModel>();
+
+        foreach (var attribute in attributes)
+        {
+            var attrSyntax = attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken);
+            SourceLocationModel? attributeLocation = attrSyntax is null
+                ? null
+                : SourceLocationModel.FromSyntaxNode(attrSyntax);
+            var args = ExtractGenerateOverloadsArgsFromAttribute(
+                attribute,
+                attributeLocation,
+                GetMethodIdentifierLocation(methodSymbol, cancellationToken));
+            var hasMatchers = HasMatchersArgument(attribute);
+
+            builder.Add(new GenerateOverloadsAttributeModel(args, hasMatchers));
+        }
+
+        return builder.ToImmutable();
+    }
+
+    private static ImmutableArray<GenerateOverloadsAttributeModel>
+        ExtractGenerateOverloadsAttributesFromSyntax(
+            IMethodSymbol methodSymbol,
+            CancellationToken cancellationToken)
+    {
+        var syntax = GetMethodSyntax(methodSymbol, cancellationToken);
+        if (syntax is null) return ImmutableArray<GenerateOverloadsAttributeModel>.Empty;
+
+        return ExtractGenerateOverloadsAttributesFromSyntax(
+            syntax,
+            GetMethodIdentifierLocation(methodSymbol, cancellationToken));
+    }
+
+    private static ImmutableArray<GenerateOverloadsAttributeModel>
+        ExtractGenerateOverloadsAttributesFromSyntax(
+            MethodDeclarationSyntax methodSyntax,
+            SourceLocationModel? identifierLocation)
+    {
+        var builder = ImmutableArray.CreateBuilder<GenerateOverloadsAttributeModel>();
+
+        foreach (var attributeList in methodSyntax.AttributeLists)
+        foreach (var attribute in attributeList.Attributes)
+        {
+            if (!RoslynHelpers.IsAttributeNameMatch(attribute.Name.ToString(), "GenerateOverloads")) continue;
+
+            var args = ExtractGenerateOverloadsArgsFromSyntax(attribute, identifierLocation);
+            var hasMatchers = HasMatchersArgument(attribute);
+
+            builder.Add(new GenerateOverloadsAttributeModel(args, hasMatchers));
+        }
+
+        return builder.ToImmutable();
     }
 
     private static GenerateOverloadsArgsModel ExtractGenerateOverloadsArgsFromAttribute(
@@ -366,61 +419,77 @@ internal static partial class Parser
             SyntaxAttributeLocation: null);
     }
 
-    private static GenerateOverloadsArgsModel? ExtractGenerateOverloadsArgsFromSyntax(
-        MethodDeclarationSyntax methodSyntax,
+    private static GenerateOverloadsArgsModel ExtractGenerateOverloadsArgsFromSyntax(
+        AttributeSyntax attribute,
         SourceLocationModel? identifierLocation)
     {
-        foreach (var attributeList in methodSyntax.AttributeLists)
-        foreach (var attribute in attributeList.Attributes)
-        {
-            if (!RoslynHelpers.IsAttributeNameMatch(attribute.Name.ToString(), "GenerateOverloads")) continue;
+        string? beginEnd = null;
+        string? begin = null;
+        string? beginExclusive = null;
+        string? end = null;
+        string? endExclusive = null;
 
-            string? beginEnd = null;
-            string? begin = null;
-            string? beginExclusive = null;
-            string? end = null;
-            string? endExclusive = null;
-
-            if (attribute.ArgumentList is not null)
-                foreach (var argument in attribute.ArgumentList.Arguments)
+        if (attribute.ArgumentList is not null)
+            foreach (var argument in attribute.ArgumentList.Arguments)
+            {
+                if (argument.NameEquals is null)
                 {
-                    if (argument.NameEquals is null)
+                    if (beginEnd is null)
                     {
-                        if (beginEnd is null)
-                        {
-                            var positionalValue = GetAttributeStringValue(argument.Expression);
-                            if (!string.IsNullOrEmpty(positionalValue)) beginEnd = positionalValue;
-                        }
-
-                        continue;
+                        var positionalValue = GetAttributeStringValue(argument.Expression);
+                        if (!string.IsNullOrEmpty(positionalValue)) beginEnd = positionalValue;
                     }
 
-                    var name = argument.NameEquals.Name.Identifier.ValueText;
-                    var value = GetAttributeStringValue(argument.Expression);
-
-                    if (string.IsNullOrEmpty(value)) continue;
-
-                    if (string.Equals(name, "Begin", StringComparison.Ordinal))
-                        begin = value;
-                    else if (string.Equals(name, "BeginExclusive", StringComparison.Ordinal))
-                        beginExclusive = value;
-                    else if (string.Equals(name, "End", StringComparison.Ordinal))
-                        end = value;
-                    else if (string.Equals(name, "EndExclusive", StringComparison.Ordinal)) endExclusive = value;
+                    continue;
                 }
 
-            return new GenerateOverloadsArgsModel(
-                beginEnd,
-                begin,
-                beginExclusive,
-                end,
-                endExclusive,
-                AttributeLocation: null,
-                identifierLocation,
-                SourceLocationModel.FromSyntaxNode(attribute));
+                var name = argument.NameEquals.Name.Identifier.ValueText;
+                var value = GetAttributeStringValue(argument.Expression);
+
+                if (string.IsNullOrEmpty(value)) continue;
+
+                if (string.Equals(name, "Begin", StringComparison.Ordinal))
+                    begin = value;
+                else if (string.Equals(name, "BeginExclusive", StringComparison.Ordinal))
+                    beginExclusive = value;
+                else if (string.Equals(name, "End", StringComparison.Ordinal))
+                    end = value;
+                else if (string.Equals(name, "EndExclusive", StringComparison.Ordinal)) endExclusive = value;
+            }
+
+        return new GenerateOverloadsArgsModel(
+            beginEnd,
+            begin,
+            beginExclusive,
+            end,
+            endExclusive,
+            AttributeLocation: null,
+            identifierLocation,
+            SourceLocationModel.FromSyntaxNode(attribute));
+    }
+
+    private static bool HasMatchersArgument(AttributeData attribute)
+    {
+        foreach (var argument in attribute.NamedArguments)
+            if (string.Equals(argument.Key, "Matchers", StringComparison.Ordinal))
+                return true;
+
+        return false;
+    }
+
+    private static bool HasMatchersArgument(AttributeSyntax attribute)
+    {
+        if (attribute.ArgumentList is null) return false;
+
+        foreach (var argument in attribute.ArgumentList.Arguments)
+        {
+            if (argument.NameEquals is null) continue;
+
+            var name = argument.NameEquals.Name.Identifier.ValueText;
+            if (string.Equals(name, "Matchers", StringComparison.Ordinal)) return true;
         }
 
-        return null;
+        return false;
     }
 
     private static string? GetAttributeStringValue(ExpressionSyntax expression)

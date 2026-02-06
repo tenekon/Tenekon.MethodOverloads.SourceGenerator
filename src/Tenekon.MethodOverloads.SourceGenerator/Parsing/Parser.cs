@@ -18,8 +18,8 @@ internal static partial class Parser
         cancellationToken.ThrowIfCancellationRequested();
 
         var typeModel = BuildTypeModel(typeSymbol, cancellationToken);
-        var attribute = RoslynHelpers.GetAttribute(typeSymbol, "GenerateMethodOverloadsAttribute");
-        var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attribute, cancellationToken);
+        var attributes = RoslynHelpers.GetAttributes(typeSymbol, "GenerateMethodOverloadsAttribute");
+        var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attributes, cancellationToken);
 
         return new TypeTargetInput(
             typeModel,
@@ -41,15 +41,15 @@ internal static partial class Parser
             out var syntaxOptions,
             out var optionsFromAttribute);
         var typeModel = BuildTypeModel(methodSymbol.ContainingType, cancellationToken);
-        var (attributeArgs, syntaxArgs) = ExtractGenerateOverloadsArgs(methodSymbol, cancellationToken);
-        var attribute = RoslynHelpers.GetAttribute(methodSymbol, "GenerateOverloadsAttribute");
-        var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attribute, cancellationToken);
+        var (attributeModels, syntaxModels) = ExtractGenerateOverloadsAttributes(methodSymbol, cancellationToken);
+        var attributes = RoslynHelpers.GetAttributes(methodSymbol, "GenerateOverloadsAttribute");
+        var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attributes, cancellationToken);
 
         return new MethodTargetInput(
             methodModel,
             typeModel,
-            attributeArgs,
-            syntaxArgs,
+            new EquatableArray<GenerateOverloadsAttributeModel>(attributeModels),
+            new EquatableArray<GenerateOverloadsAttributeModel>(syntaxModels),
             new EquatableArray<string>(matcherDisplays),
             methodModel.Options,
             syntaxOptions.HasAny ? syntaxOptions : null,
@@ -104,16 +104,31 @@ internal static partial class Parser
             AddType(typesByDisplay, input.Method.ContainingTypeDisplay, input.ContainingType);
 
             var key = BuildMethodIdentityKey(input.Method);
-            if (!methodTargetsByKey.ContainsKey(key))
+            if (!methodTargetsByKey.TryGetValue(key, out var existingTarget))
+            {
                 methodTargetsByKey[key] = new MethodTargetModel(
                     input.Method,
                     HasGenerateOverloads: true,
-                    input.GenerateArgsFromAttribute,
-                    input.GenerateArgsFromSyntax,
+                    input.GenerateAttributesFromAttribute,
+                    input.GenerateAttributesFromSyntax,
                     input.MatcherTypeDisplays,
                     input.OptionsFromAttributeOrSyntax,
                     input.SyntaxOptions,
                     input.OptionsFromAttribute);
+            }
+            else
+            {
+                methodTargetsByKey[key] = existingTarget with
+                {
+                    GenerateAttributesFromAttribute = MergeAttributes(
+                        existingTarget.GenerateAttributesFromAttribute,
+                        input.GenerateAttributesFromAttribute),
+                    GenerateAttributesFromSyntax = MergeAttributes(
+                        existingTarget.GenerateAttributesFromSyntax,
+                        input.GenerateAttributesFromSyntax),
+                    MatcherTypeDisplays = MergeDisplays(existingTarget.MatcherTypeDisplays, input.MatcherTypeDisplays)
+                };
+            }
 
             MergeMatcherTypes(matcherTypesByDisplay, input.MatcherTypes, typesByDisplay);
         }
@@ -176,5 +191,27 @@ internal static partial class Parser
         foreach (var entry in right.Items) set.Add(entry);
 
         return new EquatableArray<string>([..set.OrderBy(x => x, StringComparer.Ordinal)]);
+    }
+
+    private static EquatableArray<GenerateOverloadsAttributeModel> MergeAttributes(
+        EquatableArray<GenerateOverloadsAttributeModel> left,
+        EquatableArray<GenerateOverloadsAttributeModel> right)
+    {
+        if (left.Items.Length == 0) return right;
+
+        if (right.Items.Length == 0) return left;
+
+        var set = new HashSet<GenerateOverloadsAttributeModel>();
+        var merged = new List<GenerateOverloadsAttributeModel>();
+
+        foreach (var entry in left.Items)
+            if (set.Add(entry))
+                merged.Add(entry);
+
+        foreach (var entry in right.Items)
+            if (set.Add(entry))
+                merged.Add(entry);
+
+        return new EquatableArray<GenerateOverloadsAttributeModel>([..merged]);
     }
 }

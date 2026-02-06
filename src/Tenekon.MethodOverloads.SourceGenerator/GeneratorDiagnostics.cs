@@ -91,4 +91,12 @@ internal static class GeneratorDiagnostics
         "MethodOverloadsGenerator",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor WindowAndMatchersConflict = new(
+        "MOG012",
+        "GenerateOverloads cannot combine window anchors and matchers",
+        "GenerateOverloads on method '{0}' cannot specify window anchors and Matchers at the same time",
+        "MethodOverloadsGenerator",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

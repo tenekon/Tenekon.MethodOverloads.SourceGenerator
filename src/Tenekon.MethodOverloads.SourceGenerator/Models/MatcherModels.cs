@@ -11,8 +11,8 @@ internal readonly record struct TypeTargetModel(
 internal readonly record struct MethodTargetModel(
     MethodModel Method,
     bool HasGenerateOverloads,
-    GenerateOverloadsArgsModel? GenerateArgsFromAttribute,
-    GenerateOverloadsArgsModel? GenerateArgsFromSyntax,
+    EquatableArray<GenerateOverloadsAttributeModel> GenerateAttributesFromAttribute,
+    EquatableArray<GenerateOverloadsAttributeModel> GenerateAttributesFromSyntax,
     EquatableArray<string> MatcherTypeDisplays,
     OverloadOptionsModel OptionsFromAttributeOrSyntax,
     OverloadOptionsModel? SyntaxOptions,
@@ -25,8 +25,8 @@ internal readonly record struct MatcherTypeModel(
 
 internal readonly record struct MatcherMethodModel(
     MethodModel Method,
-    GenerateOverloadsArgsModel? GenerateArgsFromAttribute,
-    GenerateOverloadsArgsModel? GenerateArgsFromSyntax,
+    EquatableArray<GenerateOverloadsAttributeModel> GenerateAttributesFromAttribute,
+    EquatableArray<GenerateOverloadsAttributeModel> GenerateAttributesFromSyntax,
     OverloadOptionsModel OptionsFromAttributeOrSyntax,
     OverloadOptionsModel? SyntaxOptions);
 
@@ -35,6 +35,10 @@ internal readonly record struct MatcherMethodReference(
     string MethodName,
     int ParameterCount,
     string NamespaceName);
+
+internal readonly record struct GenerateOverloadsAttributeModel(
+    GenerateOverloadsArgsModel Args,
+    bool HasMatchers);
 
 internal readonly record struct GenerateOverloadsArgsModel(
     string? BeginEnd,

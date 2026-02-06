@@ -11,8 +11,8 @@ internal readonly record struct TypeTargetInput(
 internal readonly record struct MethodTargetInput(
     MethodModel Method,
     TypeModel ContainingType,
-    GenerateOverloadsArgsModel? GenerateArgsFromAttribute,
-    GenerateOverloadsArgsModel? GenerateArgsFromSyntax,
+    EquatableArray<GenerateOverloadsAttributeModel> GenerateAttributesFromAttribute,
+    EquatableArray<GenerateOverloadsAttributeModel> GenerateAttributesFromSyntax,
     EquatableArray<string> MatcherTypeDisplays,
     OverloadOptionsModel OptionsFromAttributeOrSyntax,
     OverloadOptionsModel? SyntaxOptions,

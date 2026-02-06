@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 
 namespace Tenekon.MethodOverloads.SourceGenerator.Helpers;
@@ -27,6 +28,26 @@ internal static class RoslynHelpers
         }
 
         return null;
+    }
+
+    public static ImmutableArray<AttributeData> GetAttributes(ISymbol symbol, string attributeName)
+    {
+        var builder = ImmutableArray.CreateBuilder<AttributeData>();
+
+        foreach (var attribute in symbol.GetAttributes())
+        {
+            var name = attribute.AttributeClass?.Name;
+            if (name is null) continue;
+
+            if (string.Equals(name, attributeName, StringComparison.Ordinal)
+                || (attributeName.EndsWith("Attribute", StringComparison.Ordinal) && string.Equals(
+                    name,
+                    attributeName.Substring(startIndex: 0, attributeName.Length - "Attribute".Length),
+                    StringComparison.Ordinal)))
+                builder.Add(attribute);
+        }
+
+        return builder.ToImmutable();
     }
 
     public static bool IsAttributeNameMatch(string name, string expected)

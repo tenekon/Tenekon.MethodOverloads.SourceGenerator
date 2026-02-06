@@ -28,7 +28,8 @@ public sealed class MethodOverloadsDiagnosticsAnalyzer : DiagnosticAnalyzer
         GeneratorDiagnostics.RedundantBeginEndAnchors,
         GeneratorDiagnostics.BeginAndBeginExclusiveConflict,
         GeneratorDiagnostics.EndAndEndExclusiveConflict,
-        GeneratorDiagnostics.ParameterlessTargetMethod
+        GeneratorDiagnostics.ParameterlessTargetMethod,
+        GeneratorDiagnostics.WindowAndMatchersConflict
     ];
 
     /// <inheritdoc/>
