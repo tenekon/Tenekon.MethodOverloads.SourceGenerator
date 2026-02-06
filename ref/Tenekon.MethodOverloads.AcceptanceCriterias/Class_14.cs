@@ -26,8 +26,10 @@ public abstract class Class_14_Instance
 /// </summary>
 public static class Class_14_AcceptanceCriterias
 {
-    public static void Case_1(this Class_14_Instance source, int param_1) =>
+    public static void Case_1(this Class_14_Instance source, int param_1)
+    {
         source.Case_1(param_1, param_2: null);
+    }
 }
 
 /// <summary>
@@ -37,11 +39,9 @@ public static class Class_14_Static_AcceptanceCriterias
 {
     extension(Class_14)
     {
-        public static void Case_1(int param_1) =>
+        public static void Case_1(int param_1)
+        {
             Class_14.Case_1(param_1, param_2: null);
+        }
     }
 }
-
-
-
-

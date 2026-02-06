@@ -25,10 +25,8 @@ public abstract class Class_16
 /// </summary>
 public static class Class_16_AcceptanceCriterias
 {
-    public static void Case_1(this Class_16 source, int param_1) =>
+    public static void Case_1(this Class_16 source, int param_1)
+    {
         source.Case_1(param_1, param_2: null);
+    }
 }
-
-
-
-

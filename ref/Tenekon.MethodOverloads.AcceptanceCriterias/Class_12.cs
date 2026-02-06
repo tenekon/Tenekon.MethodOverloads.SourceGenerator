@@ -23,9 +23,8 @@ public static class Class_12_AcceptanceCriterias
 {
     // No extension methods for Case_1 (would require defaults for ref/out/in).
 
-    public static void Case_2(this Class_12 source, int param_1, ref int param_2, in int param_4) =>
+    public static void Case_2(this Class_12 source, int param_1, ref int param_2, in int param_4)
+    {
         source.Case_2(param_1, ref param_2, param_3: null, param_4);
+    }
 }
-
-
-

@@ -16,7 +16,10 @@ public class Class_23
 {
     public Class_23(int param_1, string? param_2) { }
 
-    public static Class_23 operator +(Class_23 left, string? param_2) => left;
+    public static Class_23 operator +(Class_23 left, string? param_2)
+    {
+        return left;
+    }
 
     public void Case_1(int param_1, string? param_2) { }
 }
@@ -26,7 +29,8 @@ public class Class_23
 /// </summary>
 public static class Class_23_AcceptanceCriterias
 {
-    public static void Case_1(this Class_23 source, int param_1) =>
+    public static void Case_1(this Class_23 source, int param_1)
+    {
         source.Case_1(param_1, param_2: null);
+    }
 }
-

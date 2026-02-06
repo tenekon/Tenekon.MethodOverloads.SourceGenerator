@@ -31,14 +31,18 @@ public abstract class Class_3
 /// </summary>
 public static class Class_3_AcceptanceCriterias
 {
-    public static void Case_1(this Class_3 source, CancellationToken param_2) => source.Case_1(param_1: false, param_2);
+    public static void Case_1(this Class_3 source, CancellationToken param_2)
+    {
+        source.Case_1(param_1: false, param_2);
+    }
 
-    public static void Case_2(this Class_3 source, string? param_1, CancellationToken param_3) =>
-        source.Case_2(param_1, param_2: false, param_3: param_3);
+    public static void Case_2(this Class_3 source, string? param_1, CancellationToken param_3)
+    {
+        source.Case_2(param_1, param_2: false, param_3);
+    }
 
-    public static void Case_3(this Class_3 source, string? param_1, bool param_2) =>
+    public static void Case_3(this Class_3 source, string? param_1, bool param_2)
+    {
         source.Case_3(param_1, param_2, param_3: default);
+    }
 }
-
-
-

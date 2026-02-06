@@ -6,7 +6,7 @@ internal interface Class_4_Matcher
 {
     [GenerateOverloads(EndExclusive = nameof(param_2))]
     void Matcher_2(bool param_1, CancellationToken param_2);
-    
+
     [GenerateOverloads(EndExclusive = nameof(param_2))]
     void Matcher_2(string? param_1, bool param_2, CancellationToken param_3);
 }
@@ -30,20 +30,28 @@ public abstract class Class_4
 /// </summary>
 public static class Class_4_AcceptanceCriterias
 {
-    public static void Case_1(this Class_4 source, CancellationToken param_2) => source.Case_1(param_1: false, param_2);
+    public static void Case_1(this Class_4 source, CancellationToken param_2)
+    {
+        source.Case_1(param_1: false, param_2);
+    }
 
-    public static void Case_2(this Class_4 source, string? param_1, CancellationToken param_3) =>
-        source.Case_2(param_1, param_2: false, param_3: param_3);
+    public static void Case_2(this Class_4 source, string? param_1, CancellationToken param_3)
+    {
+        source.Case_2(param_1, param_2: false, param_3);
+    }
 
-    public static void Case_2(this Class_4 source, bool param_2, CancellationToken param_3) =>
+    public static void Case_2(this Class_4 source, bool param_2, CancellationToken param_3)
+    {
         source.Case_2(param_1: null, param_2, param_3);
+    }
 
-    public static void Case_3(this Class_4 source, string? param_1, CancellationToken param_3) =>
-        source.Case_3(param_1, param_2: false, param_3: param_3);
+    public static void Case_3(this Class_4 source, string? param_1, CancellationToken param_3)
+    {
+        source.Case_3(param_1, param_2: false, param_3);
+    }
 
-    public static void Case_3(this Class_4 source, bool param_2, CancellationToken param_3) =>
+    public static void Case_3(this Class_4 source, bool param_2, CancellationToken param_3)
+    {
         source.Case_3(param_1: null, param_2, param_3);
+    }
 }
-
-
-

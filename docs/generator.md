@@ -53,12 +53,26 @@ Matcher parameters are matched against target parameters as a subsequence:
 
 Matching is nullability-aware for reference types (string vs string? are different).
 
-Match mode resolution order:
-1) Target method OverloadGenerationOptions
-2) Target type OverloadGenerationOptions
-3) Matcher method OverloadGenerationOptions
-4) Matcher type OverloadGenerationOptions
-5) Default: TypeOnly
+OverloadGenerationOptions apply in two independent frames. The matcher frame only applies when no
+options are provided in the target frame. This precedence applies to RangeAnchorMatchMode,
+SubsequenceStrategy, and OverloadVisibility. RangeAnchorMatchMode affects matching; the other
+options affect overload generation.
+
+Target frame (used for the target method being generated):
+
+| Order | Scope         | Where you set it                                   |
+| ----: | ------------- | -------------------------------------------------- |
+|     1 | Target method | `[OverloadGenerationOptions]` on the target method |
+|     2 | Target type   | `[OverloadGenerationOptions]` on the target type   |
+|     3 | Default       | TypeOnly                                           |
+
+Matcher frame (used for the matcher method that matched):
+
+| Order | Scope          | Where you set it                                    |
+| ----: | -------------- | --------------------------------------------------- |
+|     1 | Matcher method | `[OverloadGenerationOptions]` on the matcher method |
+|     2 | Matcher type   | `[OverloadGenerationOptions]` on the matcher type   |
+|     3 | Default        | TypeOnly                                            |
 
 All matcher methods are considered as candidates; there is no exact-count-only filter.
 

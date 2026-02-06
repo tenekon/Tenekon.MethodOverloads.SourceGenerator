@@ -18,6 +18,8 @@ public static class Class_30_Target
 [SuppressMessage("ReSharper", "PreferConcreteValueOverDefault")]
 public static class Class_30_AcceptanceCriterias
 {
-    public static void Case_1(this Class_30 source, int param_1) =>
+    public static void Case_1(this Class_30 source, int param_1)
+    {
         Class_30_Target.Case_1(source, param_1, param_2: null);
+    }
 }

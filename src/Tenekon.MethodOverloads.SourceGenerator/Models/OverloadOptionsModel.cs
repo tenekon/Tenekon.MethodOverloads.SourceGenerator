@@ -1,25 +1,5 @@
 namespace Tenekon.MethodOverloads.SourceGenerator.Models;
 
-internal enum RangeAnchorMatchMode
-{
-    TypeOnly,
-    TypeAndName
-}
-
-internal enum OverloadSubsequenceStrategy
-{
-    PrefixOnly,
-    UniqueBySignature
-}
-
-internal enum OverloadVisibility
-{
-    MatchTarget,
-    Public,
-    Internal,
-    Private
-}
-
 internal readonly record struct OverloadOptionsModel(
     RangeAnchorMatchMode? RangeAnchorMatchMode,
     OverloadSubsequenceStrategy? SubsequenceStrategy,

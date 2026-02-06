@@ -32,6 +32,8 @@ public static class Class_7_AcceptanceCriterias
 {
     // No extension methods for Case_1
 
-    public static void Case_2(this Class_7 source, CancellationToken param_2) => source.Case_2(param_1: false, param_2);
+    public static void Case_2(this Class_7 source, CancellationToken param_2)
+    {
+        source.Case_2(param_1: false, param_2);
+    }
 }
-

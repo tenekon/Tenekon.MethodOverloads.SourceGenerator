@@ -23,11 +23,10 @@ public abstract class Class_11
 /// </summary>
 public static class Class_11_AcceptanceCriterias
 {
-    public static void Case_1(this Class_11 source, int param_1) =>
-        source.Case_1(param_1, param_2: []);
+    public static void Case_1(this Class_11 source, int param_1)
+    {
+        source.Case_1(param_1, []);
+    }
 
     // No extension methods for Case_2
 }
-
-
-

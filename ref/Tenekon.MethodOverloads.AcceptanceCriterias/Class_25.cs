@@ -43,7 +43,8 @@ internal interface Class_25_MatcherMixed
 /// </summary>
 public static class Class_25_AcceptanceCriterias
 {
-    public static void Case_1(this Class_25_MixedTarget source, int param_1, bool param_3) =>
+    public static void Case_1(this Class_25_MixedTarget source, int param_1, bool param_3)
+    {
         source.Case_1(param_1, param_2: null, param_3);
+    }
 }
-

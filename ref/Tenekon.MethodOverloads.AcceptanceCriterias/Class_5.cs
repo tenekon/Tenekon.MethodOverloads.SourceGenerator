@@ -32,9 +32,13 @@ public abstract class Class_5
 /// </summary>
 public static class Class_5_AcceptanceCriterias
 {
-    public static void Case_1(this Class_5 source, CancellationToken cancellationToken) =>
+    public static void Case_1(this Class_5 source, CancellationToken cancellationToken)
+    {
         source.Case_1(param_1: false, cancellationToken);
+    }
 
-    public static void Case_2(this Class_5 source, string? param_1_mismatch, CancellationToken param_3_mismatch) =>
+    public static void Case_2(this Class_5 source, string? param_1_mismatch, CancellationToken param_3_mismatch)
+    {
         source.Case_2(param_1_mismatch, param_2_mismatch: false, param_3_mismatch);
+    }
 }

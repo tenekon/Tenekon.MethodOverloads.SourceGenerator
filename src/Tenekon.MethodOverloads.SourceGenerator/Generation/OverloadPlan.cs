@@ -1,9 +1,9 @@
 using Tenekon.MethodOverloads.SourceGenerator.Helpers;
 using Tenekon.MethodOverloads.SourceGenerator.Models;
 
-namespace Tenekon.MethodOverloads.SourceGenerator.SourceFormatting;
+namespace Tenekon.MethodOverloads.SourceGenerator.Generation;
 
-internal readonly record struct GenerationResult(
-    Dictionary<string, List<GeneratedMethod>> MethodsByNamespace,
+internal readonly record struct OverloadPlan(
+    Dictionary<string, List<OverloadPlanEntry>> MethodsByNamespace,
     Dictionary<string, HashSet<MatcherMethodReference>> MatchedMatchersByNamespace,
     EquatableArray<EquatableDiagnostic> Diagnostics);

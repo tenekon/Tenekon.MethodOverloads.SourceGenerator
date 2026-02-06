@@ -27,14 +27,17 @@ public static class Class_29_Extensions
 
 public static class Class_29_AcceptanceCriterias
 {
-    public static void Case_1(this Class_29_Target source, int param_1) =>
+    public static void Case_1(this Class_29_Target source, int param_1)
+    {
         // ReSharper disable once InvokeAsExtensionMember
         Class_29_Extensions.Case_1(source, param_1, param_2: null);
-    
+    }
+
     extension(Class_29_Extensions)
     {
-        public static void Case_2(int value) =>
+        public static void Case_2(int value)
+        {
             Class_29_Extensions.Case_2(value, text: null);
+        }
     }
 }
-

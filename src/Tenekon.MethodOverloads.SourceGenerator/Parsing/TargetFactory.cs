@@ -1,11 +1,30 @@
 using Microsoft.CodeAnalysis;
 using Tenekon.MethodOverloads.SourceGenerator.Helpers;
 using Tenekon.MethodOverloads.SourceGenerator.Models;
+using Tenekon.MethodOverloads.SourceGenerator.Parsing.Inputs;
 
 namespace Tenekon.MethodOverloads.SourceGenerator.Parsing;
 
-internal static partial class Parser
+internal static class TargetFactory
 {
+    public static TypeTargetInput? CreateTypeTarget(
+        GeneratorAttributeSyntaxContext attributeContext,
+        CancellationToken cancellationToken)
+    {
+        if (attributeContext.TargetSymbol is not INamedTypeSymbol typeSymbol) return null;
+
+        return CreateTypeTargetFromSymbol(typeSymbol, cancellationToken);
+    }
+
+    public static MethodTargetInput? CreateMethodTarget(
+        GeneratorAttributeSyntaxContext attributeContext,
+        CancellationToken cancellationToken)
+    {
+        if (attributeContext.TargetSymbol is not IMethodSymbol methodSymbol) return null;
+
+        return CreateMethodTargetFromSymbol(methodSymbol, cancellationToken);
+    }
+
     public static TypeTargetInput? CreateTypeTargetFromSymbol(
         INamedTypeSymbol typeSymbol,
         CancellationToken cancellationToken)
@@ -15,8 +34,8 @@ internal static partial class Parser
         var attributes = RoslynHelpers.GetAttributes(typeSymbol, "GenerateMethodOverloadsAttribute");
         if (attributes.IsDefaultOrEmpty) return null;
 
-        var typeModel = BuildTypeModel(typeSymbol, cancellationToken);
-        var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attributes, cancellationToken);
+        var typeModel = Parser.BuildTypeModel(typeSymbol, cancellationToken);
+        var (matcherDisplays, matcherModels) = Parser.ExtractMatcherTypes(attributes, cancellationToken);
         return new TypeTargetInput(
             typeModel,
             new EquatableArray<string>(matcherDisplays),
@@ -32,14 +51,12 @@ internal static partial class Parser
         var attributes = RoslynHelpers.GetAttributes(methodSymbol, "GenerateOverloadsAttribute");
         if (attributes.IsDefaultOrEmpty) return null;
 
-        var methodModel = BuildMethodModel(
+        var methodModel = Parser.BuildMethodModel(methodSymbol, cancellationToken);
+        var typeModel = Parser.BuildTypeModel(methodSymbol.ContainingType, cancellationToken);
+        var (attributeModels, syntaxModels) = Parser.ExtractGenerateOverloadsAttributes(
             methodSymbol,
-            cancellationToken,
-            out var syntaxOptions,
-            out var optionsFromAttribute);
-        var typeModel = BuildTypeModel(methodSymbol.ContainingType, cancellationToken);
-        var (attributeModels, syntaxModels) = ExtractGenerateOverloadsAttributes(methodSymbol, cancellationToken);
-        var (matcherDisplays, matcherModels) = ExtractMatcherTypes(attributes, cancellationToken);
+            cancellationToken);
+        var (matcherDisplays, matcherModels) = Parser.ExtractMatcherTypes(attributes, cancellationToken);
 
         return new MethodTargetInput(
             methodModel,
@@ -47,9 +64,6 @@ internal static partial class Parser
             new EquatableArray<GenerateOverloadsAttributeModel>(attributeModels),
             new EquatableArray<GenerateOverloadsAttributeModel>(syntaxModels),
             new EquatableArray<string>(matcherDisplays),
-            methodModel.Options,
-            syntaxOptions.HasAny ? syntaxOptions : null,
-            optionsFromAttribute,
             new EquatableArray<MatcherTypeModel>(matcherModels));
     }
 }

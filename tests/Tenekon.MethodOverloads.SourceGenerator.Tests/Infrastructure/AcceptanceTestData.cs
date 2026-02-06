@@ -7,7 +7,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Tenekon.MethodOverloads.SourceGenerator.Tests.Infrastructure;
 
-internal static class AcceptanceTestData
+internal static partial class AcceptanceTestData
 {
     private static readonly string RepoRoot = Path.GetFullPath(
         Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
@@ -328,9 +328,7 @@ internal static class AcceptanceTestData
     private static IEnumerable<ExpectedSignature> ExtractExtensionBlockSignatures(string text)
     {
         var results = new List<ExpectedSignature>();
-        var extensionRegex = new Regex(
-            @"extension\s*\(([^)]+)\)\s*\{(.*?)\}",
-            RegexOptions.Singleline | RegexOptions.Compiled);
+        var extensionRegex = MyRegex();
         var methodRegex = new Regex(
             @"(public|internal|private|protected)\s+static\s+([^\s]+)\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)",
             RegexOptions.Compiled);
@@ -409,7 +407,7 @@ internal static class AcceptanceTestData
     private static string NormalizeType(string typeName)
     {
         var trimmed = typeName.Trim();
-        var isNullable = trimmed.EndsWith("?", StringComparison.Ordinal);
+        var isNullable = trimmed.EndsWith(value: '?');
         if (isNullable) trimmed = trimmed.Substring(startIndex: 0, trimmed.Length - 1);
 
         if (trimmed.StartsWith("global::", StringComparison.Ordinal)) trimmed = trimmed.Substring("global::".Length);
@@ -630,8 +628,11 @@ internal static class AcceptanceTestData
         if (trimmed.EndsWith("Attribute", StringComparison.Ordinal))
             trimmed = trimmed.Substring(startIndex: 0, trimmed.Length - "Attribute".Length);
 
-        if (trimmed.Contains(".")) trimmed = trimmed.Split(separator: '.').Last();
+        if (trimmed.Contains(value: '.')) trimmed = trimmed.Split(separator: '.').Last();
 
         return trimmed;
     }
+
+    [GeneratedRegex(@"extension\s*\(([^)]+)\)\s*\{(.*?)\}", RegexOptions.Compiled | RegexOptions.Singleline)]
+    private static partial Regex MyRegex();
 }

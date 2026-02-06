@@ -31,13 +31,18 @@ public interface Class_24_InterfaceTarget
 
 public static class Class_24_AcceptanceCriterias
 {
-    public static void Case_1(this Class_24_ClassTarget source, int param_1) =>
+    public static void Case_1(this Class_24_ClassTarget source, int param_1)
+    {
         source.Case_1(param_1, param_2: null);
+    }
 
-    public static void Case_1(this Class_24_StructTarget source, int param_1) =>
+    public static void Case_1(this Class_24_StructTarget source, int param_1)
+    {
         source.Case_1(param_1, param_2: null);
+    }
 
-    public static void Case_1(this Class_24_InterfaceTarget source, int param_1) =>
+    public static void Case_1(this Class_24_InterfaceTarget source, int param_1)
+    {
         source.Case_1(param_1, param_2: null);
+    }
 }
-

@@ -22,10 +22,13 @@ public class Class_22_Derived : Class_22_Base
 /// </summary>
 public static class Class_22_AcceptanceCriterias
 {
-    public static void Case_1(this Class_22_Base source, int param_1) =>
+    public static void Case_1(this Class_22_Base source, int param_1)
+    {
         source.Case_1(param_1, param_2: null);
+    }
 
-    public static void Case_1(this Class_22_Derived source, int param_1) =>
+    public static void Case_1(this Class_22_Derived source, int param_1)
+    {
         source.Case_1(param_1, param_2: null);
+    }
 }
-

@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -10,7 +9,7 @@ namespace Tenekon.MethodOverloads.SourceGenerator.Parsing;
 
 internal static partial class Parser
 {
-    private static TypeModel BuildTypeModel(INamedTypeSymbol typeSymbol, CancellationToken cancellationToken)
+    internal static TypeModel BuildTypeModel(INamedTypeSymbol typeSymbol, CancellationToken cancellationToken)
     {
         var methods = new List<MethodModel>();
         var signatures = new List<MethodSignatureModel>();
@@ -19,7 +18,7 @@ internal static partial class Parser
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var methodModel = BuildMethodModel(member, cancellationToken, out _, out _);
+            var methodModel = BuildMethodModel(member, cancellationToken);
             methods.Add(methodModel);
 
             if (methodModel.IsOrdinary)
@@ -37,21 +36,17 @@ internal static partial class Parser
         }
 
         var namespaceName = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
-        var (options, _) = ExtractOverloadOptions(typeSymbol, cancellationToken, out _);
+        var (options, _) = ExtractOverloadOptions(typeSymbol, cancellationToken);
 
         return new TypeModel(
             typeSymbol.ToDisplayString(RoslynHelpers.TypeDisplayFormat),
             namespaceName,
-            new EquatableArray<MethodModel>([..methods]),
-            new EquatableArray<MethodSignatureModel>([..signatures]),
+            new EquatableArray<MethodModel>([.. methods]),
+            new EquatableArray<MethodSignatureModel>([.. signatures]),
             options);
     }
 
-    private static MethodModel BuildMethodModel(
-        IMethodSymbol methodSymbol,
-        CancellationToken cancellationToken,
-        out OverloadOptionsModel syntaxOptions,
-        out bool optionsFromAttribute)
+    internal static MethodModel BuildMethodModel(IMethodSymbol methodSymbol, CancellationToken cancellationToken)
     {
         var defaultMap = new Dictionary<string, bool>(StringComparer.Ordinal);
         SourceLocationModel? identifierLocation = null;
@@ -89,8 +84,7 @@ internal static partial class Parser
         var typeParameterNames = methodSymbol.TypeParameters.Select(tp => tp.Name).ToImmutableArray();
 
         var constraints = BuildTypeParameterConstraints(methodSymbol);
-        var (options, fromAttribute) = ExtractOverloadOptions(methodSymbol, cancellationToken, out syntaxOptions);
-        optionsFromAttribute = fromAttribute;
+        var (options, fromAttribute) = ExtractOverloadOptions(methodSymbol, cancellationToken);
 
         return new MethodModel(
             methodSymbol.Name,
@@ -103,11 +97,11 @@ internal static partial class Parser
             methodSymbol.TypeParameters.Length,
             new EquatableArray<string>(typeParameterNames),
             constraints,
-            new EquatableArray<ParameterModel>([..parameters]),
+            new EquatableArray<ParameterModel>([.. parameters]),
             identifierLocation,
             methodSymbol.MethodKind == MethodKind.Ordinary,
             options,
-            optionsFromAttribute);
+            fromAttribute);
     }
 
     private static string BuildTypeParameterConstraints(IMethodSymbol method)
@@ -134,9 +128,10 @@ internal static partial class Parser
         return string.Join(" ", constraints);
     }
 
-    private static (ImmutableArray<GenerateOverloadsAttributeModel> AttributeModels,
-            ImmutableArray<GenerateOverloadsAttributeModel> SyntaxModels)
-        ExtractGenerateOverloadsAttributes(IMethodSymbol methodSymbol, CancellationToken cancellationToken)
+    internal static (ImmutableArray<GenerateOverloadsAttributeModel> AttributeModels,
+        ImmutableArray<GenerateOverloadsAttributeModel> SyntaxModels) ExtractGenerateOverloadsAttributes(
+            IMethodSymbol methodSymbol,
+            CancellationToken cancellationToken)
     {
         var attributes = RoslynHelpers.GetAttributes(methodSymbol, "GenerateOverloadsAttribute");
         var attributeModels = ExtractGenerateOverloadsAttributesFromAttributeData(
@@ -150,20 +145,33 @@ internal static partial class Parser
 
     private static (OverloadOptionsModel Options, bool FromAttribute) ExtractOverloadOptions(
         ISymbol symbol,
-        CancellationToken cancellationToken,
-        out OverloadOptionsModel syntaxOptions)
+        CancellationToken cancellationToken)
     {
-        syntaxOptions = default;
+        var syntaxOptions = default(OverloadOptionsModel);
 
         var syntax = GetMemberSyntax(symbol, cancellationToken);
         if (syntax is not null) syntaxOptions = ExtractOverloadOptionsFromSyntax(syntax);
 
         var attribute = RoslynHelpers.GetAttribute(symbol, "OverloadGenerationOptionsAttribute");
-        if (attribute is not null) return (ExtractOverloadOptionsFromAttribute(attribute), true);
+        if (attribute is not null)
+        {
+            var options = ExtractOverloadOptionsFromAttribute(attribute);
+            if (syntaxOptions.HasAny) options = MergeOptions(options, syntaxOptions);
+            return (options, true);
+        }
 
         if (syntaxOptions.HasAny) return (syntaxOptions, false);
 
         return (default, false);
+    }
+
+    private static OverloadOptionsModel MergeOptions(OverloadOptionsModel baseOptions, OverloadOptionsModel overrides)
+    {
+        var rangeAnchorMatchMode = overrides.RangeAnchorMatchMode ?? baseOptions.RangeAnchorMatchMode;
+        var subsequenceStrategy = overrides.SubsequenceStrategy ?? baseOptions.SubsequenceStrategy;
+        var overloadVisibility = overrides.OverloadVisibility ?? baseOptions.OverloadVisibility;
+
+        return new OverloadOptionsModel(rangeAnchorMatchMode, subsequenceStrategy, overloadVisibility);
     }
 
     private static OverloadOptionsModel ExtractOverloadOptionsFromAttribute(AttributeData attribute)
@@ -228,7 +236,7 @@ internal static partial class Parser
         return new OverloadOptionsModel(rangeAnchorMatchMode, subsequenceStrategy, overloadVisibility);
     }
 
-    private static (ImmutableArray<string> Displays, ImmutableArray<MatcherTypeModel> Models) ExtractMatcherTypes(
+    internal static (ImmutableArray<string> Displays, ImmutableArray<MatcherTypeModel> Models) ExtractMatcherTypes(
         ImmutableArray<AttributeData> attributes,
         CancellationToken cancellationToken)
     {
@@ -286,27 +294,21 @@ internal static partial class Parser
 
                 if (!HasGenerateOverloadsAttribute(member)) continue;
 
-                var methodModel = BuildMethodModel(
-                    member,
-                    cancellationToken,
-                    out var syntaxOptions,
-                    out var optionsFromAttribute);
+                var methodModel = BuildMethodModel(member, cancellationToken);
                 var (attributeModels, syntaxModels) = ExtractGenerateOverloadsAttributes(member, cancellationToken);
 
                 matcherMethods.Add(
                     new MatcherMethodModel(
                         methodModel,
                         new EquatableArray<GenerateOverloadsAttributeModel>(attributeModels),
-                        new EquatableArray<GenerateOverloadsAttributeModel>(syntaxModels),
-                        methodModel.Options,
-                        syntaxOptions.HasAny ? syntaxOptions : null));
+                        new EquatableArray<GenerateOverloadsAttributeModel>(syntaxModels)));
             }
 
             builder.Add(
                 new MatcherTypeModel(
                     typeModel,
                     typeModel.Options,
-                    new EquatableArray<MatcherMethodModel>([..matcherMethods])));
+                    new EquatableArray<MatcherMethodModel>([.. matcherMethods])));
         }
 
         return builder.ToImmutable();
@@ -317,11 +319,10 @@ internal static partial class Parser
         return !RoslynHelpers.GetAttributes(methodSymbol, "GenerateOverloadsAttribute").IsDefaultOrEmpty;
     }
 
-    private static ImmutableArray<GenerateOverloadsAttributeModel>
-        ExtractGenerateOverloadsAttributesFromAttributeData(
-            ImmutableArray<AttributeData> attributes,
-            IMethodSymbol methodSymbol,
-            CancellationToken cancellationToken)
+    private static ImmutableArray<GenerateOverloadsAttributeModel> ExtractGenerateOverloadsAttributesFromAttributeData(
+        ImmutableArray<AttributeData> attributes,
+        IMethodSymbol methodSymbol,
+        CancellationToken cancellationToken)
     {
         if (attributes.IsDefaultOrEmpty) return ImmutableArray<GenerateOverloadsAttributeModel>.Empty;
 
@@ -345,10 +346,9 @@ internal static partial class Parser
         return builder.ToImmutable();
     }
 
-    private static ImmutableArray<GenerateOverloadsAttributeModel>
-        ExtractGenerateOverloadsAttributesFromSyntax(
-            IMethodSymbol methodSymbol,
-            CancellationToken cancellationToken)
+    private static ImmutableArray<GenerateOverloadsAttributeModel> ExtractGenerateOverloadsAttributesFromSyntax(
+        IMethodSymbol methodSymbol,
+        CancellationToken cancellationToken)
     {
         var syntax = GetMethodSyntax(methodSymbol, cancellationToken);
         if (syntax is null) return ImmutableArray<GenerateOverloadsAttributeModel>.Empty;
@@ -358,10 +358,9 @@ internal static partial class Parser
             GetMethodIdentifierLocation(methodSymbol, cancellationToken));
     }
 
-    private static ImmutableArray<GenerateOverloadsAttributeModel>
-        ExtractGenerateOverloadsAttributesFromSyntax(
-            MethodDeclarationSyntax methodSyntax,
-            SourceLocationModel? identifierLocation)
+    private static ImmutableArray<GenerateOverloadsAttributeModel> ExtractGenerateOverloadsAttributesFromSyntax(
+        MethodDeclarationSyntax methodSyntax,
+        SourceLocationModel? identifierLocation)
     {
         var builder = ImmutableArray.CreateBuilder<GenerateOverloadsAttributeModel>();
 
@@ -577,27 +576,5 @@ internal static partial class Parser
         {
             return false;
         }
-    }
-
-    private static string BuildMethodIdentityKey(MethodModel method)
-    {
-        var builder = new StringBuilder();
-        builder.Append(method.ContainingTypeDisplay);
-        builder.Append("|");
-        builder.Append(method.Name);
-        builder.Append("|");
-        builder.Append(method.TypeParameterCount);
-
-        foreach (var parameter in method.Parameters.Items)
-        {
-            builder.Append("|");
-            builder.Append(parameter.SignatureTypeDisplay);
-            builder.Append(":");
-            builder.Append(parameter.RefKind);
-            builder.Append(":");
-            builder.Append(parameter.IsParams ? "params" : "noparams");
-        }
-
-        return builder.ToString();
     }
 }

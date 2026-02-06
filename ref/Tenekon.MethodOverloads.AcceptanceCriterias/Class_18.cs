@@ -20,7 +20,7 @@ internal interface Class_18_Matcher
 public abstract class Class_18
 {
     [SuppressMessage("MethodOverloadsGenerator", "MOG006")]
-    public abstract void Case_1(Int32 param_1, string? param_2);
+    public abstract void Case_1(int param_1, string? param_2);
 
     public abstract void Case_2(int Param_1, string? param_2);
 }
@@ -30,10 +30,10 @@ public abstract class Class_18
 /// </summary>
 public static class Class_18_AcceptanceCriterias
 {
-    public static void Case_1(this Class_18 source, int param_1) =>
+    public static void Case_1(this Class_18 source, int param_1)
+    {
         source.Case_1(param_1, param_2: null);
+    }
 
     // No extension methods for Case_2 (name casing mismatch).
 }
-
-

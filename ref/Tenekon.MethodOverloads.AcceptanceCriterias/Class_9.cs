@@ -17,15 +17,18 @@ public abstract class Class_9
 /// </summary>
 public static class Class_9_AcceptanceCriterias
 {
-    public static void Case_1(this Class_9 source, int param_1, string? param_2, int param_4) =>
+    public static void Case_1(this Class_9 source, int param_1, string? param_2, int param_4)
+    {
         source.Case_1(param_1, param_2, param_3: false, param_4);
+    }
 
-    public static void Case_1(this Class_9 source, int param_1, bool param_3, int param_4) =>
-        source.Case_1(param_1, param_2: null, param_3: param_3, param_4);
+    public static void Case_1(this Class_9 source, int param_1, bool param_3, int param_4)
+    {
+        source.Case_1(param_1, param_2: null, param_3, param_4);
+    }
 
-    public static void Case_1(this Class_9 source, int param_1, int param_4) =>
+    public static void Case_1(this Class_9 source, int param_1, int param_4)
+    {
         source.Case_1(param_1, param_2: null, param_3: false, param_4);
+    }
 }
-
-
-

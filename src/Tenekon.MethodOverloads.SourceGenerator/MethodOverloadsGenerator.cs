@@ -1,6 +1,5 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Tenekon.MethodOverloads.SourceGenerator.Models;
 using Tenekon.MethodOverloads.SourceGenerator.Parsing;
 using Tenekon.MethodOverloads.SourceGenerator.SourceFormatting;
 
@@ -53,7 +52,7 @@ public sealed class MethodOverloadsGenerator : IIncrementalGenerator
         var typeTargets = context.SyntaxProvider.ForAttributeWithMetadataName(
                 AttributeNames.GenerateMethodOverloadsAttribute,
                 static (node, _) => node is BaseTypeDeclarationSyntax,
-                static (attributeContext, cancellationToken) => Parser.CreateTypeTarget(
+                static (attributeContext, cancellationToken) => TargetFactory.CreateTypeTarget(
                     attributeContext,
                     cancellationToken))
             .Where(static input => input.HasValue)
@@ -62,7 +61,7 @@ public sealed class MethodOverloadsGenerator : IIncrementalGenerator
         var methodTargets = context.SyntaxProvider.ForAttributeWithMetadataName(
                 AttributeNames.GenerateOverloadsAttribute,
                 static (node, _) => node is MethodDeclarationSyntax,
-                static (attributeContext, cancellationToken) => Parser.CreateMethodTarget(
+                static (attributeContext, cancellationToken) => TargetFactory.CreateMethodTarget(
                     attributeContext,
                     cancellationToken))
             .Where(static input => input.HasValue)

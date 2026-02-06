@@ -3,9 +3,10 @@ using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Operations;
+using Tenekon.MethodOverloads.SourceGenerator.Generation;
 using Tenekon.MethodOverloads.SourceGenerator.Helpers;
 using Tenekon.MethodOverloads.SourceGenerator.Parsing;
-using Tenekon.MethodOverloads.SourceGenerator.SourceFormatting;
+using Tenekon.MethodOverloads.SourceGenerator.Parsing.Inputs;
 
 namespace Tenekon.MethodOverloads.SourceGenerator;
 
@@ -56,14 +57,14 @@ public sealed class MethodOverloadsDiagnosticsAnalyzer : DiagnosticAnalyzer
             {
                 if (typeTargets.IsEmpty && methodTargets.IsEmpty) return;
 
-                var model = Parser.Parse([..typeTargets], [..methodTargets], endContext.CancellationToken);
+                var model = Parser.Parse([.. typeTargets], [.. methodTargets], endContext.CancellationToken);
                 if (model is null) return;
 
                 foreach (var diagnostic in model.Diagnostics.Items)
                     endContext.ReportDiagnostic(diagnostic.CreateDiagnostic());
 
-                var engine = new GenerationEngine(model);
-                var result = engine.Generate();
+                var builder = new OverloadPlanBuilder(model);
+                var result = builder.Build();
 
                 foreach (var diagnostic in result.Diagnostics.Items)
                     endContext.ReportDiagnostic(diagnostic.CreateDiagnostic());
@@ -85,7 +86,9 @@ public sealed class MethodOverloadsDiagnosticsAnalyzer : DiagnosticAnalyzer
                 {
                     if (operationContext.ContainingSymbol is not IMethodSymbol methodSymbol) return;
 
-                    var target = Parser.CreateMethodTargetFromSymbol(methodSymbol, operationContext.CancellationToken);
+                    var target = TargetFactory.CreateMethodTargetFromSymbol(
+                        methodSymbol,
+                        operationContext.CancellationToken);
                     if (target.HasValue) collectedMethodTargets.Add(target.Value);
 
                     return;
@@ -95,7 +98,9 @@ public sealed class MethodOverloadsDiagnosticsAnalyzer : DiagnosticAnalyzer
                 {
                     if (operationContext.ContainingSymbol is not INamedTypeSymbol typeSymbol) return;
 
-                    var target = Parser.CreateTypeTargetFromSymbol(typeSymbol, operationContext.CancellationToken);
+                    var target = TargetFactory.CreateTypeTargetFromSymbol(
+                        typeSymbol,
+                        operationContext.CancellationToken);
                     if (target.HasValue) collectedTypeTargets.Add(target.Value);
                 }
 

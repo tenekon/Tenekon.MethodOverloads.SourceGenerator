@@ -21,4 +21,3 @@ public static class Class_10_AcceptanceCriterias
 {
     // No extension methods for Case_1 (all omitted parameters already have defaults).
 }
-

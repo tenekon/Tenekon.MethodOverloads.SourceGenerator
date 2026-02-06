@@ -1,4 +1,5 @@
 using Tenekon.MethodOverloads.SourceGenerator;
+
 #pragma warning disable IDE0051
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias.Attributes;
@@ -28,8 +29,10 @@ public class GenerateOverloadsTargets
 
 public static class GenerateOverloadsTargets_AcceptanceCriterias
 {
-    public static void GenerateOverloadsOnMethod(this GenerateOverloadsTargets source) =>
+    public static void GenerateOverloadsOnMethod(this GenerateOverloadsTargets source)
+    {
         source.GenerateOverloadsOnMethod(param_1: default);
+    }
 }
 
 [OverloadGenerationOptions]

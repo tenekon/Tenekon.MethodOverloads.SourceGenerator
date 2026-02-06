@@ -43,26 +43,32 @@ public class Class_15_Visibility
 /// </summary>
 public static class Class_15_AcceptanceCriterias
 {
-    public static void Case_1(this Class_15 source, int param_1) =>
+    public static void Case_1(this Class_15 source, int param_1)
+    {
         source.Case_1(param_1, param_2: null);
+    }
 
-    internal static void Case_2(this Class_15 source, int param_1) =>
+    internal static void Case_2(this Class_15 source, int param_1)
+    {
         source.Case_2(param_1, param_2: null);
+    }
 
     // No extension methods for Case_3
 
     // No extension methods for Case_4
 
-    internal static void Case_5(this Class_15 source, int param_1) =>
+    internal static void Case_5(this Class_15 source, int param_1)
+    {
         source.Case_5(param_1, param_2: null);
+    }
 
-    internal static void Case_1(this Class_15_Visibility source, int param_1) =>
+    internal static void Case_1(this Class_15_Visibility source, int param_1)
+    {
         source.Case_1(param_1, param_2: null);
+    }
 
-    public static void Case_2(this Class_15_Visibility source, int param_1) =>
+    public static void Case_2(this Class_15_Visibility source, int param_1)
+    {
         source.Case_2(param_1, param_2: null);
+    }
 }
-
-
-
-

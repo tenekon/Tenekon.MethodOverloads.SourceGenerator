@@ -4,36 +4,22 @@ using Tenekon.MethodOverloads.SourceGenerator.Models;
 
 namespace Tenekon.MethodOverloads.SourceGenerator.SourceFormatting;
 
-internal sealed class GeneratedMethod
+internal sealed class GeneratedMethod(
+    MethodModel method,
+    ParameterModel[] keptParameters,
+    ParameterModel[] omittedParameters,
+    OverloadVisibility overloadVisibility,
+    IReadOnlyCollection<MatcherMethodReference>? matchedMatcherMethods)
 {
-    private readonly MethodModel _method;
-    private readonly ParameterModel[] _keptParameters;
-    private readonly ParameterModel[] _omittedParameters;
-    private readonly OverloadVisibility _overloadVisibility;
-    private readonly MatcherMethodReference[] _matchedMatcherMethods;
+    private readonly ParameterModel[] _omittedParameters = omittedParameters;
+    private readonly MatcherMethodReference[] _matchedMatcherMethods = NormalizeMatchedMatcherMethods(matchedMatcherMethods);
 
-    public GeneratedMethod(
-        MethodModel method,
-        ParameterModel[] keptParameters,
-        ParameterModel[] omittedParameters,
-        OverloadVisibility overloadVisibility,
-        IReadOnlyCollection<MatcherMethodReference>? matchedMatcherMethods)
-    {
-        _method = method;
-        _keptParameters = keptParameters;
-        _omittedParameters = omittedParameters;
-        _overloadVisibility = overloadVisibility;
-        _matchedMatcherMethods = NormalizeMatchedMatcherMethods(matchedMatcherMethods);
-
-        Namespace = method.ContainingNamespace;
-    }
-
-    public string Namespace { get; }
-    public MethodModel Method => _method;
+    public string Namespace { get; } = method.ContainingNamespace;
+    public MethodModel Method => method;
 
     public string Render()
     {
-        return _method.IsStatic && !_method.IsExtensionMethod
+        return method.IsStatic && !method.IsExtensionMethod
             ? RenderStaticExtensionBlock()
             : RenderClassicExtensionMethod();
     }
@@ -42,27 +28,27 @@ internal sealed class GeneratedMethod
     {
         var builder = new StringBuilder();
         var accessibility = RenderAccessibility();
-        var returnType = _method.ReturnTypeDisplay;
-        var typeParams = RenderTypeParameters(_method);
-        var constraints = _method.TypeParameterConstraints;
-        var isExtensionMethod = _method.IsExtensionMethod;
-        var receiverParameter = isExtensionMethod ? _method.Parameters.Items.FirstOrDefault() : (ParameterModel?)null;
-        var receiverType = receiverParameter?.TypeDisplay ?? _method.ContainingTypeDisplay;
+        var returnType = method.ReturnTypeDisplay;
+        var typeParams = RenderTypeParameters(method);
+        var constraints = method.TypeParameterConstraints;
+        var isExtensionMethod = method.IsExtensionMethod;
+        var receiverParameter = isExtensionMethod ? method.Parameters.Items.FirstOrDefault() : (ParameterModel?)null;
+        var receiverType = receiverParameter?.TypeDisplay ?? method.ContainingTypeDisplay;
         var receiverName = receiverParameter?.Name ?? "source";
-        var invocationReceiver = isExtensionMethod ? _method.ContainingTypeDisplay : receiverName;
+        var invocationReceiver = isExtensionMethod ? method.ContainingTypeDisplay : receiverName;
 
         builder.Append("    ")
             .Append(accessibility)
             .Append(" static ")
             .Append(returnType)
             .Append(" ")
-            .Append(_method.Name)
+            .Append(method.Name)
             .Append(typeParams)
             .Append("(");
 
         builder.Append("this ").Append(receiverType).Append(" ").Append(receiverName);
 
-        foreach (var parameter in _keptParameters)
+        foreach (var parameter in keptParameters)
         {
             if (receiverParameter.HasValue && string.Equals(
                     parameter.Name,
@@ -85,10 +71,10 @@ internal sealed class GeneratedMethod
     {
         var builder = new StringBuilder();
         var accessibility = RenderAccessibility();
-        var returnType = _method.ReturnTypeDisplay;
-        var typeParams = RenderTypeParameters(_method);
-        var constraints = _method.TypeParameterConstraints;
-        var receiverType = _method.ContainingTypeDisplay;
+        var returnType = method.ReturnTypeDisplay;
+        var typeParams = RenderTypeParameters(method);
+        var constraints = method.TypeParameterConstraints;
+        var receiverType = method.ContainingTypeDisplay;
 
         builder.AppendLine("    extension(" + receiverType + ")");
         builder.AppendLine("    {");
@@ -97,12 +83,12 @@ internal sealed class GeneratedMethod
             .Append(" static ")
             .Append(returnType)
             .Append(" ")
-            .Append(_method.Name)
+            .Append(method.Name)
             .Append(typeParams)
             .Append("(");
 
         var first = true;
-        foreach (var parameter in _keptParameters)
+        foreach (var parameter in keptParameters)
         {
             if (!first) builder.Append(", ");
 
@@ -136,10 +122,10 @@ internal sealed class GeneratedMethod
     private string RenderInvocation(string receiver)
     {
         var builder = new StringBuilder();
-        builder.Append(receiver).Append(".").Append(_method.Name).Append(RenderTypeArguments(_method)).Append("(");
+        builder.Append(receiver).Append(".").Append(method.Name).Append(RenderTypeArguments(method)).Append("(");
 
         var first = true;
-        foreach (var parameter in _method.Parameters.Items)
+        foreach (var parameter in method.Parameters.Items)
         {
             if (!first) builder.Append(", ");
 
@@ -153,7 +139,7 @@ internal sealed class GeneratedMethod
 
     private string RenderArgument(ParameterModel parameter)
     {
-        if (_keptParameters.Any(p => string.Equals(p.Name, parameter.Name, StringComparison.Ordinal)))
+        if (keptParameters.Any(p => string.Equals(p.Name, parameter.Name, StringComparison.Ordinal)))
         {
             var name = parameter.Name;
             return parameter.RefKind switch
@@ -176,16 +162,16 @@ internal sealed class GeneratedMethod
 
     private string RenderAccessibility()
     {
-        var accessibility = _overloadVisibility switch
+        var accessibility = overloadVisibility switch
         {
             OverloadVisibility.Public => Accessibility.Public,
             OverloadVisibility.Internal => Accessibility.Internal,
             OverloadVisibility.Private => Accessibility.Private,
-            _ => _method.DeclaredAccessibility
+            _ => method.DeclaredAccessibility
         };
 
-        if (_overloadVisibility == OverloadVisibility.MatchTarget
-            && TryGetOverloadVisibilityOverride(_method, out var overrideVisibility))
+        if (overloadVisibility == OverloadVisibility.MatchTarget
+            && TryGetOverloadVisibilityOverride(method, out var overrideVisibility))
             accessibility = overrideVisibility switch
             {
                 OverloadVisibility.Public => Accessibility.Public,
@@ -194,7 +180,7 @@ internal sealed class GeneratedMethod
                 _ => accessibility
             };
 
-        if (_overloadVisibility == OverloadVisibility.MatchTarget && (accessibility == Accessibility.ProtectedOrInternal
+        if (overloadVisibility == OverloadVisibility.MatchTarget && (accessibility == Accessibility.ProtectedOrInternal
                 || accessibility == Accessibility.ProtectedAndInternal))
             accessibility = Accessibility.Internal;
 

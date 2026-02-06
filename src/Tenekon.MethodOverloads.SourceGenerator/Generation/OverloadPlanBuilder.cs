@@ -4,20 +4,20 @@ using Microsoft.CodeAnalysis;
 using Tenekon.MethodOverloads.SourceGenerator.Helpers;
 using Tenekon.MethodOverloads.SourceGenerator.Models;
 
-namespace Tenekon.MethodOverloads.SourceGenerator.SourceFormatting;
+namespace Tenekon.MethodOverloads.SourceGenerator.Generation;
 
-internal sealed class GenerationEngine
+internal sealed class OverloadPlanBuilder
 {
     private readonly GeneratorModel _model;
     private readonly Dictionary<string, TypeModel> _typesByDisplay;
     private readonly Dictionary<string, TypeTargetModel> _typeTargetsByDisplay;
     private readonly Dictionary<string, MatcherTypeModel> _matcherTypesByDisplay;
     private readonly HashSet<string> _matcherTypeDisplays;
-    private readonly Dictionary<string, List<GeneratedMethod>> _methodsByNamespace;
+    private readonly Dictionary<string, List<OverloadPlanEntry>> _methodsByNamespace;
     private readonly Dictionary<string, HashSet<MatcherMethodReference>> _matchedMatchersByNamespace;
     private readonly List<EquatableDiagnostic> _diagnostics;
 
-    public GenerationEngine(GeneratorModel model)
+    public OverloadPlanBuilder(GeneratorModel model)
     {
         _model = model;
         _typesByDisplay = model.Types.Items.ToDictionary(
@@ -33,33 +33,33 @@ internal sealed class GenerationEngine
             target => target,
             StringComparer.Ordinal);
         _matcherTypeDisplays = new HashSet<string>(_matcherTypesByDisplay.Keys, StringComparer.Ordinal);
-        _methodsByNamespace = new Dictionary<string, List<GeneratedMethod>>(StringComparer.Ordinal);
+        _methodsByNamespace = new Dictionary<string, List<OverloadPlanEntry>>(StringComparer.Ordinal);
         _matchedMatchersByNamespace = new Dictionary<string, HashSet<MatcherMethodReference>>(StringComparer.Ordinal);
         _diagnostics = [];
     }
 
-    public GenerationResult Generate()
+    public OverloadPlan Build()
     {
-        GenerateMethods();
-        return new GenerationResult(
+        BuildMethods();
+        return new OverloadPlan(
             _methodsByNamespace,
             _matchedMatchersByNamespace,
-            new EquatableArray<EquatableDiagnostic>([.._diagnostics]));
+            new EquatableArray<EquatableDiagnostic>([.. _diagnostics]));
     }
 
     private void Report(DiagnosticDescriptor descriptor, SourceLocationModel? location, params string[] messageArgs)
     {
-        _diagnostics.Add(new EquatableDiagnostic(descriptor, location, new EquatableArray<string>([..messageArgs])));
+        _diagnostics.Add(new EquatableDiagnostic(descriptor, location, new EquatableArray<string>([.. messageArgs])));
     }
 
-    private void GenerateMethods()
+    private void BuildMethods()
     {
         var matcherHasAnyMatch = new Dictionary<MatcherMethodReference, bool>();
         var matcherLocations = new Dictionary<MatcherMethodReference, SourceLocationModel?>();
         var matchedMatchersByTarget = new Dictionary<string, HashSet<MatcherMethodReference>>(StringComparer.Ordinal);
 
         var methodTargetsByKey = _model.MethodTargets.Items.ToDictionary(
-            target => BuildMethodIdentityKey(target.Method),
+            target => MethodIdentity.BuildMethodIdentityKey(target.Method),
             target => target,
             StringComparer.Ordinal);
 
@@ -67,13 +67,13 @@ internal sealed class GenerationEngine
         foreach (var typeTarget in _model.TypeTargets.Items)
         foreach (var method in typeTarget.Type.Methods.Items)
         {
-            var key = BuildMethodIdentityKey(method);
+            var key = MethodIdentity.BuildMethodIdentityKey(method);
             if (!candidateMethods.ContainsKey(key)) candidateMethods[key] = method;
         }
 
         foreach (var methodTarget in _model.MethodTargets.Items)
         {
-            var key = BuildMethodIdentityKey(methodTarget.Method);
+            var key = MethodIdentity.BuildMethodIdentityKey(methodTarget.Method);
             if (!candidateMethods.ContainsKey(key)) candidateMethods[key] = methodTarget.Method;
         }
 
@@ -88,7 +88,10 @@ internal sealed class GenerationEngine
                 continue;
 
             _typeTargetsByDisplay.TryGetValue(method.ContainingTypeDisplay, out var typeTarget);
-            methodTargetsByKey.TryGetValue(BuildMethodIdentityKey(method), out var methodTarget);
+            methodTargetsByKey.TryGetValue(MethodIdentity.BuildMethodIdentityKey(method), out var methodTarget);
+            TypeModel? containingType = null;
+            if (_typesByDisplay.TryGetValue(method.ContainingTypeDisplay, out var typeModel))
+                containingType = typeModel;
 
             var hasTypeGenerate = typeTarget.HasGenerateMethodOverloads;
             var hasMethodGenerate = methodTarget.HasGenerateOverloads;
@@ -96,8 +99,14 @@ internal sealed class GenerationEngine
             if (!hasTypeGenerate && !hasMethodGenerate) continue;
 
             var windowSpecs = new List<WindowSpec>();
+            var optionsByGroupKey = new Dictionary<string, GenerationOptions>(StringComparer.Ordinal);
             var methodMatchers = EquatableArray<string>.Empty;
             var methodAttributes = EquatableArray<GenerateOverloadsAttributeModel>.Empty;
+            var directOptions = GenerationOptionsResolver.ResolveGenerationOptions(
+                method,
+                containingType,
+                matcherMethod: null,
+                matcherType: null);
 
             if (hasMethodGenerate)
             {
@@ -123,7 +132,6 @@ internal sealed class GenerationEngine
             var useTypeMatchers = !hasMethodGenerate && hasTypeGenerate;
 
             if (useDirectGenerateOverloads)
-            {
                 for (var index = 0; index < directAttributes.Length; index++)
                 {
                     var attribute = directAttributes[index];
@@ -142,12 +150,12 @@ internal sealed class GenerationEngine
                                 windowSpecFromAttribute.StartIndex,
                                 windowSpecFromAttribute.EndIndex,
                                 groupKey));
+                        optionsByGroupKey[groupKey] = directOptions;
 
                         if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.RedundantAnchors)
                             Report(
                                 GeneratorDiagnostics.RedundantBeginEndAnchors,
-                                attribute.Args.AttributeLocation
-                                ?? attribute.Args.SyntaxAttributeLocation
+                                attribute.Args.AttributeLocation ?? attribute.Args.SyntaxAttributeLocation
                                 ?? method.IdentifierLocation,
                                 method.Name);
                     }
@@ -156,7 +164,6 @@ internal sealed class GenerationEngine
                         ReportWindowFailure(windowFailureFromAttribute, attribute.Args, method.Name);
                     }
                 }
-            }
             if (useMethodMatchers || useTypeMatchers)
             {
                 var matcherTypes = useMethodMatchers ? methodMatchers : typeTarget.MatcherTypeDisplays;
@@ -186,8 +193,7 @@ internal sealed class GenerationEngine
                         if (HasMatchersWindowConflict(matcherMethodModel, matcherAttributes))
                             continue;
 
-                        var matcherDirectAttributes = matcherAttributes.Items
-                            .Where(attribute => !attribute.HasMatchers)
+                        var matcherDirectAttributes = matcherAttributes.Items.Where(attribute => !attribute.HasMatchers)
                             .ToArray();
                         if (matcherDirectAttributes.Length == 0) continue;
 
@@ -204,12 +210,22 @@ internal sealed class GenerationEngine
                         }
 
                         var groupKey = "matcher:" + BuildMethodGroupKey(matcherMethodModel);
-                        var matches = FindSubsequenceMatches(matcherMethodModel, method).ToArray();
+                        var matcherOptions = GenerationOptionsResolver.ResolveGenerationOptions(
+                            method,
+                            containingType,
+                            matcherMethodModel,
+                            matcherType);
+                        var matches = FindSubsequenceMatches(
+                                matcherMethodModel,
+                                method,
+                                matcherOptions.RangeAnchorMatchMode)
+                            .ToArray();
                         if (matches.Length == 0) continue;
 
                         matcherHasAnyMatch[matcherRef] = true;
+                        optionsByGroupKey[groupKey] = matcherOptions;
 
-                        var targetKey = BuildMethodIdentityKey(method);
+                        var targetKey = MethodIdentity.BuildMethodIdentityKey(method);
                         if (!matchedMatchersByTarget.TryGetValue(targetKey, out var matchedMatchers))
                         {
                             matchedMatchers = [];
@@ -229,45 +245,42 @@ internal sealed class GenerationEngine
                         matchedByNamespace.Add(matcherRef);
 
                         foreach (var match in matches)
-                        {
-                            foreach (var attribute in matcherDirectAttributes)
+                        foreach (var attribute in matcherDirectAttributes)
+                            if (TryCreateWindowSpecFromArgs(
+                                    method,
+                                    matcherMethodModel,
+                                    attribute.Args,
+                                    match,
+                                    out var windowSpec,
+                                    out var windowFailure))
                             {
-                                if (TryCreateWindowSpecFromArgs(
-                                        method,
-                                        matcherMethodModel,
-                                        attribute.Args,
-                                        match,
-                                        out var windowSpec,
-                                        out var windowFailure))
-                                {
-                                    windowSpecs.Add(
-                                        new WindowSpec(windowSpec.StartIndex, windowSpec.EndIndex, groupKey));
+                                windowSpecs.Add(new WindowSpec(windowSpec.StartIndex, windowSpec.EndIndex, groupKey));
 
-                                    if (windowFailure.Kind == WindowSpecFailureKind.RedundantAnchors)
-                                        Report(
-                                            GeneratorDiagnostics.RedundantBeginEndAnchors,
-                                            attribute.Args.AttributeLocation
-                                            ?? attribute.Args.SyntaxAttributeLocation
-                                            ?? matcherMethodModel.IdentifierLocation,
-                                            matcherMethodModel.Name);
-                                }
-                                else
-                                {
-                                    ReportWindowFailure(windowFailure, attribute.Args, matcherMethodModel.Name);
-                                }
+                                if (windowFailure.Kind == WindowSpecFailureKind.RedundantAnchors)
+                                    Report(
+                                        GeneratorDiagnostics.RedundantBeginEndAnchors,
+                                        attribute.Args.AttributeLocation ?? attribute.Args.SyntaxAttributeLocation
+                                        ?? matcherMethodModel.IdentifierLocation,
+                                        matcherMethodModel.Name);
                             }
-                        }
+                            else
+                            {
+                                ReportWindowFailure(windowFailure, attribute.Args, matcherMethodModel.Name);
+                            }
                     }
                 }
             }
 
             if (windowSpecs.Count == 0) continue;
 
-            var options = GetEffectiveOptions(method, methodTarget);
-            if (methodTarget.SyntaxOptions.HasValue) ApplyOptions(options, methodTarget.SyntaxOptions.Value);
-
-            matchedMatchersByTarget.TryGetValue(BuildMethodIdentityKey(method), out var matchedMatcherMethods);
-            foreach (var generated in GenerateOverloadsForMethod(method, windowSpecs, options, matchedMatcherMethods))
+            matchedMatchersByTarget.TryGetValue(
+                MethodIdentity.BuildMethodIdentityKey(method),
+                out var matchedMatcherMethods);
+            foreach (var generated in GenerateOverloadsForMethod(
+                         method,
+                         windowSpecs,
+                         optionsByGroupKey,
+                         matchedMatcherMethods))
             {
                 if (!_methodsByNamespace.TryGetValue(generated.Namespace, out var list))
                 {
@@ -290,10 +303,10 @@ internal sealed class GenerationEngine
         }
     }
 
-    private IEnumerable<GeneratedMethod> GenerateOverloadsForMethod(
+    private IEnumerable<OverloadPlanEntry> GenerateOverloadsForMethod(
         MethodModel method,
         List<WindowSpec> windowSpecs,
-        GenerationOptions options,
+        Dictionary<string, GenerationOptions> optionsByGroupKey,
         IReadOnlyCollection<MatcherMethodReference>? matchedMatcherMethods)
     {
         var signatureKeys = new HashSet<string>(StringComparer.Ordinal);
@@ -302,7 +315,7 @@ internal sealed class GenerationEngine
         var parameterCount = method.Parameters.Items.Length;
         var originalParameters = method.Parameters.Items;
         var optionalIndexSpecs = BuildOptionalIndexSpecs(windowSpecs, parameterCount);
-        var unionOptional = optionalIndexSpecs.SelectMany(indices => indices).Distinct().ToArray();
+        var unionOptional = optionalIndexSpecs.SelectMany(spec => spec.Indices).Distinct().ToArray();
         var defaultMap = BuildDefaultValueMap(method);
         var unionHasDefaults = unionOptional.Any(index => defaultMap.TryGetValue(
             originalParameters[index].Name,
@@ -324,8 +337,10 @@ internal sealed class GenerationEngine
         var reportedRefOutIn = false;
         var reportedDuplicate = false;
 
-        foreach (var optionalIndices in optionalIndexSpecs)
+        foreach (var optionalSpec in optionalIndexSpecs)
         {
+            var options = optionsByGroupKey[optionalSpec.GroupKey];
+            var optionalIndices = optionalSpec.Indices;
             if (optionalIndices.Length == 0) continue;
 
             var omissionSets = options.SubsequenceStrategy == OverloadSubsequenceStrategy.PrefixOnly
@@ -353,7 +368,7 @@ internal sealed class GenerationEngine
                 var keptParameters = originalParameters.Where((_, index) => Array.IndexOf(omittedIndices, index) < 0)
                     .ToArray();
 
-                var key = BuildSignatureKey(method.Name, method.TypeParameterCount, keptParameters);
+                var key = MethodIdentity.BuildSignatureKey(method.Name, method.TypeParameterCount, keptParameters);
                 if (!signatureKeys.Add(key))
                 {
                     if (!reportedDuplicate)
@@ -374,7 +389,7 @@ internal sealed class GenerationEngine
                     continue;
                 }
 
-                yield return new GeneratedMethod(
+                yield return new OverloadPlanEntry(
                     method,
                     keptParameters,
                     omittedParameters,
@@ -391,14 +406,12 @@ internal sealed class GenerationEngine
         return fromAttribute.Items.Length > 0 ? fromAttribute : fromSyntax;
     }
 
-    private static SourceLocationModel? GetAttributeLocation(
-        EquatableArray<GenerateOverloadsAttributeModel> attributes)
+    private static SourceLocationModel? GetAttributeLocation(EquatableArray<GenerateOverloadsAttributeModel> attributes)
     {
         foreach (var attribute in attributes.Items)
         {
             var location = attribute.Args.AttributeLocation
-                ?? attribute.Args.SyntaxAttributeLocation
-                ?? attribute.Args.MethodIdentifierLocation;
+                ?? attribute.Args.SyntaxAttributeLocation ?? attribute.Args.MethodIdentifierLocation;
             if (location is not null) return location;
         }
 
@@ -414,8 +427,7 @@ internal sealed class GenerationEngine
             if (!attribute.HasMatchers || !attribute.Args.HasAny) continue;
 
             var location = attribute.Args.AttributeLocation
-                ?? attribute.Args.SyntaxAttributeLocation
-                ?? method.IdentifierLocation;
+                ?? attribute.Args.SyntaxAttributeLocation ?? method.IdentifierLocation;
             Report(GeneratorDiagnostics.WindowAndMatchersConflict, location, method.Name);
             return true;
         }
@@ -423,9 +435,9 @@ internal sealed class GenerationEngine
         return false;
     }
 
-    private static List<int[]> BuildOptionalIndexSpecs(List<WindowSpec> windowSpecs, int parameterCount)
+    private static List<OptionalIndexSpec> BuildOptionalIndexSpecs(List<WindowSpec> windowSpecs, int parameterCount)
     {
-        var specs = new List<int[]>();
+        var specs = new List<OptionalIndexSpec>();
 
         foreach (var group in windowSpecs.GroupBy(spec => spec.GroupKey, StringComparer.Ordinal))
         {
@@ -440,7 +452,7 @@ internal sealed class GenerationEngine
                 if (start > end) continue;
 
                 var indices = Enumerable.Range(start, end - start + 1).ToArray();
-                specs.Add(indices);
+                specs.Add(new OptionalIndexSpec(indices, group.Key));
                 groupSpecs.Add(indices);
 
                 foreach (var index in indices) union.Add(index);
@@ -449,7 +461,8 @@ internal sealed class GenerationEngine
             if (groupSpecs.Count > 1 && union.Count > 0)
             {
                 var unionIndices = union.ToArray();
-                if (!groupSpecs.Any(spec => spec.SequenceEqual(unionIndices))) specs.Add(unionIndices);
+                if (!groupSpecs.Any(spec => spec.SequenceEqual(unionIndices)))
+                    specs.Add(new OptionalIndexSpec(unionIndices, group.Key));
             }
         }
 
@@ -500,81 +513,16 @@ internal sealed class GenerationEngine
         {
             if (!string.Equals(signature.Name, methodName, StringComparison.Ordinal)) continue;
 
-            var key = BuildSignatureKey(signature.Name, signature.TypeParameterCount, signature.Parameters.Items);
+            var key = MethodIdentity.BuildSignatureKey(
+                signature.Name,
+                signature.TypeParameterCount,
+                signature.Parameters.Items);
             keys.Add(key);
         }
 
         return keys;
     }
 
-    private static string BuildSignatureKey(string name, int arity, IEnumerable<ParameterModel> parameters)
-    {
-        var builder = new StringBuilder();
-        builder.Append(name);
-        builder.Append("|");
-        builder.Append(arity);
-
-        foreach (var parameter in parameters)
-        {
-            builder.Append("|");
-            builder.Append(parameter.SignatureTypeDisplay);
-            builder.Append(":");
-            builder.Append(parameter.RefKind);
-            builder.Append(":");
-            builder.Append(parameter.IsParams ? "params" : "noparams");
-        }
-
-        return builder.ToString();
-    }
-
-    private static string BuildSignatureKey(string name, int arity, IEnumerable<ParameterSignatureModel> parameters)
-    {
-        var builder = new StringBuilder();
-        builder.Append(name);
-        builder.Append("|");
-        builder.Append(arity);
-
-        foreach (var parameter in parameters)
-        {
-            builder.Append("|");
-            builder.Append(parameter.SignatureTypeDisplay);
-            builder.Append(":");
-            builder.Append(parameter.RefKind);
-            builder.Append(":");
-            builder.Append(parameter.IsParams ? "params" : "noparams");
-        }
-
-        return builder.ToString();
-    }
-
-    private GenerationOptions GetEffectiveOptions(MethodModel method, MethodTargetModel methodTarget)
-    {
-        var options = new GenerationOptions
-        {
-            RangeAnchorMatchMode = RangeAnchorMatchMode.TypeOnly,
-            SubsequenceStrategy = OverloadSubsequenceStrategy.UniqueBySignature,
-            OverloadVisibility = OverloadVisibility.MatchTarget
-        };
-
-        if (_typesByDisplay.TryGetValue(method.ContainingTypeDisplay, out var typeModel) && typeModel.Options.HasAny)
-            ApplyOptions(options, typeModel.Options);
-
-        if (method.Options.HasAny) ApplyOptions(options, method.Options);
-
-        return options;
-    }
-
-    private static void ApplyOptions(GenerationOptions options, OverloadOptionsModel optionsSyntax)
-    {
-        if (optionsSyntax.RangeAnchorMatchMode.HasValue)
-            options.RangeAnchorMatchMode = optionsSyntax.RangeAnchorMatchMode.Value;
-
-        if (optionsSyntax.SubsequenceStrategy.HasValue)
-            options.SubsequenceStrategy = optionsSyntax.SubsequenceStrategy.Value;
-
-        if (optionsSyntax.OverloadVisibility.HasValue)
-            options.OverloadVisibility = optionsSyntax.OverloadVisibility.Value;
-    }
 
     private void ReportWindowFailure(WindowSpecFailure failure, GenerateOverloadsArgsModel args, string methodName)
     {
@@ -595,10 +543,11 @@ internal sealed class GenerationEngine
             Report(GeneratorDiagnostics.EndAndEndExclusiveConflict, location, methodName);
     }
 
-    private IEnumerable<ParameterMatch> FindSubsequenceMatches(MethodModel matcherMethod, MethodModel targetMethod)
+    private IEnumerable<ParameterMatch> FindSubsequenceMatches(
+        MethodModel matcherMethod,
+        MethodModel targetMethod,
+        RangeAnchorMatchMode matchMode)
     {
-        var matchMode = ResolveMatchMode(targetMethod, matcherMethod);
-
         var matcherParams = matcherMethod.Parameters.Items;
         var targetParams = targetMethod.Parameters.Items;
 
@@ -655,47 +604,6 @@ internal sealed class GenerationEngine
             return string.Equals(matcherParam.Name, targetParam.Name, StringComparison.Ordinal);
 
         return true;
-    }
-
-    private RangeAnchorMatchMode ResolveMatchMode(MethodModel targetMethod, MethodModel matcherMethod)
-    {
-        if (TryGetRangeAnchorMatchMode(targetMethod, out var matchMode)) return matchMode;
-
-        if (_typesByDisplay.TryGetValue(targetMethod.ContainingTypeDisplay, out var typeModel)
-            && TryGetRangeAnchorMatchMode(typeModel.Options, out matchMode))
-            return matchMode;
-
-        if (TryGetRangeAnchorMatchMode(matcherMethod, out matchMode)) return matchMode;
-
-        if (_matcherTypesByDisplay.TryGetValue(matcherMethod.ContainingTypeDisplay, out var matcherType)
-            && TryGetRangeAnchorMatchMode(matcherType.Options, out matchMode))
-            return matchMode;
-
-        return RangeAnchorMatchMode.TypeOnly;
-    }
-
-    private bool TryGetRangeAnchorMatchMode(MethodModel method, out RangeAnchorMatchMode matchMode)
-    {
-        matchMode = RangeAnchorMatchMode.TypeOnly;
-        if (TryGetOverloadOptions(method, out var optionsSyntax) && optionsSyntax.RangeAnchorMatchMode.HasValue)
-        {
-            matchMode = optionsSyntax.RangeAnchorMatchMode.Value;
-            return true;
-        }
-
-        return false;
-    }
-
-    private bool TryGetRangeAnchorMatchMode(OverloadOptionsModel options, out RangeAnchorMatchMode matchMode)
-    {
-        matchMode = RangeAnchorMatchMode.TypeOnly;
-        if (options.RangeAnchorMatchMode.HasValue)
-        {
-            matchMode = options.RangeAnchorMatchMode.Value;
-            return true;
-        }
-
-        return false;
     }
 
     private static bool AreTypesEquivalent(string matcherType, string targetType)
@@ -846,46 +754,6 @@ internal sealed class GenerationEngine
         return builder.ToString();
     }
 
-    private static string BuildMethodIdentityKey(MethodModel method)
-    {
-        var builder = new StringBuilder();
-        builder.Append(method.ContainingTypeDisplay);
-        builder.Append("|");
-        builder.Append(method.Name);
-        builder.Append("|");
-        builder.Append(method.TypeParameterCount);
-
-        foreach (var parameter in method.Parameters.Items)
-        {
-            builder.Append("|");
-            builder.Append(parameter.SignatureTypeDisplay);
-            builder.Append(":");
-            builder.Append(parameter.RefKind);
-            builder.Append(":");
-            builder.Append(parameter.IsParams ? "params" : "noparams");
-        }
-
-        return builder.ToString();
-    }
-
-    private bool TryGetOverloadOptions(MethodModel method, out OverloadOptionsModel options)
-    {
-        options = method.Options;
-        return options.HasAny;
-    }
-
-    private static bool TryGetOverloadVisibilityOverride(MethodModel method, out OverloadVisibility visibility)
-    {
-        visibility = default;
-        if (method.OptionsFromAttribute && method.Options.OverloadVisibility.HasValue)
-        {
-            visibility = method.Options.OverloadVisibility.Value;
-            return true;
-        }
-
-        return false;
-    }
-
     private static int Clamp(int value, int min, int max)
     {
         if (value < min) return min;
@@ -895,32 +763,26 @@ internal sealed class GenerationEngine
         return value;
     }
 
-    private readonly struct WindowSpec
+    private readonly struct WindowSpec(int startIndex, int endIndex, string groupKey)
     {
         public WindowSpec(int startIndex, int endIndex) : this(startIndex, endIndex, string.Empty)
         {
         }
 
-        public WindowSpec(int startIndex, int endIndex, string groupKey)
-        {
-            StartIndex = startIndex;
-            EndIndex = endIndex;
-            GroupKey = groupKey;
-        }
-
-        public int StartIndex { get; }
-        public int EndIndex { get; }
-        public string GroupKey { get; }
+        public int StartIndex { get; } = startIndex;
+        public int EndIndex { get; } = endIndex;
+        public string GroupKey { get; } = groupKey;
     }
 
-    private readonly struct ParameterMatch
+    private readonly struct OptionalIndexSpec(int[] indices, string groupKey)
     {
-        public ParameterMatch(int[] targetIndices)
-        {
-            TargetIndices = targetIndices;
-        }
+        public int[] Indices { get; } = indices;
+        public string GroupKey { get; } = groupKey;
+    }
 
-        public int[] TargetIndices { get; }
+    private readonly struct ParameterMatch(int[] targetIndices)
+    {
+        public int[] TargetIndices { get; } = targetIndices;
 
         public static ParameterMatch Identity(int length)
         {
@@ -929,13 +791,6 @@ internal sealed class GenerationEngine
 
             return new ParameterMatch(indices);
         }
-    }
-
-    private struct GenerationOptions
-    {
-        public RangeAnchorMatchMode RangeAnchorMatchMode;
-        public OverloadSubsequenceStrategy SubsequenceStrategy;
-        public OverloadVisibility OverloadVisibility;
     }
 
     private enum WindowSpecFailureKind
@@ -948,17 +803,10 @@ internal sealed class GenerationEngine
         ConflictingEndAnchors
     }
 
-    private readonly struct WindowSpecFailure
+    private readonly struct WindowSpecFailure(WindowSpecFailureKind kind, string? anchorKind, string? anchorValue)
     {
-        public WindowSpecFailure(WindowSpecFailureKind kind, string? anchorKind, string? anchorValue)
-        {
-            Kind = kind;
-            AnchorKind = anchorKind;
-            AnchorValue = anchorValue;
-        }
-
-        public WindowSpecFailureKind Kind { get; }
-        public string? AnchorKind { get; }
-        public string? AnchorValue { get; }
+        public WindowSpecFailureKind Kind { get; } = kind;
+        public string? AnchorKind { get; } = anchorKind;
+        public string? AnchorValue { get; } = anchorValue;
     }
 }

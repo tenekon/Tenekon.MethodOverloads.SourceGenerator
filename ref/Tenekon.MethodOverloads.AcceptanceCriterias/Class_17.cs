@@ -37,7 +37,8 @@ public static class Class_17_AcceptanceCriterias
 
     // No extension methods for Case_2
 
-    public static void Case_3(this Class_17 source, int param_1) => source.Case_3(param_1, param_2: null);
+    public static void Case_3(this Class_17 source, int param_1)
+    {
+        source.Case_3(param_1, param_2: null);
+    }
 }
-
-

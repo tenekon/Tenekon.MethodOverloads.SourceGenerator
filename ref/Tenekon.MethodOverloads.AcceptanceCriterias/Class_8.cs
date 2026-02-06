@@ -16,27 +16,38 @@ public abstract class Class_8
 /// </summary>
 public static class Class_8_AcceptanceCriterias
 {
-    public static void Case_1(this Class_8 source, int param_1, string? param_2, bool param_3) =>
+    public static void Case_1(this Class_8 source, int param_1, string? param_2, bool param_3)
+    {
         source.Case_1(param_1, param_2, param_3, param_4: default);
+    }
 
-    public static void Case_1(this Class_8 source, int param_1, string? param_2, CancellationToken param_4) =>
-        source.Case_1(param_1, param_2, param_3: false, param_4: param_4);
+    public static void Case_1(this Class_8 source, int param_1, string? param_2, CancellationToken param_4)
+    {
+        source.Case_1(param_1, param_2, param_3: false, param_4);
+    }
 
-    public static void Case_1(this Class_8 source, int param_1, string? param_2) =>
+    public static void Case_1(this Class_8 source, int param_1, string? param_2)
+    {
         source.Case_1(param_1, param_2, param_3: false, param_4: default);
+    }
 
-    public static void Case_1(this Class_8 source, int param_1, bool param_3, CancellationToken param_4) =>
-        source.Case_1(param_1, param_2: null, param_3: param_3, param_4: param_4);
+    public static void Case_1(this Class_8 source, int param_1, bool param_3, CancellationToken param_4)
+    {
+        source.Case_1(param_1, param_2: null, param_3, param_4);
+    }
 
-    public static void Case_1(this Class_8 source, int param_1, bool param_3) =>
-        source.Case_1(param_1, param_2: null, param_3: param_3, param_4: default);
+    public static void Case_1(this Class_8 source, int param_1, bool param_3)
+    {
+        source.Case_1(param_1, param_2: null, param_3, param_4: default);
+    }
 
-    public static void Case_1(this Class_8 source, int param_1, CancellationToken param_4) =>
-        source.Case_1(param_1, param_2: null, param_3: false, param_4: param_4);
+    public static void Case_1(this Class_8 source, int param_1, CancellationToken param_4)
+    {
+        source.Case_1(param_1, param_2: null, param_3: false, param_4);
+    }
 
-    public static void Case_1(this Class_8 source, int param_1) =>
+    public static void Case_1(this Class_8 source, int param_1)
+    {
         source.Case_1(param_1, param_2: null, param_3: false, param_4: default);
+    }
 }
-
-
-

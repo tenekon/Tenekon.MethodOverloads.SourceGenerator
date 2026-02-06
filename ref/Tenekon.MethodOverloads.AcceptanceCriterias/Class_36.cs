@@ -41,9 +41,13 @@ public abstract class Class_36
 
 public static class Class_36_AcceptanceCriterias
 {
-    public static void Case_1(this Class_36 source, int param_1, bool param_3) =>
+    public static void Case_1(this Class_36 source, int param_1, bool param_3)
+    {
         source.Case_1(param_1, param_2: null, param_3);
+    }
 
-    public static void Case_1(this Class_36 source, int param_1, string? param_2) =>
-        source.Case_1(param_1, param_2, param_3: default(bool));
+    public static void Case_1(this Class_36 source, int param_1, string? param_2)
+    {
+        source.Case_1(param_1, param_2, default(bool));
+    }
 }

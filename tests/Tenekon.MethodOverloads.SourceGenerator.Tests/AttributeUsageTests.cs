@@ -5,7 +5,7 @@ using Microsoft.CodeAnalysis;
 
 namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 
-public sealed class AttributeUsageTests
+public sealed partial class AttributeUsageTests
 {
     [Fact]
     public void Attribute_usage_matches_acceptance_targets()
@@ -49,7 +49,7 @@ public sealed class AttributeUsageTests
         string source)
     {
         var results = new Dictionary<string, HashSet<AcceptanceTestData.AttributeTargetKind>>(StringComparer.Ordinal);
-        var nameMatch = Regex.Match(source, @"\bsealed\s+class\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)Attribute\b");
+        var nameMatch = MyRegex().Match(source);
         if (!nameMatch.Success) return results;
 
         var attributeName = nameMatch.Groups["name"].Value;
@@ -71,4 +71,7 @@ public sealed class AttributeUsageTests
         results[attributeName] = targets;
         return results;
     }
+
+    [GeneratedRegex(@"\bsealed\s+class\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)Attribute\b")]
+    private static partial Regex MyRegex();
 }

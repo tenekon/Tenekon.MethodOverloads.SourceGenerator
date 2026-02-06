@@ -37,8 +37,10 @@ public static class Class_20_AcceptanceCriterias
         bool param_3,
         int param_4,
         string? param_5,
-        CancellationToken param_6) =>
+        CancellationToken param_6)
+    {
         source.Case_1(param_1, param_2: null, param_3, param_4, param_5, param_6);
+    }
 
     public static void Case_1(
         this Class_20 source,
@@ -46,12 +48,13 @@ public static class Class_20_AcceptanceCriterias
         string? param_2,
         bool param_3,
         int param_4,
-        CancellationToken param_6) =>
+        CancellationToken param_6)
+    {
         source.Case_1(param_1, param_2, param_3, param_4, param_5: null, param_6);
+    }
 
-    public static void
-        Case_1(this Class_20 source, int param_1, bool param_3, int param_4, CancellationToken param_6) =>
+    public static void Case_1(this Class_20 source, int param_1, bool param_3, int param_4, CancellationToken param_6)
+    {
         source.Case_1(param_1, param_2: null, param_3, param_4, param_5: null, param_6);
+    }
 }
-
-

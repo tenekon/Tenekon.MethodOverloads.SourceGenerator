@@ -32,19 +32,27 @@ public abstract class Class_2
 /// </summary>
 public static class Class_2_AcceptanceCriterias
 {
-    public static void Case_1(this Class_2 source, CancellationToken param_2) => source.Case_1(param_1: false, param_2);
+    public static void Case_1(this Class_2 source, CancellationToken param_2)
+    {
+        source.Case_1(param_1: false, param_2);
+    }
 
-    public static void Case_2(this Class_2 source, CancellationToken param_2) => source.Case_2(param_1: false, param_2);
+    public static void Case_2(this Class_2 source, CancellationToken param_2)
+    {
+        source.Case_2(param_1: false, param_2);
+    }
 
-    public static void Case_3(this Class_2 source, CancellationToken param_2) => source.Case_3(param_1: false, param_2);
+    public static void Case_3(this Class_2 source, CancellationToken param_2)
+    {
+        source.Case_3(param_1: false, param_2);
+    }
 
-    public static void Case_4(this Class_2 source, CancellationToken param_2) => source.Case_4(param_1: false, param_2);
+    public static void Case_4(this Class_2 source, CancellationToken param_2)
+    {
+        source.Case_4(param_1: false, param_2);
+    }
 
     // No extension methods for Case_5
 
     // No extension methods for Case_6
 }
-
-
-
-
