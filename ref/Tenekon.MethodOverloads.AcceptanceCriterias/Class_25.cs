@@ -6,8 +6,8 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 internal interface Class_25_MatcherUnused
 {
     [SuppressMessage("MethodOverloadsGenerator", "MOG002")]
-    [GenerateOverloads(nameof(param_1))]
-    void Matcher_1(Guid param_1);
+    [GenerateOverloads(nameof(param_a))]
+    void Matcher_1(Guid param_a);
 }
 
 /// <summary>
@@ -30,12 +30,12 @@ public sealed class Class_25_MixedTarget
 
 internal interface Class_25_MatcherMixed
 {
-    [GenerateOverloads(nameof(param_2))]
-    void Matcher_1(int param_1, string? param_2);
+    [GenerateOverloads(nameof(param_b))]
+    void Matcher_1(int param_a, string? param_b);
 
     [SuppressMessage("MethodOverloadsGenerator", "MOG002")]
-    [GenerateOverloads(nameof(param_1))]
-    void Matcher_2(Guid param_1);
+    [GenerateOverloads(nameof(param_a))]
+    void Matcher_2(Guid param_a);
 }
 
 /// <summary>

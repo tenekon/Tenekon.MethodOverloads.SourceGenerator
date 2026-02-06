@@ -4,11 +4,11 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 internal interface Class_26_Matcher
 {
-    [GenerateOverloads(nameof(param_2))]
-    void Matcher_1(int param_1, string? param_2);
+    [GenerateOverloads(nameof(param_b))]
+    void Matcher_1(int param_a, string? param_b);
 
-    [GenerateOverloads(nameof(param_2))]
-    void Matcher_2(int param_1, string param_2, bool param_3);
+    [GenerateOverloads(nameof(param_b))]
+    void Matcher_2(int param_a, string param_b, bool param_c);
 }
 
 /// <summary>

@@ -4,11 +4,11 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 internal interface Class_4_Matcher
 {
-    [GenerateOverloads(EndExclusive = nameof(param_2))]
-    void Matcher_2(bool param_1, CancellationToken param_2);
+    [GenerateOverloads(EndExclusive = nameof(param_b))]
+    void Matcher_2(bool param_a, CancellationToken param_b);
 
-    [GenerateOverloads(EndExclusive = nameof(param_2))]
-    void Matcher_2(string? param_1, bool param_2, CancellationToken param_3);
+    [GenerateOverloads(EndExclusive = nameof(param_b))]
+    void Matcher_2(string? param_a, bool param_b, CancellationToken param_c);
 }
 
 /// <summary>

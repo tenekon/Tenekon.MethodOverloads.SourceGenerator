@@ -8,10 +8,10 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 internal interface Class_37_Matcher
 {
     /// <summary>
-    /// Optional window anchored at param_3.
+    /// Optional window anchored at param_c.
     /// </summary>
-    [GenerateOverloads(nameof(param_3))]
-    void Matcher_1(int param_1, string param_2, bool param_3);
+    [GenerateOverloads(nameof(param_c))]
+    void Matcher_1(int param_a, string param_b, bool param_c);
 }
 
 /// <summary>

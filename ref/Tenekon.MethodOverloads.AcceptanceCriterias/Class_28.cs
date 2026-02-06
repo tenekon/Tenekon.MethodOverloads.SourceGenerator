@@ -4,8 +4,8 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 internal interface Class_28_Matcher
 {
-    [GenerateOverloads(Begin = nameof(param_1))]
-    void Matcher_1(int param_1);
+    [GenerateOverloads(Begin = nameof(param_a))]
+    void Matcher_1(int param_a);
 }
 
 /// <summary>

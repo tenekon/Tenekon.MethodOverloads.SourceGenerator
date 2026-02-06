@@ -7,8 +7,8 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 /// </summary>
 internal interface Class_3_Matcher
 {
-    [GenerateOverloads(EndExclusive = nameof(param_2))]
-    void Matcher_2(bool param_1, CancellationToken param_2);
+    [GenerateOverloads(EndExclusive = nameof(param_b))]
+    void Matcher_2(bool param_a, CancellationToken param_b);
 }
 
 /// <summary>
