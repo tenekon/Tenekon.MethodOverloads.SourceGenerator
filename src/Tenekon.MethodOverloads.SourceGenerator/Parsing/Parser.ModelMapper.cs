@@ -82,7 +82,7 @@ internal static partial class Parser
         }
 
         var typeParameterNames = methodSymbol.TypeParameters.Select(tp => tp.Name).ToImmutableArray();
-
+        var containingTypeParameters = BuildContainingTypeParameterInfo(methodSymbol);
         var constraints = BuildTypeParameterConstraints(methodSymbol);
         var (options, fromAttribute) = ExtractOverloadOptions(methodSymbol, cancellationToken);
 
@@ -97,6 +97,8 @@ internal static partial class Parser
             methodSymbol.TypeParameters.Length,
             new EquatableArray<string>(typeParameterNames),
             constraints,
+            containingTypeParameters.Names,
+            containingTypeParameters.Constraints,
             new EquatableArray<ParameterModel>([.. parameters]),
             identifierLocation,
             methodSymbol.MethodKind == MethodKind.Ordinary,
@@ -104,12 +106,47 @@ internal static partial class Parser
             fromAttribute);
     }
 
+    private static (EquatableArray<string> Names, string Constraints) BuildContainingTypeParameterInfo(
+        IMethodSymbol methodSymbol)
+    {
+        var names = new List<string>();
+        var constraints = new List<string>();
+
+        var typeStack = new Stack<INamedTypeSymbol>();
+        var current = methodSymbol.ContainingType;
+        while (current is not null)
+        {
+            typeStack.Push(current);
+            current = current.ContainingType;
+        }
+
+        while (typeStack.Count > 0)
+        {
+            var typeSymbol = typeStack.Pop();
+            names.AddRange(typeSymbol.TypeParameters.Select(tp => tp.Name));
+            var constraint = BuildTypeParameterConstraints(typeSymbol);
+            if (!string.IsNullOrWhiteSpace(constraint)) constraints.Add(constraint);
+        }
+
+        return (new EquatableArray<string>(names.ToImmutableArray()), string.Join(" ", constraints));
+    }
+
     private static string BuildTypeParameterConstraints(IMethodSymbol method)
     {
-        if (method.TypeParameters.Length == 0) return string.Empty;
+        return BuildTypeParameterConstraints(method.TypeParameters);
+    }
+
+    private static string BuildTypeParameterConstraints(INamedTypeSymbol typeSymbol)
+    {
+        return BuildTypeParameterConstraints(typeSymbol.TypeParameters);
+    }
+
+    private static string BuildTypeParameterConstraints(ImmutableArray<ITypeParameterSymbol> typeParameters)
+    {
+        if (typeParameters.Length == 0) return string.Empty;
 
         var constraints = new List<string>();
-        foreach (var typeParam in method.TypeParameters)
+        foreach (var typeParam in typeParameters)
         {
             var parts = new List<string>();
 
@@ -155,7 +192,7 @@ internal static partial class Parser
         var attribute = RoslynHelpers.GetAttribute(symbol, "OverloadGenerationOptionsAttribute");
         if (attribute is not null)
         {
-            var options = ExtractOverloadOptionsFromAttribute(attribute);
+            var options = ExtractOverloadOptionsFromAttribute(attribute, cancellationToken);
             if (syntaxOptions.HasAny) options = MergeOptions(options, syntaxOptions);
             return (options, true);
         }
@@ -170,15 +207,19 @@ internal static partial class Parser
         var rangeAnchorMatchMode = overrides.RangeAnchorMatchMode ?? baseOptions.RangeAnchorMatchMode;
         var subsequenceStrategy = overrides.SubsequenceStrategy ?? baseOptions.SubsequenceStrategy;
         var overloadVisibility = overrides.OverloadVisibility ?? baseOptions.OverloadVisibility;
+        var bucketType = overrides.BucketType ?? baseOptions.BucketType;
 
-        return new OverloadOptionsModel(rangeAnchorMatchMode, subsequenceStrategy, overloadVisibility);
+        return new OverloadOptionsModel(rangeAnchorMatchMode, subsequenceStrategy, overloadVisibility, bucketType);
     }
 
-    private static OverloadOptionsModel ExtractOverloadOptionsFromAttribute(AttributeData attribute)
+    private static OverloadOptionsModel ExtractOverloadOptionsFromAttribute(
+        AttributeData attribute,
+        CancellationToken cancellationToken)
     {
         RangeAnchorMatchMode? rangeAnchorMatchMode = null;
         OverloadSubsequenceStrategy? subsequenceStrategy = null;
         OverloadVisibility? overloadVisibility = null;
+        BucketTypeModel? bucketType = null;
 
         foreach (var arg in attribute.NamedArguments)
             if (string.Equals(arg.Key, "RangeAnchorMatchMode", StringComparison.Ordinal))
@@ -193,8 +234,16 @@ internal static partial class Parser
             {
                 if (TryGetEnumConstant(arg.Value, out OverloadVisibility value)) overloadVisibility = value;
             }
+            else if (string.Equals(arg.Key, "BucketType", StringComparison.Ordinal))
+            {
+                if (arg.Value.Kind == TypedConstantKind.Type && arg.Value.Value is INamedTypeSymbol typeSymbol)
+                {
+                    var location = GetAttributeLocation(attribute, cancellationToken);
+                    bucketType = CreateBucketTypeModel(typeSymbol, location, cancellationToken);
+                }
+            }
 
-        return new OverloadOptionsModel(rangeAnchorMatchMode, subsequenceStrategy, overloadVisibility);
+        return new OverloadOptionsModel(rangeAnchorMatchMode, subsequenceStrategy, overloadVisibility, bucketType);
     }
 
     private static OverloadOptionsModel ExtractOverloadOptionsFromSyntax(MemberDeclarationSyntax syntax)
@@ -233,7 +282,62 @@ internal static partial class Parser
             }
         }
 
-        return new OverloadOptionsModel(rangeAnchorMatchMode, subsequenceStrategy, overloadVisibility);
+        return new OverloadOptionsModel(rangeAnchorMatchMode, subsequenceStrategy, overloadVisibility, BucketType: null);
+    }
+
+    private static BucketTypeModel CreateBucketTypeModel(
+        INamedTypeSymbol typeSymbol,
+        SourceLocationModel? attributeLocation,
+        CancellationToken cancellationToken)
+    {
+        var displayName = typeSymbol.ToDisplayString(RoslynHelpers.TypeDisplayFormat);
+        var namespaceName = typeSymbol.ContainingNamespace?.ToDisplayString() ?? string.Empty;
+        var name = typeSymbol.Name;
+        var accessibility = typeSymbol.DeclaredAccessibility;
+        var invalidReason = GetBucketTypeInvalidReason(typeSymbol, cancellationToken);
+        var isValid = string.IsNullOrWhiteSpace(invalidReason);
+
+        return new BucketTypeModel(
+            name,
+            namespaceName,
+            displayName,
+            accessibility,
+            isValid,
+            invalidReason,
+            attributeLocation);
+    }
+
+    private static string? GetBucketTypeInvalidReason(INamedTypeSymbol typeSymbol, CancellationToken cancellationToken)
+    {
+        if (typeSymbol.TypeKind != TypeKind.Class) return "BucketType must be a class";
+
+        if (!typeSymbol.IsStatic) return "BucketType must be static";
+
+        if (typeSymbol.ContainingType is not null) return "BucketType must be top-level";
+
+        if (typeSymbol.TypeParameters.Length > 0) return "BucketType must be non-generic";
+
+        if (typeSymbol.DeclaringSyntaxReferences.Length == 0)
+            return "BucketType must be declared in source";
+
+        foreach (var syntaxRef in typeSymbol.DeclaringSyntaxReferences)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (syntaxRef.GetSyntax(cancellationToken) is not TypeDeclarationSyntax typeSyntax) continue;
+
+            var isPartial = typeSyntax.Modifiers.Any(modifier => modifier.IsKind(SyntaxKind.PartialKeyword));
+            if (!isPartial) return "BucketType must be partial";
+        }
+
+        return null;
+    }
+
+    private static SourceLocationModel? GetAttributeLocation(
+        AttributeData attribute,
+        CancellationToken cancellationToken)
+    {
+        var syntax = attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken);
+        return syntax is null ? null : SourceLocationModel.FromSyntaxNode(syntax);
     }
 
     internal static (ImmutableArray<string> Displays, ImmutableArray<MatcherTypeModel> Models) ExtractMatcherTypes(

@@ -91,6 +91,7 @@ internal static class GeneratorAttributesSource
             public RangeAnchorMatchMode RangeAnchorMatchMode { get; set; }
             public OverloadSubsequenceStrategy SubsequenceStrategy { get; set; }
             public OverloadVisibility OverloadVisibility { get; set; }
+            public global::System.Type? BucketType { get; set; }
         }
         """;
 

@@ -30,7 +30,8 @@ public sealed class MethodOverloadsDiagnosticsAnalyzer : DiagnosticAnalyzer
         GeneratorDiagnostics.BeginAndBeginExclusiveConflict,
         GeneratorDiagnostics.EndAndEndExclusiveConflict,
         GeneratorDiagnostics.ParameterlessTargetMethod,
-        GeneratorDiagnostics.WindowAndMatchersConflict
+        GeneratorDiagnostics.WindowAndMatchersConflict,
+        GeneratorDiagnostics.InvalidBucketType
     ];
 
     /// <inheritdoc/>

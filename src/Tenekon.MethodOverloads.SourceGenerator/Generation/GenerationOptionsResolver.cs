@@ -40,7 +40,8 @@ internal static class GenerationOptionsResolver
         {
             RangeAnchorMatchMode = RangeAnchorMatchMode.TypeOnly,
             SubsequenceStrategy = OverloadSubsequenceStrategy.UniqueBySignature,
-            OverloadVisibility = OverloadVisibility.MatchTarget
+            OverloadVisibility = OverloadVisibility.MatchTarget,
+            BucketType = null
         };
     }
 
@@ -54,5 +55,8 @@ internal static class GenerationOptionsResolver
 
         if (optionsSyntax.OverloadVisibility.HasValue)
             options.OverloadVisibility = optionsSyntax.OverloadVisibility.Value;
+
+        if (optionsSyntax.BucketType.HasValue)
+            options.BucketType = optionsSyntax.BucketType;
     }
 }

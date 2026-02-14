@@ -99,4 +99,12 @@ internal static class GeneratorDiagnostics
         "MethodOverloadsGenerator",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidBucketType = new(
+        "MOG013",
+        "Invalid bucket type",
+        "Bucket type '{0}' is invalid: {1}",
+        "MethodOverloadsGenerator",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

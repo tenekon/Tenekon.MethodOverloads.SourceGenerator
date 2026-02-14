@@ -19,6 +19,8 @@ internal readonly record struct MethodModel(
     int TypeParameterCount,
     EquatableArray<string> TypeParameterNames,
     string TypeParameterConstraints,
+    EquatableArray<string> ContainingTypeParameterNames,
+    string ContainingTypeParameterConstraints,
     EquatableArray<ParameterModel> Parameters,
     SourceLocationModel? IdentifierLocation,
     bool IsOrdinary,

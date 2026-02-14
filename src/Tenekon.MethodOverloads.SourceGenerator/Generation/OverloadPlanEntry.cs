@@ -7,7 +7,8 @@ internal readonly record struct OverloadPlanEntry(
     ParameterModel[] KeptParameters,
     ParameterModel[] OmittedParameters,
     OverloadVisibility OverloadVisibility,
-    IReadOnlyCollection<MatcherMethodReference>? MatchedMatcherMethods)
+    IReadOnlyCollection<MatcherMethodReference>? MatchedMatcherMethods,
+    BucketTypeModel? BucketType)
 {
-    public string Namespace => Method.ContainingNamespace;
+    public string Namespace => BucketType?.Namespace ?? Method.ContainingNamespace;
 }

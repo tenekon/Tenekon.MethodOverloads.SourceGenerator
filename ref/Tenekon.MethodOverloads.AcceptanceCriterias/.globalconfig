@@ -4,3 +4,4 @@ dotnet_diagnostic.MOG007.severity = warning
 dotnet_diagnostic.MOG009.severity = warning
 dotnet_diagnostic.MOG010.severity = warning
 dotnet_diagnostic.MOG012.severity = warning
+dotnet_diagnostic.MOG013.severity = warning

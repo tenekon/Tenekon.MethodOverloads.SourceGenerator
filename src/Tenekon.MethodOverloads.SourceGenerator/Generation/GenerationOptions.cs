@@ -7,4 +7,5 @@ internal struct GenerationOptions
     public RangeAnchorMatchMode RangeAnchorMatchMode;
     public OverloadSubsequenceStrategy SubsequenceStrategy;
     public OverloadVisibility OverloadVisibility;
+    public BucketTypeModel? BucketType;
 }

@@ -30,7 +30,7 @@ internal sealed class GeneratedMethod(
         var accessibility = RenderAccessibility();
         var returnType = method.ReturnTypeDisplay;
         var typeParams = RenderTypeParameters(method);
-        var constraints = method.TypeParameterConstraints;
+        var constraints = RenderTypeParameterConstraints(method);
         var isExtensionMethod = method.IsExtensionMethod;
         var receiverParameter = isExtensionMethod ? method.Parameters.Items.FirstOrDefault() : (ParameterModel?)null;
         var receiverType = receiverParameter?.TypeDisplay ?? method.ContainingTypeDisplay;
@@ -73,7 +73,7 @@ internal sealed class GeneratedMethod(
         var accessibility = RenderAccessibility();
         var returnType = method.ReturnTypeDisplay;
         var typeParams = RenderTypeParameters(method);
-        var constraints = method.TypeParameterConstraints;
+        var constraints = RenderTypeParameterConstraints(method);
         var receiverType = method.ContainingTypeDisplay;
 
         builder.AppendLine("    extension(" + receiverType + ")");
@@ -217,9 +217,13 @@ internal sealed class GeneratedMethod(
 
     private static string RenderTypeParameters(MethodModel method)
     {
-        if (method.TypeParameterCount == 0) return string.Empty;
+        if (method.TypeParameterCount == 0 && method.ContainingTypeParameterNames.Items.Length == 0)
+            return string.Empty;
 
-        return "<" + string.Join(", ", method.TypeParameterNames.Items) + ">";
+        var names = new List<string>();
+        names.AddRange(method.ContainingTypeParameterNames.Items);
+        names.AddRange(method.TypeParameterNames.Items);
+        return "<" + string.Join(", ", names) + ">";
     }
 
     private static string RenderTypeArguments(MethodModel method)
@@ -227,6 +231,17 @@ internal sealed class GeneratedMethod(
         if (method.TypeParameterCount == 0) return string.Empty;
 
         return "<" + string.Join(", ", method.TypeParameterNames.Items) + ">";
+    }
+
+    private static string RenderTypeParameterConstraints(MethodModel method)
+    {
+        if (string.IsNullOrWhiteSpace(method.ContainingTypeParameterConstraints))
+            return method.TypeParameterConstraints;
+
+        if (string.IsNullOrWhiteSpace(method.TypeParameterConstraints))
+            return method.ContainingTypeParameterConstraints;
+
+        return method.ContainingTypeParameterConstraints + " " + method.TypeParameterConstraints;
     }
 
     private static bool TryGetOverloadVisibilityOverride(MethodModel method, out OverloadVisibility visibility)

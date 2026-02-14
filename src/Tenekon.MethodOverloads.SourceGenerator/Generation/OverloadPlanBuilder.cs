@@ -8,13 +8,14 @@ namespace Tenekon.MethodOverloads.SourceGenerator.Generation;
 
 internal sealed class OverloadPlanBuilder
 {
+    private const string DefaultBucketName = "MethodOverloads";
     private readonly GeneratorModel _model;
     private readonly Dictionary<string, TypeModel> _typesByDisplay;
     private readonly Dictionary<string, TypeTargetModel> _typeTargetsByDisplay;
     private readonly Dictionary<string, MatcherTypeModel> _matcherTypesByDisplay;
     private readonly HashSet<string> _matcherTypeDisplays;
-    private readonly Dictionary<string, List<OverloadPlanEntry>> _methodsByNamespace;
-    private readonly Dictionary<string, HashSet<MatcherMethodReference>> _matchedMatchersByNamespace;
+    private readonly Dictionary<OverloadGroupKey, List<OverloadPlanEntry>> _methodsByGroup;
+    private readonly Dictionary<OverloadGroupKey, MatcherGroupInfo> _matchedMatchersByGroup;
     private readonly List<EquatableDiagnostic> _diagnostics;
 
     public OverloadPlanBuilder(GeneratorModel model)
@@ -33,8 +34,8 @@ internal sealed class OverloadPlanBuilder
             target => target,
             StringComparer.Ordinal);
         _matcherTypeDisplays = new HashSet<string>(_matcherTypesByDisplay.Keys, StringComparer.Ordinal);
-        _methodsByNamespace = new Dictionary<string, List<OverloadPlanEntry>>(StringComparer.Ordinal);
-        _matchedMatchersByNamespace = new Dictionary<string, HashSet<MatcherMethodReference>>(StringComparer.Ordinal);
+        _methodsByGroup = new Dictionary<OverloadGroupKey, List<OverloadPlanEntry>>();
+        _matchedMatchersByGroup = new Dictionary<OverloadGroupKey, MatcherGroupInfo>();
         _diagnostics = [];
     }
 
@@ -42,8 +43,8 @@ internal sealed class OverloadPlanBuilder
     {
         BuildMethods();
         return new OverloadPlan(
-            _methodsByNamespace,
-            _matchedMatchersByNamespace,
+            _methodsByGroup,
+            _matchedMatchersByGroup,
             new EquatableArray<EquatableDiagnostic>([.. _diagnostics]));
     }
 
@@ -107,6 +108,12 @@ internal sealed class OverloadPlanBuilder
                 containingType,
                 matcherMethod: null,
                 matcherType: null);
+
+            if (directOptions.BucketType is { IsValid: false } invalidBucket)
+            {
+                ReportInvalidBucketType(invalidBucket, method.IdentifierLocation);
+                continue;
+            }
 
             if (hasMethodGenerate)
             {
@@ -215,6 +222,11 @@ internal sealed class OverloadPlanBuilder
                             containingType,
                             matcherMethodModel,
                             matcherType);
+                        if (matcherOptions.BucketType is { IsValid: false } invalidMatcherBucket)
+                        {
+                            ReportInvalidBucketType(invalidMatcherBucket, matcherMethodModel.IdentifierLocation);
+                            continue;
+                        }
                         var matches = FindSubsequenceMatches(
                                 matcherMethodModel,
                                 method,
@@ -234,15 +246,15 @@ internal sealed class OverloadPlanBuilder
 
                         matchedMatchers.Add(matcherRef);
 
-                        if (!_matchedMatchersByNamespace.TryGetValue(
-                                method.ContainingNamespace,
-                                out var matchedByNamespace))
+                        var matcherNamespace = matcherOptions.BucketType?.Namespace ?? method.ContainingNamespace;
+                        var matcherGroupKey = BuildGroupKey(matcherNamespace, matcherOptions.BucketType);
+                        if (!_matchedMatchersByGroup.TryGetValue(matcherGroupKey, out var matcherGroup))
                         {
-                            matchedByNamespace = [];
-                            _matchedMatchersByNamespace[method.ContainingNamespace] = matchedByNamespace;
+                            matcherGroup = new MatcherGroupInfo(matcherOptions.BucketType);
+                            _matchedMatchersByGroup[matcherGroupKey] = matcherGroup;
                         }
 
-                        matchedByNamespace.Add(matcherRef);
+                        matcherGroup.MatchedMatchers.Add(matcherRef);
 
                         foreach (var match in matches)
                         foreach (var attribute in matcherDirectAttributes)
@@ -282,10 +294,11 @@ internal sealed class OverloadPlanBuilder
                          optionsByGroupKey,
                          matchedMatcherMethods))
             {
-                if (!_methodsByNamespace.TryGetValue(generated.Namespace, out var list))
+                var groupKey = BuildGroupKey(generated.Namespace, generated.BucketType);
+                if (!_methodsByGroup.TryGetValue(groupKey, out var list))
                 {
                     list = [];
-                    _methodsByNamespace[generated.Namespace] = list;
+                    _methodsByGroup[groupKey] = list;
                 }
 
                 list.Add(generated);
@@ -394,7 +407,8 @@ internal sealed class OverloadPlanBuilder
                     keptParameters,
                     omittedParameters,
                     options.OverloadVisibility,
-                    matchedMatcherMethods);
+                    matchedMatcherMethods,
+                    options.BucketType);
             }
         }
     }
@@ -752,6 +766,22 @@ internal sealed class OverloadPlanBuilder
         }
 
         return builder.ToString();
+    }
+
+    private static OverloadGroupKey BuildGroupKey(string namespaceName, BucketTypeModel? bucketType)
+    {
+        if (bucketType is null) return new OverloadGroupKey(namespaceName, DefaultBucketName, IsDefault: true);
+
+        return new OverloadGroupKey(namespaceName, bucketType.Value.Name, IsDefault: false);
+    }
+
+    private void ReportInvalidBucketType(BucketTypeModel bucketType, SourceLocationModel? fallbackLocation)
+    {
+        var location = bucketType.AttributeLocation ?? fallbackLocation;
+        var reason = string.IsNullOrWhiteSpace(bucketType.InvalidReason)
+            ? "Invalid bucket type"
+            : bucketType.InvalidReason!;
+        Report(GeneratorDiagnostics.InvalidBucketType, location, bucketType.DisplayName, reason);
     }
 
     private static int Clamp(int value, int min, int max)

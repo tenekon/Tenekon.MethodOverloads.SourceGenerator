@@ -4,6 +4,6 @@ using Tenekon.MethodOverloads.SourceGenerator.Models;
 namespace Tenekon.MethodOverloads.SourceGenerator.Generation;
 
 internal readonly record struct OverloadPlan(
-    Dictionary<string, List<OverloadPlanEntry>> MethodsByNamespace,
-    Dictionary<string, HashSet<MatcherMethodReference>> MatchedMatchersByNamespace,
+    Dictionary<OverloadGroupKey, List<OverloadPlanEntry>> MethodsByGroup,
+    Dictionary<OverloadGroupKey, MatcherGroupInfo> MatchedMatchersByGroup,
     EquatableArray<EquatableDiagnostic> Diagnostics);

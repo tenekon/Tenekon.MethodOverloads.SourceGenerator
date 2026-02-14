@@ -94,5 +94,13 @@
     Category: MethodOverloadsGenerator,
     DefaultSeverity: 3,
     IsEnabledByDefault: true
+  },
+  {
+    Id: MOG013,
+    Title: Invalid bucket type,
+    MessageFormat: Bucket type '{0}' is invalid: {1},
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 3,
+    IsEnabledByDefault: true
   }
 ]
