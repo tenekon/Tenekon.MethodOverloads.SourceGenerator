@@ -95,9 +95,11 @@ internal static partial class SourceFormatter
 
         foreach (var matcherMethod in GeneratedMethod.NormalizeMatchedMatcherMethods(matchedMatchers.MatchedMatchers))
         {
+            if (!ShouldEmitMatcherUsage(matcherMethod)) continue;
+
             var identifier = matcherMethod.ContainingTypeDisplay + "." + matcherMethod.MethodName;
             builder.Append(indent)
-                .Append("[global::Tenekon.MethodOverloads.SourceGenerator.MatcherUsageAttribute(nameof(")
+                .Append("[global::Tenekon.MethodOverloads.MatcherUsageAttribute(nameof(")
                 .Append(identifier)
                 .Append("))]")
                 .AppendLine();
@@ -136,5 +138,13 @@ internal static partial class SourceFormatter
     private static string RenderTypeAccessibility(Accessibility accessibility)
     {
         return accessibility == Accessibility.Public ? "public" : "internal";
+    }
+
+    private static bool ShouldEmitMatcherUsage(MatcherMethodReference matcherMethod)
+    {
+        return matcherMethod.ContainingTypeAccessibility == Accessibility.Public
+            || matcherMethod.ContainingTypeAccessibility == Accessibility.Internal
+            || matcherMethod.ContainingTypeAccessibility == Accessibility.ProtectedOrInternal
+            || matcherMethod.ContainingTypeAccessibility == Accessibility.NotApplicable;
     }
 }

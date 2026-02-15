@@ -1,5 +1,3 @@
-using Tenekon.MethodOverloads.SourceGenerator;
-
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 internal interface Class_26_Matcher

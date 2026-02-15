@@ -8,6 +8,7 @@ resharper_convert_to_extension_block_highlighting = none
 resharper_invoke_as_extension_member_highlighting = none
 resharper_unused_parameter_global_highlighting = none
 resharper_built_in_type_reference_style_highlighting = none
+resharper_redundant_type_arguments_of_method_highlighting=none
 
 [*generated.cs]
 generated_code = true

@@ -41,6 +41,7 @@ internal static partial class Parser
         return new TypeModel(
             typeSymbol.ToDisplayString(RoslynHelpers.TypeDisplayFormat),
             namespaceName,
+            typeSymbol.DeclaredAccessibility,
             new EquatableArray<MethodModel>([.. methods]),
             new EquatableArray<MethodSignatureModel>([.. signatures]),
             options);
@@ -84,6 +85,7 @@ internal static partial class Parser
         var typeParameterNames = methodSymbol.TypeParameters.Select(tp => tp.Name).ToImmutableArray();
         var containingTypeParameters = BuildContainingTypeParameterInfo(methodSymbol);
         var constraints = BuildTypeParameterConstraints(methodSymbol);
+        var supplyParameterTypes = ExtractSupplyParameterTypes(methodSymbol, cancellationToken);
         var (options, fromAttribute) = ExtractOverloadOptions(methodSymbol, cancellationToken);
 
         return new MethodModel(
@@ -99,6 +101,8 @@ internal static partial class Parser
             constraints,
             containingTypeParameters.Names,
             containingTypeParameters.Constraints,
+            new EquatableArray<SupplyParameterTypeModel>(supplyParameterTypes),
+            new EquatableArray<string>(typeParameterNames),
             new EquatableArray<ParameterModel>([.. parameters]),
             identifierLocation,
             methodSymbol.MethodKind == MethodKind.Ordinary,
@@ -163,6 +167,130 @@ internal static partial class Parser
         }
 
         return string.Join(" ", constraints);
+    }
+
+    private static ImmutableArray<SupplyParameterTypeModel> ExtractSupplyParameterTypes(
+        IMethodSymbol methodSymbol,
+        CancellationToken cancellationToken)
+    {
+        var attributes = RoslynHelpers.GetAttributes(methodSymbol, "SupplyParameterTypeAttribute");
+        if (attributes.IsDefaultOrEmpty) return ImmutableArray<SupplyParameterTypeModel>.Empty;
+
+        var builder = ImmutableArray.CreateBuilder<SupplyParameterTypeModel>();
+
+        foreach (var attribute in attributes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            builder.Add(ExtractSupplyParameterType(attribute, cancellationToken));
+        }
+
+        return builder.ToImmutable();
+    }
+
+    private static SupplyParameterTypeModel ExtractSupplyParameterType(
+        AttributeData attribute,
+        CancellationToken cancellationToken)
+    {
+        var syntax = attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken) as AttributeSyntax;
+        SourceLocationModel? attributeLocation = syntax is null
+            ? null
+            : SourceLocationModel.FromSyntaxNode(syntax);
+        SourceLocationModel? nameLocation = null;
+        SourceLocationModel? typeLocation = null;
+
+        string? invalidReason = null;
+        string? typeParamName = null;
+
+        if (syntax is not null)
+        {
+            if (syntax.ArgumentList is null || syntax.ArgumentList.Arguments.Count != 2)
+            {
+                invalidReason ??= "SupplyParameterType requires two positional arguments.";
+            }
+            else
+            {
+                var firstArg = syntax.ArgumentList.Arguments[0].Expression;
+                var secondArg = syntax.ArgumentList.Arguments[1].Expression;
+
+                if (TryGetNameofIdentifier(firstArg, out var name, out var nameLoc))
+                {
+                    typeParamName = name;
+                    nameLocation = nameLoc;
+                }
+                else
+                {
+                    invalidReason ??= "SupplyParameterType requires nameof(<TypeParameter>) as the first argument.";
+                }
+
+                if (!TryGetTypeofExpression(secondArg, out var typeLoc))
+                    invalidReason ??= "SupplyParameterType requires typeof(<Type>) as the second argument.";
+                else
+                    typeLocation = typeLoc;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(typeParamName)
+            && attribute.ConstructorArguments.Length > 0
+            && attribute.ConstructorArguments[0].Kind == TypedConstantKind.Primitive
+            && attribute.ConstructorArguments[0].Value is string ctorName)
+            typeParamName = ctorName;
+
+        ITypeSymbol? typeSymbol = null;
+        if (attribute.ConstructorArguments.Length > 1
+            && attribute.ConstructorArguments[1].Kind == TypedConstantKind.Type)
+            typeSymbol = attribute.ConstructorArguments[1].Value as ITypeSymbol;
+
+        var typeDisplay = typeSymbol?.ToDisplayString(RoslynHelpers.TypeDisplayFormat) ?? string.Empty;
+        var signatureDisplay = typeSymbol?.ToDisplayString(RoslynHelpers.SignatureDisplayFormat) ?? string.Empty;
+
+        if (typeSymbol is null && invalidReason is null)
+            invalidReason = "SupplyParameterType requires a type argument.";
+        if (string.IsNullOrWhiteSpace(typeParamName) && invalidReason is null)
+            invalidReason = "SupplyParameterType requires a type parameter name.";
+
+        return new SupplyParameterTypeModel(
+            typeParamName ?? string.Empty,
+            typeDisplay,
+            signatureDisplay,
+            invalidReason is null,
+            invalidReason,
+            attributeLocation,
+            nameLocation,
+            typeLocation);
+    }
+
+    private static bool TryGetNameofIdentifier(
+        ExpressionSyntax expression,
+        out string name,
+        out SourceLocationModel? location)
+    {
+        name = string.Empty;
+        location = null;
+
+        if (expression is not InvocationExpressionSyntax invocation) return false;
+
+        if (invocation.Expression is not IdentifierNameSyntax identifier
+            || !string.Equals(identifier.Identifier.ValueText, "nameof", StringComparison.Ordinal))
+            return false;
+
+        if (invocation.ArgumentList.Arguments.Count != 1) return false;
+
+        var argExpression = invocation.ArgumentList.Arguments[0].Expression;
+        if (argExpression is not IdentifierNameSyntax argIdentifier) return false;
+
+        name = argIdentifier.Identifier.ValueText;
+        location = SourceLocationModel.FromSyntaxToken(argIdentifier.Identifier);
+        return true;
+    }
+
+    private static bool TryGetTypeofExpression(ExpressionSyntax expression, out SourceLocationModel? location)
+    {
+        location = null;
+        if (expression is not TypeOfExpressionSyntax typeOf) return false;
+
+        location = SourceLocationModel.FromSyntaxNode(typeOf.Type);
+        return true;
     }
 
     internal static (ImmutableArray<GenerateOverloadsAttributeModel> AttributeModels,

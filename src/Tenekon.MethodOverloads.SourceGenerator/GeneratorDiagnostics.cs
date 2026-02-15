@@ -107,4 +107,28 @@ internal static class GeneratorDiagnostics
         "MethodOverloadsGenerator",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidSupplyParameterType = new(
+        "MOG014",
+        "Invalid SupplyParameterType",
+        "SupplyParameterType on method '{0}' is invalid: {1}",
+        "MethodOverloadsGenerator",
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor SupplyParameterTypeMissingTypeParameter = new(
+        "MOG015",
+        "SupplyParameterType references missing type parameter",
+        "SupplyParameterType refers to missing type parameter '{0}' on method '{1}'",
+        "MethodOverloadsGenerator",
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor SupplyParameterTypeConflicting = new(
+        "MOG016",
+        "Conflicting SupplyParameterType mappings",
+        "SupplyParameterType specifies multiple types for '{0}' on method '{1}'",
+        "MethodOverloadsGenerator",
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
 }

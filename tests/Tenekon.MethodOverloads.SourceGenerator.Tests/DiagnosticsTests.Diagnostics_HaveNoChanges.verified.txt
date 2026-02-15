@@ -102,5 +102,29 @@
     Category: MethodOverloadsGenerator,
     DefaultSeverity: 3,
     IsEnabledByDefault: true
+  },
+  {
+    Id: MOG014,
+    Title: Invalid SupplyParameterType,
+    MessageFormat: SupplyParameterType on method '{0}' is invalid: {1},
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 2,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG015,
+    Title: SupplyParameterType references missing type parameter,
+    MessageFormat: SupplyParameterType refers to missing type parameter '{0}' on method '{1}',
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 2,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG016,
+    Title: Conflicting SupplyParameterType mappings,
+    MessageFormat: SupplyParameterType specifies multiple types for '{0}' on method '{1}',
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 2,
+    IsEnabledByDefault: true
   }
 ]

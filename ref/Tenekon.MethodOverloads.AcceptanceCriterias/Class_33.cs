@@ -1,5 +1,3 @@
-using Tenekon.MethodOverloads.SourceGenerator;
-
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 public class Class_33_Type_1;

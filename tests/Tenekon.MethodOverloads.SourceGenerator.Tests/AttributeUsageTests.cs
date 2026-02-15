@@ -1,7 +1,7 @@
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using Tenekon.MethodOverloads.SourceGenerator.Tests.Infrastructure;
-using Microsoft.CodeAnalysis;
 
 namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 
@@ -16,6 +16,7 @@ public sealed partial class AttributeUsageTests
         var attributeSources = typeof(GeneratorAttributesSource).GetFields(BindingFlags.Public | BindingFlags.Static)
             .Where(f => f.FieldType == typeof(string))
             .Select(f => (string)f.GetValue(obj: null)!)
+            .Select(LoadEmbeddedAttributeSource)
             .ToArray();
 
         var usageByAttribute =
@@ -29,7 +30,8 @@ public sealed partial class AttributeUsageTests
             "GenerateMethodOverloads",
             "GenerateOverloads",
             "OverloadGenerationOptions",
-            "MatcherUsage"
+            "MatcherUsage",
+            "SupplyParameterType"
         };
 
         foreach (var attributeName in targetAttributes)
@@ -74,4 +76,24 @@ public sealed partial class AttributeUsageTests
 
     [GeneratedRegex(@"\bsealed\s+class\s+(?<name>[A-Za-z_][A-Za-z0-9_]*)Attribute\b")]
     private static partial Regex MyRegex();
+
+    private static string LoadEmbeddedAttributeSource(string resourceName)
+    {
+        var assembly = GetAttributesAssembly();
+        using var stream = assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException("Missing embedded attribute resource: " + resourceName);
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
+    }
+
+    private static Assembly GetAttributesAssembly()
+    {
+        var assembly = AppDomain.CurrentDomain.GetAssemblies()
+            .FirstOrDefault(a => string.Equals(
+                a.GetName().Name,
+                "Tenekon.MethodOverloads.Attributes",
+                StringComparison.Ordinal));
+
+        return assembly ?? Assembly.Load("Tenekon.MethodOverloads.Attributes");
+    }
 }

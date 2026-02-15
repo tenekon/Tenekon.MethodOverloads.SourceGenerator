@@ -3,11 +3,14 @@ namespace Tenekon.MethodOverloads.SourceGenerator;
 internal static class AttributeNames
 {
     public const string GenerateOverloadsAttribute =
-        "Tenekon.MethodOverloads.SourceGenerator.GenerateOverloadsAttribute";
+        "Tenekon.MethodOverloads.GenerateOverloadsAttribute";
 
     public const string GenerateMethodOverloadsAttribute =
-        "Tenekon.MethodOverloads.SourceGenerator.GenerateMethodOverloadsAttribute";
+        "Tenekon.MethodOverloads.GenerateMethodOverloadsAttribute";
 
     public const string OverloadGenerationOptionsAttribute =
-        "Tenekon.MethodOverloads.SourceGenerator.OverloadGenerationOptionsAttribute";
+        "Tenekon.MethodOverloads.OverloadGenerationOptionsAttribute";
+
+    public const string SupplyParameterTypeAttribute =
+        "Tenekon.MethodOverloads.SupplyParameterTypeAttribute";
 }

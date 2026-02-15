@@ -99,12 +99,14 @@ internal sealed class OverloadPlanBuilder
 
             if (!hasTypeGenerate && !hasMethodGenerate) continue;
 
+            var effectiveMethod = ApplySuppliedParameterTypes(method);
+
             var windowSpecs = new List<WindowSpec>();
             var optionsByGroupKey = new Dictionary<string, GenerationOptions>(StringComparer.Ordinal);
             var methodMatchers = EquatableArray<string>.Empty;
             var methodAttributes = EquatableArray<GenerateOverloadsAttributeModel>.Empty;
             var directOptions = GenerationOptionsResolver.ResolveGenerationOptions(
-                method,
+                effectiveMethod,
                 containingType,
                 matcherMethod: null,
                 matcherType: null);
@@ -123,14 +125,14 @@ internal sealed class OverloadPlanBuilder
                     methodTarget.GenerateAttributesFromSyntax);
             }
 
-            if (hasMethodGenerate && method.Parameters.Items.Length == 0)
+            if (hasMethodGenerate && effectiveMethod.Parameters.Items.Length == 0)
             {
                 var location = GetAttributeLocation(methodAttributes) ?? method.IdentifierLocation;
-                Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, method.Name);
+                Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, effectiveMethod.Name);
                 continue;
             }
 
-            if (hasMethodGenerate && HasMatchersWindowConflict(method, methodAttributes))
+            if (hasMethodGenerate && HasMatchersWindowConflict(effectiveMethod, methodAttributes))
                 continue;
 
             var useMethodMatchers = methodMatchers.Items.Length > 0;
@@ -142,13 +144,13 @@ internal sealed class OverloadPlanBuilder
                 for (var index = 0; index < directAttributes.Length; index++)
                 {
                     var attribute = directAttributes[index];
-                    var groupKey = "direct:" + BuildMethodGroupKey(method) + "#" + index;
+                    var groupKey = "direct:" + BuildMethodGroupKey(effectiveMethod) + "#" + index;
 
                     if (TryCreateWindowSpecFromArgs(
-                            method,
-                            method,
+                            effectiveMethod,
+                            effectiveMethod,
                             attribute.Args,
-                            ParameterMatch.Identity(method.Parameters.Items.Length),
+                            ParameterMatch.Identity(effectiveMethod.Parameters.Items.Length),
                             out var windowSpecFromAttribute,
                             out var windowFailureFromAttribute))
                     {
@@ -206,6 +208,7 @@ internal sealed class OverloadPlanBuilder
 
                         var matcherRef = new MatcherMethodReference(
                             matcherMethodModel.ContainingTypeDisplay,
+                            matcherType.Type.DeclaredAccessibility,
                             matcherMethodModel.Name,
                             matcherMethodModel.Parameters.Items.Length,
                             matcherMethodModel.ContainingNamespace);
@@ -216,9 +219,10 @@ internal sealed class OverloadPlanBuilder
                             matcherLocations[matcherRef] = matcherMethodModel.IdentifierLocation;
                         }
 
-                        var groupKey = "matcher:" + BuildMethodGroupKey(matcherMethodModel);
+                        var effectiveMatcherMethod = ApplySuppliedParameterTypes(matcherMethodModel);
+                        var groupKey = "matcher:" + BuildMethodGroupKey(effectiveMatcherMethod);
                         var matcherOptions = GenerationOptionsResolver.ResolveGenerationOptions(
-                            method,
+                            effectiveMethod,
                             containingType,
                             matcherMethodModel,
                             matcherType);
@@ -228,8 +232,8 @@ internal sealed class OverloadPlanBuilder
                             continue;
                         }
                         var matches = FindSubsequenceMatches(
-                                matcherMethodModel,
-                                method,
+                                effectiveMatcherMethod,
+                                effectiveMethod,
                                 matcherOptions.RangeAnchorMatchMode)
                             .ToArray();
                         if (matches.Length == 0) continue;
@@ -237,7 +241,7 @@ internal sealed class OverloadPlanBuilder
                         matcherHasAnyMatch[matcherRef] = true;
                         optionsByGroupKey[groupKey] = matcherOptions;
 
-                        var targetKey = MethodIdentity.BuildMethodIdentityKey(method);
+                        var targetKey = MethodIdentity.BuildMethodIdentityKey(effectiveMethod);
                         if (!matchedMatchersByTarget.TryGetValue(targetKey, out var matchedMatchers))
                         {
                             matchedMatchers = [];
@@ -246,7 +250,7 @@ internal sealed class OverloadPlanBuilder
 
                         matchedMatchers.Add(matcherRef);
 
-                        var matcherNamespace = matcherOptions.BucketType?.Namespace ?? method.ContainingNamespace;
+                        var matcherNamespace = matcherOptions.BucketType?.Namespace ?? effectiveMethod.ContainingNamespace;
                         var matcherGroupKey = BuildGroupKey(matcherNamespace, matcherOptions.BucketType);
                         if (!_matchedMatchersByGroup.TryGetValue(matcherGroupKey, out var matcherGroup))
                         {
@@ -259,8 +263,8 @@ internal sealed class OverloadPlanBuilder
                         foreach (var match in matches)
                         foreach (var attribute in matcherDirectAttributes)
                             if (TryCreateWindowSpecFromArgs(
-                                    method,
-                                    matcherMethodModel,
+                                    effectiveMethod,
+                                    effectiveMatcherMethod,
                                     attribute.Args,
                                     match,
                                     out var windowSpec,
@@ -286,10 +290,10 @@ internal sealed class OverloadPlanBuilder
             if (windowSpecs.Count == 0) continue;
 
             matchedMatchersByTarget.TryGetValue(
-                MethodIdentity.BuildMethodIdentityKey(method),
+                MethodIdentity.BuildMethodIdentityKey(effectiveMethod),
                 out var matchedMatcherMethods);
             foreach (var generated in GenerateOverloadsForMethod(
-                         method,
+                         effectiveMethod,
                          windowSpecs,
                          optionsByGroupKey,
                          matchedMatcherMethods))
@@ -782,6 +786,180 @@ internal sealed class OverloadPlanBuilder
             ? "Invalid bucket type"
             : bucketType.InvalidReason!;
         Report(GeneratorDiagnostics.InvalidBucketType, location, bucketType.DisplayName, reason);
+    }
+
+    private MethodModel ApplySuppliedParameterTypes(MethodModel method)
+    {
+        if (method.SupplyParameterTypes.Items.Length == 0) return method;
+
+        var methodTypeParameters = new HashSet<string>(method.TypeParameterNames.Items, StringComparer.Ordinal);
+        var replacements = new Dictionary<string, (string Display, string Signature)>(StringComparer.Ordinal);
+        var conflicts = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var supply in method.SupplyParameterTypes.Items)
+        {
+            if (!supply.IsValid)
+            {
+                var location = supply.NameLocation
+                               ?? supply.TypeLocation
+                               ?? supply.AttributeLocation
+                               ?? method.IdentifierLocation;
+                var reason = string.IsNullOrWhiteSpace(supply.InvalidReason)
+                    ? "Invalid SupplyParameterType."
+                    : supply.InvalidReason!;
+                Report(GeneratorDiagnostics.InvalidSupplyParameterType, location, method.Name, reason);
+                continue;
+            }
+
+            if (!methodTypeParameters.Contains(supply.TypeParameterName))
+            {
+                var location = supply.NameLocation
+                               ?? supply.AttributeLocation
+                               ?? method.IdentifierLocation;
+                Report(
+                    GeneratorDiagnostics.SupplyParameterTypeMissingTypeParameter,
+                    location,
+                    supply.TypeParameterName,
+                    method.Name);
+                continue;
+            }
+
+            if (replacements.TryGetValue(supply.TypeParameterName, out var existing))
+            {
+                if (!string.Equals(existing.Display, supply.SuppliedTypeDisplay, StringComparison.Ordinal)
+                    || !string.Equals(existing.Signature, supply.SuppliedSignatureTypeDisplay, StringComparison.Ordinal))
+                {
+                    Report(
+                        GeneratorDiagnostics.SupplyParameterTypeConflicting,
+                        supply.AttributeLocation ?? method.IdentifierLocation,
+                        supply.TypeParameterName,
+                        method.Name);
+                    conflicts.Add(supply.TypeParameterName);
+                }
+                continue;
+            }
+
+            replacements[supply.TypeParameterName] = (supply.SuppliedTypeDisplay, supply.SuppliedSignatureTypeDisplay);
+        }
+
+        if (conflicts.Count > 0)
+            foreach (var name in conflicts)
+                replacements.Remove(name);
+
+        if (replacements.Count == 0) return method;
+
+        var originalTypeParams = method.TypeParameterNames.Items;
+        var remainingTypeParams = originalTypeParams
+            .Where(name => !replacements.ContainsKey(name))
+            .ToArray();
+        var removedNames = new HashSet<string>(replacements.Keys, StringComparer.Ordinal);
+        var invocationTypeArguments = originalTypeParams
+            .Select(name => replacements.TryGetValue(name, out var replacement) ? replacement.Display : name)
+            .ToArray();
+
+        var updatedParameters = method.Parameters.Items
+            .Select(parameter => parameter with
+            {
+                TypeDisplay = ReplaceTypeParameters(parameter.TypeDisplay, replacements, useSignature: false),
+                SignatureTypeDisplay = ReplaceTypeParameters(parameter.SignatureTypeDisplay, replacements,
+                    useSignature: true)
+            })
+            .ToArray();
+
+        return method with
+        {
+            ReturnTypeDisplay = ReplaceTypeParameters(method.ReturnTypeDisplay, replacements, useSignature: false),
+            TypeParameterNames = new EquatableArray<string>(remainingTypeParams.ToImmutableArray()),
+            TypeParameterCount = remainingTypeParams.Length,
+            TypeParameterConstraints = RemoveTypeParameterConstraints(method.TypeParameterConstraints, removedNames),
+            InvocationTypeArguments = new EquatableArray<string>(invocationTypeArguments.ToImmutableArray()),
+            Parameters = new EquatableArray<ParameterModel>(updatedParameters.ToImmutableArray())
+        };
+    }
+
+    private static string ReplaceTypeParameters(
+        string input,
+        IReadOnlyDictionary<string, (string Display, string Signature)> replacements,
+        bool useSignature)
+    {
+        if (string.IsNullOrEmpty(input) || replacements.Count == 0) return input;
+
+        var builder = new StringBuilder(input.Length);
+        var index = 0;
+        while (index < input.Length)
+        {
+            var current = input[index];
+            if (current == '@')
+            {
+                var start = index;
+                index++;
+                if (index < input.Length && IsIdentifierStart(input[index]))
+                {
+                    index++;
+                    while (index < input.Length && IsIdentifierPart(input[index])) index++;
+                    var token = input.Substring(start, index - start);
+                    var lookup = token.Substring(startIndex: 1);
+                    if (replacements.TryGetValue(lookup, out var replacement))
+                        builder.Append(useSignature ? replacement.Signature : replacement.Display);
+                    else
+                        builder.Append(token);
+                    continue;
+                }
+
+                builder.Append('@');
+                continue;
+            }
+
+            if (IsIdentifierStart(current))
+            {
+                var start = index;
+                index++;
+                while (index < input.Length && IsIdentifierPart(input[index])) index++;
+                var token = input.Substring(start, index - start);
+                if (replacements.TryGetValue(token, out var replacement))
+                    builder.Append(useSignature ? replacement.Signature : replacement.Display);
+                else
+                    builder.Append(token);
+                continue;
+            }
+
+            builder.Append(current);
+            index++;
+        }
+
+        return builder.ToString();
+    }
+
+    private static bool IsIdentifierStart(char value)
+    {
+        return char.IsLetter(value) || value == '_';
+    }
+
+    private static bool IsIdentifierPart(char value)
+    {
+        return char.IsLetterOrDigit(value) || value == '_';
+    }
+
+    private static string RemoveTypeParameterConstraints(string constraints, HashSet<string> removedNames)
+    {
+        if (string.IsNullOrWhiteSpace(constraints) || removedNames.Count == 0) return constraints;
+
+        var parts = constraints.Split(new[] { "where " }, StringSplitOptions.RemoveEmptyEntries);
+        var kept = new List<string>();
+
+        foreach (var part in parts)
+        {
+            var trimmed = part.Trim();
+            if (trimmed.Length == 0) continue;
+
+            var colonIndex = trimmed.IndexOf(value: ':');
+            var name = colonIndex >= 0 ? trimmed.Substring(startIndex: 0, colonIndex).Trim() : trimmed;
+            if (removedNames.Contains(name)) continue;
+
+            kept.Add("where " + trimmed);
+        }
+
+        return string.Join(" ", kept);
     }
 
     private static int Clamp(int value, int min, int max)

@@ -1,5 +1,3 @@
-using Tenekon.MethodOverloads.SourceGenerator;
-
 #pragma warning disable IDE0051
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias.Attributes;
@@ -61,5 +59,13 @@ public class OverloadGenerationOptionsTargets
 [MatcherUsage(nameof(GenerateOverloadsTargets.GenerateOverloadsOnMethod))]
 public class MatcherUsageTargets
 {
+}
+
+public class SupplyParameterTypeTargets
+{
+    [SupplyParameterType(nameof(TValue), typeof(object))]
+    public void SupplyParameterTypeOnMethod<TValue>(TValue value)
+    {
+    }
 }
 #pragma warning restore IDE0051

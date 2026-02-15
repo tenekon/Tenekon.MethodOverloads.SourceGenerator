@@ -1,5 +1,3 @@
-using Tenekon.MethodOverloads.SourceGenerator;
-
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 public readonly struct Class_40_Case_1_Param_1;

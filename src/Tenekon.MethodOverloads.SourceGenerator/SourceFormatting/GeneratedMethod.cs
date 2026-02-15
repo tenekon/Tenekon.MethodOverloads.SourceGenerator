@@ -228,9 +228,9 @@ internal sealed class GeneratedMethod(
 
     private static string RenderTypeArguments(MethodModel method)
     {
-        if (method.TypeParameterCount == 0) return string.Empty;
+        if (method.InvocationTypeArguments.Items.Length == 0) return string.Empty;
 
-        return "<" + string.Join(", ", method.TypeParameterNames.Items) + ">";
+        return "<" + string.Join(", ", method.InvocationTypeArguments.Items) + ">";
     }
 
     private static string RenderTypeParameterConstraints(MethodModel method)

@@ -1,5 +1,3 @@
-using Tenekon.MethodOverloads.SourceGenerator;
-
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 public static partial class Class_43_Bucket

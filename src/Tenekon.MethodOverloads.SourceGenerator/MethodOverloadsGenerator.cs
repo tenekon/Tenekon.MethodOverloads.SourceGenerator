@@ -1,3 +1,4 @@
+using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Tenekon.MethodOverloads.SourceGenerator.Parsing;
@@ -14,28 +15,36 @@ public sealed class MethodOverloadsGenerator : IIncrementalGenerator
     /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        DebugGuard.MaybeLaunchDebuggerOnStartup();
-
         context.RegisterPostInitializationOutput(static postContext =>
         {
             // This generates the correct "internal sealed partial class" definition of EmbeddedAttribute
             // as expected by the Roslyn compiler.
             // See: https://github.com/dotnet/roslyn/issues/76584
             postContext.AddEmbeddedAttributeDefinition();
+            
+            postContext.AddSource(
+                "EmbeddedAttribute.g.cs",
+                LoadAttributeSource(GeneratorAttributesSource.EmbeddedAttribute));
 
             postContext.AddSource(
                 "GenerateOverloadsAttribute.g.cs",
-                GeneratorAttributesSource.GenerateOverloadsAttribute);
+                LoadAttributeSource(GeneratorAttributesSource.GenerateOverloadsAttribute));
 
             postContext.AddSource(
                 "GenerateMethodOverloadsAttribute.g.cs",
-                GeneratorAttributesSource.GenerateMethodOverloadsAttribute);
+                LoadAttributeSource(GeneratorAttributesSource.GenerateMethodOverloadsAttribute));
 
             postContext.AddSource(
                 "OverloadGenerationOptionsAttribute.g.cs",
-                GeneratorAttributesSource.OverloadGenerationOptionsAttribute);
+                LoadAttributeSource(GeneratorAttributesSource.OverloadGenerationOptionsAttribute));
 
-            postContext.AddSource("MatcherUsageAttribute.g.cs", GeneratorAttributesSource.MatcherUsageAttribute);
+            postContext.AddSource(
+                "SupplyParameterTypeAttribute.g.cs",
+                LoadAttributeSource(GeneratorAttributesSource.SupplyParameterTypeAttribute));
+
+            postContext.AddSource(
+                "MatcherUsageAttribute.g.cs",
+                LoadAttributeSource(GeneratorAttributesSource.MatcherUsageAttribute));
         });
 
         var attributesOnlyProvider = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) =>
@@ -82,5 +91,14 @@ public sealed class MethodOverloadsGenerator : IIncrementalGenerator
 
                 SourceFormatter.GenerateSourceFiles(productionContext, model);
             });
+    }
+
+    private static string LoadAttributeSource(string resourceName)
+    {
+        var assembly = typeof(GenerateOverloadsAttribute).Assembly;
+        using var stream = assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException("Missing embedded attribute resource: " + resourceName);
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return reader.ReadToEnd();
     }
 }

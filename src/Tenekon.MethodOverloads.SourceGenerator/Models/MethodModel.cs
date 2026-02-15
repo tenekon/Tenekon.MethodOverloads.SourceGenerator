@@ -21,6 +21,8 @@ internal readonly record struct MethodModel(
     string TypeParameterConstraints,
     EquatableArray<string> ContainingTypeParameterNames,
     string ContainingTypeParameterConstraints,
+    EquatableArray<SupplyParameterTypeModel> SupplyParameterTypes,
+    EquatableArray<string> InvocationTypeArguments,
     EquatableArray<ParameterModel> Parameters,
     SourceLocationModel? IdentifierLocation,
     bool IsOrdinary,

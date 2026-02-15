@@ -1,0 +1,8 @@
+[*.cs]
+resharper_redundant_nullable_directive_highlighting=none
+resharper_partial_type_with_single_part_highlighting=none
+resharper_redundant_name_qualifier_highlighting=none
+resharper_unused_parameter_local_highlighting=none
+
+[EmbeddedAttribute.cs]
+resharper_check_namespace_highlighting=none

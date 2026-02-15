@@ -1,11 +1,10 @@
 <Solution>
     <Folder Name="/tests/">
-        <Project
-                Path="tests/Tenekon.MethodOverloads.SourceGenerator.Tests/Tenekon.MethodOverloads.SourceGenerator.Tests.csproj"/>
+        <Project Path="tests/Tenekon.MethodOverloads.SourceGenerator.Tests/Tenekon.MethodOverloads.SourceGenerator.Tests.csproj" />
     </Folder>
     <Folder Name="/ref/">
-        <Project
-                Path="ref/Tenekon.MethodOverloads.AcceptanceCriterias/Tenekon.MethodOverloads.AcceptanceCriterias.csproj"/>
+        <Project Path="ref/Tenekon.MethodOverloads.AcceptanceCriterias/Tenekon.MethodOverloads.AcceptanceCriterias.csproj" />
     </Folder>
-    <Project Path="src/Tenekon.MethodOverloads.SourceGenerator/Tenekon.MethodOverloads.SourceGenerator.csproj"/>
+    <Project Path="src/Tenekon.MethodOverloads.Attributes/Tenekon.MethodOverloads.Attributes.csproj" />
+    <Project Path="src/Tenekon.MethodOverloads.SourceGenerator/Tenekon.MethodOverloads.SourceGenerator.csproj" />
 </Solution>

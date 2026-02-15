@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using Tenekon.MethodOverloads.SourceGenerator;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 

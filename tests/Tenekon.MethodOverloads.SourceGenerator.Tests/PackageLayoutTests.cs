@@ -6,6 +6,7 @@ public sealed class PackageLayoutTests(PackageLayoutFixture fixture) : IClassFix
 {
     [Theory]
     [InlineData("analyzers/dotnet/cs/Tenekon.MethodOverloads.SourceGenerator.dll")]
+    [InlineData("analyzers/dotnet/cs/Tenekon.MethodOverloads.Attributes.dll")]
     [InlineData("build/Tenekon.MethodOverloads.SourceGenerator.props")]
     [InlineData("buildTransitive/Tenekon.MethodOverloads.SourceGenerator.props")]
     [InlineData("Tenekon.MethodOverloads.SourceGenerator.Common.props")]

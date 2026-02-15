@@ -4,23 +4,30 @@ using Microsoft.CodeAnalysis.Text;
 namespace Tenekon.MethodOverloads.SourceGenerator.Models;
 
 internal readonly record struct SourceLocationModel(
-    string Path,
-    int SpanStart,
-    int SpanLength,
-    int StartLine,
-    int StartCharacter,
-    int EndLine,
-    int EndCharacter)
+    string? SourceTreeFilePath,
+    TextSpan SourceSpan,
+    FileLinePositionSpan FileLineSpan,
+    FileLinePositionSpan MappedFileLineSpan)
 {
     public Location ToLocation()
     {
-        var span = new TextSpan(SpanStart, SpanLength);
-        if (string.IsNullOrEmpty(Path)) return Location.None;
+        var lineSpan = new LinePositionSpan(FileLineSpan.StartLinePosition, FileLineSpan.EndLinePosition);
 
-        var lineSpan = new LinePositionSpan(
-            new LinePosition(StartLine, StartCharacter),
-            new LinePosition(EndLine, EndCharacter));
-        return Location.Create(Path, span, lineSpan);
+        if (FileLineSpan.HasMappedPath)
+        {
+            var mappedLineSpan = new LinePositionSpan(
+                MappedFileLineSpan.StartLinePosition,
+                MappedFileLineSpan.EndLinePosition);
+
+            return Location.Create(
+                SourceTreeFilePath ?? string.Empty,
+                SourceSpan,
+                lineSpan,
+                MappedFileLineSpan.Path,
+                mappedLineSpan);
+        }
+
+        return Location.Create(SourceTreeFilePath ?? string.Empty, SourceSpan, lineSpan);
     }
 
     public static SourceLocationModel FromSyntaxNode(SyntaxNode node)
@@ -35,14 +42,13 @@ internal readonly record struct SourceLocationModel(
 
     private static SourceLocationModel FromLocation(Location location)
     {
-        var lineSpan = location.GetLineSpan();
+        var fileLineSpan = location.GetLineSpan();
+        var mappedFileSpan = fileLineSpan.HasMappedPath ? location.GetMappedLineSpan() : default;
+
         return new SourceLocationModel(
-            location.SourceTree?.FilePath ?? string.Empty,
-            location.SourceSpan.Start,
-            location.SourceSpan.Length,
-            lineSpan.StartLinePosition.Line,
-            lineSpan.StartLinePosition.Character,
-            lineSpan.EndLinePosition.Line,
-            lineSpan.EndLinePosition.Character);
+            location.SourceTree?.FilePath,
+            location.SourceSpan,
+            fileLineSpan,
+            mappedFileSpan);
     }
 }
