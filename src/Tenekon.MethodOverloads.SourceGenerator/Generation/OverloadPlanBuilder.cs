@@ -156,7 +156,8 @@ internal sealed class OverloadPlanBuilder
 
             if (useDirectGenerateOverloads && directGroupMaps.Count > 0)
             {
-                foreach (var targetGroup in directGroupMaps)
+                foreach (var targetGroup in directGroupMaps
+                             .OrderBy(entry => entry.Key.ToKeyString(), StringComparer.Ordinal))
                 for (var index = 0; index < directAttributes.Length; index++)
                 {
                     var targetEffectiveMethod = ApplySupplyMap(method, targetGroup.Value);
@@ -247,7 +248,9 @@ internal sealed class OverloadPlanBuilder
                             groupKeys.Add(GroupKey.Default);
                         if (groupKeys.Count == 0) continue;
 
-                        foreach (var supplyGroup in groupKeys)
+                        foreach (var supplyGroup in groupKeys.OrderBy(
+                                     key => key.ToKeyString(),
+                                     StringComparer.Ordinal))
                         {
                             var targetGroupMap = targetGroupMaps.TryGetValue(supplyGroup, out var targetMap)
                                 ? targetMap
@@ -429,7 +432,7 @@ internal sealed class OverloadPlanBuilder
                 var keptParameters = methodParameters.Where((_, index) => Array.IndexOf(omittedIndices, index) < 0)
                     .ToArray();
 
-                var key = MethodIdentity.BuildSignatureKey(method.Name, method.TypeParameterCount, keptParameters);
+                var key = BuildGeneratedSignatureKey(method, keptParameters);
                 if (!signatureKeys.Add(key))
                 {
                     if (!reportedDuplicate)
@@ -440,7 +443,11 @@ internal sealed class OverloadPlanBuilder
                     continue;
                 }
 
-                if (existingKeys.Contains(key))
+                var existingKey = MethodIdentity.BuildSignatureKey(
+                    method.Name,
+                    method.TypeParameterCount,
+                    keptParameters);
+                if (existingKeys.Contains(existingKey))
                 {
                     if (!reportedDuplicate)
                     {
@@ -1208,6 +1215,44 @@ internal sealed class OverloadPlanBuilder
         if (value > max) return max;
 
         return value;
+    }
+
+    private static string BuildGeneratedSignatureKey(MethodModel method, ParameterModel[] keptParameters)
+    {
+        var builder = new StringBuilder();
+        builder.Append(method.Name);
+        builder.Append("|");
+        builder.Append(method.TypeParameterCount);
+        builder.Append("|receiver:");
+        builder.Append(GetReceiverTypeDisplay(method));
+
+        var receiverName = method.IsExtensionMethod && method.Parameters.Items.Length > 0
+            ? method.Parameters.Items[0].Name
+            : null;
+
+        foreach (var parameter in keptParameters)
+        {
+            if (receiverName is not null
+                && string.Equals(parameter.Name, receiverName, StringComparison.Ordinal))
+                continue;
+
+            builder.Append("|");
+            builder.Append(parameter.SignatureTypeDisplay);
+            builder.Append(":");
+            builder.Append(parameter.RefKind);
+            builder.Append(":");
+            builder.Append(parameter.IsParams ? "params" : "noparams");
+        }
+
+        return builder.ToString();
+    }
+
+    private static string GetReceiverTypeDisplay(MethodModel method)
+    {
+        if (method.IsExtensionMethod && method.Parameters.Items.Length > 0)
+            return method.Parameters.Items[0].TypeDisplay;
+
+        return method.ContainingTypeDisplay;
     }
 
     private readonly struct WindowSpec(int startIndex, int endIndex, string groupKey)
