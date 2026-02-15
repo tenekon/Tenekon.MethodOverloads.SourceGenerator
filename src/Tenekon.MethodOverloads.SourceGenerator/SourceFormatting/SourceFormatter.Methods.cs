@@ -98,11 +98,23 @@ internal static partial class SourceFormatter
             if (!ShouldEmitMatcherUsage(matcherMethod)) continue;
 
             var identifier = matcherMethod.ContainingTypeDisplay + "." + matcherMethod.MethodName;
-            builder.Append(indent)
-                .Append("[global::Tenekon.MethodOverloads.MatcherUsageAttribute(nameof(")
-                .Append(identifier)
-                .Append("))]")
-                .AppendLine();
+            if (identifier.Contains("<", StringComparison.Ordinal))
+            {
+                var literal = identifier.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                builder.Append(indent)
+                    .Append("[global::Tenekon.MethodOverloads.MatcherUsageAttribute(\"")
+                    .Append(literal)
+                    .Append("\")]")
+                    .AppendLine();
+            }
+            else
+            {
+                builder.Append(indent)
+                    .Append("[global::Tenekon.MethodOverloads.MatcherUsageAttribute(nameof(")
+                    .Append(identifier)
+                    .Append("))]")
+                    .AppendLine();
+            }
         }
     }
 

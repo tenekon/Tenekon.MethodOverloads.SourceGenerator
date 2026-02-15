@@ -27,4 +27,11 @@
         <EditorConfig Include=".editorconfig"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <Compile Remove="_tmp\**\*.cs"/>
+        <Compile Remove="**\_tmp\**\*.cs"/>
+        <None Remove="_tmp\**\*"/>
+        <None Remove="**\_tmp\**\*"/>
+    </ItemGroup>
+
 </Project>

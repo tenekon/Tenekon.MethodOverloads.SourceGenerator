@@ -3,17 +3,17 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias.SupplyParameterType;
 public interface SupplyParameterType_Class_10_Matcher
 {
     [GenerateOverloads(nameof(optionalObject))]
-    [SupplyParameterType(nameof(TMatch), typeof(SupplyParameterType_Constraint))]
-    void Case_1<TMatch>(
-        SupplyParameterType_IService<TMatch>? constrainedService,
+    [SupplyParameterType(nameof(TConstraint), typeof(SupplyParameterType_Constraint))]
+    void Case_1<TConstraint>(
+        SupplyParameterType_IService<TConstraint>? constrainedService,
         object? optionalObject);
 }
 
 [GenerateMethodOverloads(Matchers = [typeof(SupplyParameterType_Class_10_Matcher)])]
 public sealed class SupplyParameterType_Class_10
 {
-    public void Case_1(
-        SupplyParameterType_IService<SupplyParameterType_Constraint>? constrainedService,
+    public void Case_1<TConstraint>(
+        SupplyParameterType_IService<TConstraint>? constrainedService,
         object? optionalObject)
     {
     }

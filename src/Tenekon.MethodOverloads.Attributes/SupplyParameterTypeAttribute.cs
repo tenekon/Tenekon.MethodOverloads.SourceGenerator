@@ -1,7 +1,11 @@
 #nullable enable
 namespace Tenekon.MethodOverloads;
 
-[global::System.AttributeUsage(global::System.AttributeTargets.Method, AllowMultiple = true)]
+[global::System.AttributeUsage(
+    global::System.AttributeTargets.Method
+    | global::System.AttributeTargets.Class
+    | global::System.AttributeTargets.Interface,
+    AllowMultiple = true)]
 public sealed class SupplyParameterTypeAttribute : global::System.Attribute
 {
     public SupplyParameterTypeAttribute(string typeParameterName, global::System.Type suppliedType)

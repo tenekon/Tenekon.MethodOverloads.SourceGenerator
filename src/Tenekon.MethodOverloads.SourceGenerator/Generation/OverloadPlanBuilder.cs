@@ -57,7 +57,6 @@ internal sealed class OverloadPlanBuilder
     {
         var matcherHasAnyMatch = new Dictionary<MatcherMethodReference, bool>();
         var matcherLocations = new Dictionary<MatcherMethodReference, SourceLocationModel?>();
-        var matchedMatchersByTarget = new Dictionary<string, HashSet<MatcherMethodReference>>(StringComparer.Ordinal);
 
         var methodTargetsByKey = _model.MethodTargets.Items.ToDictionary(
             target => MethodIdentity.BuildMethodIdentityKey(target.Method),
@@ -99,14 +98,18 @@ internal sealed class OverloadPlanBuilder
 
             if (!hasTypeGenerate && !hasMethodGenerate) continue;
 
-            var effectiveMethod = ApplySuppliedParameterTypes(method);
+            var originalContainingTypeDisplay = method.ContainingTypeDisplay;
+            var targetSupplyMap = BuildSupplyMap(method);
+            var targetEffectiveMethod = ApplySupplyMap(method, targetSupplyMap);
 
             var windowSpecs = new List<WindowSpec>();
             var optionsByGroupKey = new Dictionary<string, GenerationOptions>(StringComparer.Ordinal);
+            var methodsByGroupKey = new Dictionary<string, MethodModel>(StringComparer.Ordinal);
+            var matchedMatcherMethods = new HashSet<MatcherMethodReference>();
             var methodMatchers = EquatableArray<string>.Empty;
             var methodAttributes = EquatableArray<GenerateOverloadsAttributeModel>.Empty;
             var directOptions = GenerationOptionsResolver.ResolveGenerationOptions(
-                effectiveMethod,
+                targetEffectiveMethod,
                 containingType,
                 matcherMethod: null,
                 matcherType: null);
@@ -125,14 +128,14 @@ internal sealed class OverloadPlanBuilder
                     methodTarget.GenerateAttributesFromSyntax);
             }
 
-            if (hasMethodGenerate && effectiveMethod.Parameters.Items.Length == 0)
+            if (hasMethodGenerate && targetEffectiveMethod.Parameters.Items.Length == 0)
             {
                 var location = GetAttributeLocation(methodAttributes) ?? method.IdentifierLocation;
-                Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, effectiveMethod.Name);
+                Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, targetEffectiveMethod.Name);
                 continue;
             }
 
-            if (hasMethodGenerate && HasMatchersWindowConflict(effectiveMethod, methodAttributes))
+            if (hasMethodGenerate && HasMatchersWindowConflict(targetEffectiveMethod, methodAttributes))
                 continue;
 
             var useMethodMatchers = methodMatchers.Items.Length > 0;
@@ -144,13 +147,13 @@ internal sealed class OverloadPlanBuilder
                 for (var index = 0; index < directAttributes.Length; index++)
                 {
                     var attribute = directAttributes[index];
-                    var groupKey = "direct:" + BuildMethodGroupKey(effectiveMethod) + "#" + index;
+                    var groupKey = "direct:" + BuildMethodGroupKey(targetEffectiveMethod) + "#" + index;
 
                     if (TryCreateWindowSpecFromArgs(
-                            effectiveMethod,
-                            effectiveMethod,
+                            targetEffectiveMethod,
+                            targetEffectiveMethod,
                             attribute.Args,
-                            ParameterMatch.Identity(effectiveMethod.Parameters.Items.Length),
+                            ParameterMatch.Identity(targetEffectiveMethod.Parameters.Items.Length),
                             out var windowSpecFromAttribute,
                             out var windowFailureFromAttribute))
                     {
@@ -160,6 +163,7 @@ internal sealed class OverloadPlanBuilder
                                 windowSpecFromAttribute.EndIndex,
                                 groupKey));
                         optionsByGroupKey[groupKey] = directOptions;
+                        methodsByGroupKey[groupKey] = targetEffectiveMethod;
 
                         if (windowFailureFromAttribute.Kind == WindowSpecFailureKind.RedundantAnchors)
                             Report(
@@ -219,10 +223,13 @@ internal sealed class OverloadPlanBuilder
                             matcherLocations[matcherRef] = matcherMethodModel.IdentifierLocation;
                         }
 
-                        var effectiveMatcherMethod = ApplySuppliedParameterTypes(matcherMethodModel);
+                        var matcherSupplyMap = BuildSupplyMap(matcherMethodModel);
+                        var combinedSupplyMap = MergeSupplyMaps(matcherSupplyMap, targetSupplyMap);
+                        var effectiveMatcherMethod = ApplySupplyMap(matcherMethodModel, combinedSupplyMap);
+                        var effectiveTargetForMatcher = ApplySupplyMap(method, combinedSupplyMap);
                         var groupKey = "matcher:" + BuildMethodGroupKey(effectiveMatcherMethod);
                         var matcherOptions = GenerationOptionsResolver.ResolveGenerationOptions(
-                            effectiveMethod,
+                            effectiveTargetForMatcher,
                             containingType,
                             matcherMethodModel,
                             matcherType);
@@ -231,26 +238,23 @@ internal sealed class OverloadPlanBuilder
                             ReportInvalidBucketType(invalidMatcherBucket, matcherMethodModel.IdentifierLocation);
                             continue;
                         }
+
                         var matches = FindSubsequenceMatches(
                                 effectiveMatcherMethod,
-                                effectiveMethod,
+                                effectiveTargetForMatcher,
                                 matcherOptions.RangeAnchorMatchMode)
                             .ToArray();
                         if (matches.Length == 0) continue;
 
                         matcherHasAnyMatch[matcherRef] = true;
                         optionsByGroupKey[groupKey] = matcherOptions;
+                        if (!methodsByGroupKey.ContainsKey(groupKey))
+                            methodsByGroupKey[groupKey] = effectiveTargetForMatcher;
 
-                        var targetKey = MethodIdentity.BuildMethodIdentityKey(effectiveMethod);
-                        if (!matchedMatchersByTarget.TryGetValue(targetKey, out var matchedMatchers))
-                        {
-                            matchedMatchers = [];
-                            matchedMatchersByTarget[targetKey] = matchedMatchers;
-                        }
+                        matchedMatcherMethods.Add(matcherRef);
 
-                        matchedMatchers.Add(matcherRef);
-
-                        var matcherNamespace = matcherOptions.BucketType?.Namespace ?? effectiveMethod.ContainingNamespace;
+                        var matcherNamespace =
+                            matcherOptions.BucketType?.Namespace ?? effectiveTargetForMatcher.ContainingNamespace;
                         var matcherGroupKey = BuildGroupKey(matcherNamespace, matcherOptions.BucketType);
                         if (!_matchedMatchersByGroup.TryGetValue(matcherGroupKey, out var matcherGroup))
                         {
@@ -263,7 +267,7 @@ internal sealed class OverloadPlanBuilder
                         foreach (var match in matches)
                         foreach (var attribute in matcherDirectAttributes)
                             if (TryCreateWindowSpecFromArgs(
-                                    effectiveMethod,
+                                    effectiveTargetForMatcher,
                                     effectiveMatcherMethod,
                                     attribute.Args,
                                     match,
@@ -289,14 +293,14 @@ internal sealed class OverloadPlanBuilder
 
             if (windowSpecs.Count == 0) continue;
 
-            matchedMatchersByTarget.TryGetValue(
-                MethodIdentity.BuildMethodIdentityKey(effectiveMethod),
-                out var matchedMatcherMethods);
+            var matchedMatchers = matchedMatcherMethods.Count > 0 ? matchedMatcherMethods : null;
             foreach (var generated in GenerateOverloadsForMethod(
-                         effectiveMethod,
+                         targetEffectiveMethod,
                          windowSpecs,
                          optionsByGroupKey,
-                         matchedMatcherMethods))
+                         matchedMatchers,
+                         methodsByGroupKey,
+                         originalContainingTypeDisplay))
             {
                 var groupKey = BuildGroupKey(generated.Namespace, generated.BucketType);
                 if (!_methodsByGroup.TryGetValue(groupKey, out var list))
@@ -321,19 +325,21 @@ internal sealed class OverloadPlanBuilder
     }
 
     private IEnumerable<OverloadPlanEntry> GenerateOverloadsForMethod(
-        MethodModel method,
+        MethodModel baseMethod,
         List<WindowSpec> windowSpecs,
         Dictionary<string, GenerationOptions> optionsByGroupKey,
-        IReadOnlyCollection<MatcherMethodReference>? matchedMatcherMethods)
+        IReadOnlyCollection<MatcherMethodReference>? matchedMatcherMethods,
+        IReadOnlyDictionary<string, MethodModel> methodsByGroupKey,
+        string containingTypeDisplayForExisting)
     {
         var signatureKeys = new HashSet<string>(StringComparer.Ordinal);
-        var existingKeys = BuildExistingMethodKeys(method.ContainingTypeDisplay, method.Name);
+        var existingKeys = BuildExistingMethodKeys(containingTypeDisplayForExisting, baseMethod.Name);
 
-        var parameterCount = method.Parameters.Items.Length;
-        var originalParameters = method.Parameters.Items;
+        var parameterCount = baseMethod.Parameters.Items.Length;
+        var originalParameters = baseMethod.Parameters.Items;
         var optionalIndexSpecs = BuildOptionalIndexSpecs(windowSpecs, parameterCount);
         var unionOptional = optionalIndexSpecs.SelectMany(spec => spec.Indices).Distinct().ToArray();
-        var defaultMap = BuildDefaultValueMap(method);
+        var defaultMap = BuildDefaultValueMap(baseMethod);
         var unionHasDefaults = unionOptional.Any(index => defaultMap.TryGetValue(
             originalParameters[index].Name,
             out var hasDefault) && hasDefault);
@@ -341,13 +347,13 @@ internal sealed class OverloadPlanBuilder
 
         if (unionHasDefaults)
         {
-            Report(GeneratorDiagnostics.DefaultsInWindow, method.IdentifierLocation, method.Name);
+            Report(GeneratorDiagnostics.DefaultsInWindow, baseMethod.IdentifierLocation, baseMethod.Name);
             yield break;
         }
 
         if (paramsIndex >= 0 && !unionOptional.Contains(paramsIndex))
         {
-            Report(GeneratorDiagnostics.ParamsOutsideWindow, method.IdentifierLocation, method.Name);
+            Report(GeneratorDiagnostics.ParamsOutsideWindow, baseMethod.IdentifierLocation, baseMethod.Name);
             yield break;
         }
 
@@ -368,7 +374,11 @@ internal sealed class OverloadPlanBuilder
             {
                 if (omittedIndices.Length == 0) continue;
 
-                var omittedParameters = omittedIndices.Select(i => originalParameters[i]).ToArray();
+                var method = methodsByGroupKey.TryGetValue(optionalSpec.GroupKey, out var candidate)
+                    ? candidate
+                    : baseMethod;
+                var methodParameters = method.Parameters.Items;
+                var omittedParameters = omittedIndices.Select(i => methodParameters[i]).ToArray();
 
                 if (omittedParameters.Any(p => p.RefKind != RefKind.None))
                 {
@@ -382,7 +392,7 @@ internal sealed class OverloadPlanBuilder
 
                 if (omittedParameters.All(p => IsDefaultableParameter(p, defaultMap))) continue;
 
-                var keptParameters = originalParameters.Where((_, index) => Array.IndexOf(omittedIndices, index) < 0)
+                var keptParameters = methodParameters.Where((_, index) => Array.IndexOf(omittedIndices, index) < 0)
                     .ToArray();
 
                 var key = MethodIdentity.BuildSignatureKey(method.Name, method.TypeParameterCount, keptParameters);
@@ -788,11 +798,106 @@ internal sealed class OverloadPlanBuilder
         Report(GeneratorDiagnostics.InvalidBucketType, location, bucketType.DisplayName, reason);
     }
 
-    private MethodModel ApplySuppliedParameterTypes(MethodModel method)
+    private Dictionary<string, (string Display, string Signature)> BuildSupplyMap(MethodModel method)
     {
-        if (method.SupplyParameterTypes.Items.Length == 0) return method;
+        var typeReplacements = BuildContainingTypeSupplyMap(method);
+        var methodReplacements = BuildMethodSupplyMap(method);
+
+        if (methodReplacements.Count == 0) return typeReplacements;
+
+        if (typeReplacements.Count == 0) return methodReplacements;
+
+        foreach (var pair in methodReplacements) typeReplacements[pair.Key] = pair.Value;
+
+        return typeReplacements;
+    }
+
+    private static Dictionary<string, (string Display, string Signature)> MergeSupplyMaps(
+        IReadOnlyDictionary<string, (string Display, string Signature)> matcherReplacements,
+        IReadOnlyDictionary<string, (string Display, string Signature)> targetReplacements)
+    {
+        var merged = new Dictionary<string, (string Display, string Signature)>(StringComparer.Ordinal);
+        foreach (var pair in matcherReplacements) merged[pair.Key] = pair.Value;
+        foreach (var pair in targetReplacements) merged[pair.Key] = pair.Value;
+        return merged;
+    }
+
+    private Dictionary<string, (string Display, string Signature)> BuildContainingTypeSupplyMap(MethodModel method)
+    {
+        if (method.ContainingTypeSupplyParameterTypes.Items.Length == 0)
+            return new Dictionary<string, (string Display, string Signature)>(StringComparer.Ordinal);
+
+        var typeParameters = new HashSet<string>(method.ContainingTypeParameterNames.Items, StringComparer.Ordinal);
+        var replacements = new Dictionary<string, (string Display, string Signature)>(StringComparer.Ordinal);
+        var scopeSeen = new Dictionary<string, (string Display, string Signature)>(StringComparer.Ordinal);
+        var scopeConflicts = new HashSet<string>(StringComparer.Ordinal);
+        var currentScopeId = int.MinValue;
+
+        foreach (var supply in method.ContainingTypeSupplyParameterTypes.Items)
+        {
+            if (currentScopeId != supply.ScopeId)
+            {
+                ApplyScopeReplacements(scopeSeen, scopeConflicts, replacements);
+                scopeSeen.Clear();
+                scopeConflicts.Clear();
+                currentScopeId = supply.ScopeId;
+            }
+
+            if (!supply.IsValid)
+            {
+                var location = supply.NameLocation
+                               ?? supply.TypeLocation
+                               ?? supply.AttributeLocation
+                               ?? method.IdentifierLocation;
+                var reason = string.IsNullOrWhiteSpace(supply.InvalidReason)
+                    ? "Invalid SupplyParameterType."
+                    : supply.InvalidReason!;
+                Report(GeneratorDiagnostics.InvalidSupplyParameterType, location, method.Name, reason);
+                continue;
+            }
+
+            if (!typeParameters.Contains(supply.TypeParameterName))
+            {
+                var location = supply.NameLocation
+                               ?? supply.AttributeLocation
+                               ?? method.IdentifierLocation;
+                Report(
+                    GeneratorDiagnostics.SupplyParameterTypeMissingTypeParameter,
+                    location,
+                    supply.TypeParameterName,
+                    method.Name);
+                continue;
+            }
+
+            if (scopeSeen.ContainsKey(supply.TypeParameterName))
+            {
+                if (scopeConflicts.Add(supply.TypeParameterName))
+                    Report(
+                        GeneratorDiagnostics.SupplyParameterTypeConflicting,
+                        supply.AttributeLocation ?? method.IdentifierLocation,
+                        supply.TypeParameterName,
+                        method.Name);
+                continue;
+            }
+
+            scopeSeen[supply.TypeParameterName] =
+                (supply.SuppliedTypeDisplay, supply.SuppliedSignatureTypeDisplay);
+        }
+
+        ApplyScopeReplacements(scopeSeen, scopeConflicts, replacements);
+
+        return replacements;
+    }
+
+    private Dictionary<string, (string Display, string Signature)> BuildMethodSupplyMap(MethodModel method)
+    {
+        if (method.SupplyParameterTypes.Items.Length == 0)
+            return new Dictionary<string, (string Display, string Signature)>(StringComparer.Ordinal);
 
         var methodTypeParameters = new HashSet<string>(method.TypeParameterNames.Items, StringComparer.Ordinal);
+        var containingTypeParameters = new HashSet<string>(
+            method.ContainingTypeParameterNames.Items,
+            StringComparer.Ordinal);
         var replacements = new Dictionary<string, (string Display, string Signature)>(StringComparer.Ordinal);
         var conflicts = new HashSet<string>(StringComparer.Ordinal);
 
@@ -811,7 +916,11 @@ internal sealed class OverloadPlanBuilder
                 continue;
             }
 
-            if (!methodTypeParameters.Contains(supply.TypeParameterName))
+            var name = supply.TypeParameterName;
+            var isMethodTypeParam = methodTypeParameters.Contains(name);
+            var isContainingTypeParam = containingTypeParameters.Contains(name);
+
+            if (!isMethodTypeParam && !isContainingTypeParam)
             {
                 var location = supply.NameLocation
                                ?? supply.AttributeLocation
@@ -824,37 +933,67 @@ internal sealed class OverloadPlanBuilder
                 continue;
             }
 
-            if (replacements.TryGetValue(supply.TypeParameterName, out var existing))
+            if (replacements.ContainsKey(name))
             {
-                if (!string.Equals(existing.Display, supply.SuppliedTypeDisplay, StringComparison.Ordinal)
-                    || !string.Equals(existing.Signature, supply.SuppliedSignatureTypeDisplay, StringComparison.Ordinal))
-                {
+                if (conflicts.Add(name))
                     Report(
                         GeneratorDiagnostics.SupplyParameterTypeConflicting,
                         supply.AttributeLocation ?? method.IdentifierLocation,
                         supply.TypeParameterName,
                         method.Name);
-                    conflicts.Add(supply.TypeParameterName);
-                }
                 continue;
             }
 
-            replacements[supply.TypeParameterName] = (supply.SuppliedTypeDisplay, supply.SuppliedSignatureTypeDisplay);
+            replacements[name] = (supply.SuppliedTypeDisplay, supply.SuppliedSignatureTypeDisplay);
         }
 
         if (conflicts.Count > 0)
             foreach (var name in conflicts)
                 replacements.Remove(name);
 
+        return replacements;
+    }
+
+    private static void ApplyScopeReplacements(
+        Dictionary<string, (string Display, string Signature)> scopeSeen,
+        HashSet<string> scopeConflicts,
+        Dictionary<string, (string Display, string Signature)> replacements)
+    {
+        if (scopeSeen.Count == 0) return;
+
+        foreach (var pair in scopeSeen)
+        {
+            if (scopeConflicts.Contains(pair.Key)) continue;
+
+            replacements[pair.Key] = pair.Value;
+        }
+    }
+
+    private MethodModel ApplySupplyMap(
+        MethodModel method,
+        IReadOnlyDictionary<string, (string Display, string Signature)> replacements)
+    {
         if (replacements.Count == 0) return method;
 
         var originalTypeParams = method.TypeParameterNames.Items;
+        var removedMethodNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var name in originalTypeParams)
+            if (replacements.ContainsKey(name))
+                removedMethodNames.Add(name);
         var remainingTypeParams = originalTypeParams
-            .Where(name => !replacements.ContainsKey(name))
+            .Where(name => !removedMethodNames.Contains(name))
             .ToArray();
-        var removedNames = new HashSet<string>(replacements.Keys, StringComparer.Ordinal);
         var invocationTypeArguments = originalTypeParams
             .Select(name => replacements.TryGetValue(name, out var replacement) ? replacement.Display : name)
+            .ToArray();
+
+        var originalContainingParams = method.ContainingTypeParameterNames.Items;
+        var removedContainingNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var name in originalContainingParams)
+            if (replacements.ContainsKey(name))
+                removedContainingNames.Add(name);
+        var remainingContainingParams = originalContainingParams
+            .Where(name => !removedContainingNames.Contains(name))
             .ToArray();
 
         var updatedParameters = method.Parameters.Items
@@ -868,10 +1007,15 @@ internal sealed class OverloadPlanBuilder
 
         return method with
         {
+            ContainingTypeDisplay = ReplaceTypeParameters(method.ContainingTypeDisplay, replacements, useSignature: false),
             ReturnTypeDisplay = ReplaceTypeParameters(method.ReturnTypeDisplay, replacements, useSignature: false),
             TypeParameterNames = new EquatableArray<string>(remainingTypeParams.ToImmutableArray()),
             TypeParameterCount = remainingTypeParams.Length,
-            TypeParameterConstraints = RemoveTypeParameterConstraints(method.TypeParameterConstraints, removedNames),
+            TypeParameterConstraints = RemoveTypeParameterConstraints(method.TypeParameterConstraints, removedMethodNames),
+            ContainingTypeParameterNames = new EquatableArray<string>(remainingContainingParams.ToImmutableArray()),
+            ContainingTypeParameterConstraints = RemoveTypeParameterConstraints(
+                method.ContainingTypeParameterConstraints,
+                removedContainingNames),
             InvocationTypeArguments = new EquatableArray<string>(invocationTypeArguments.ToImmutableArray()),
             Parameters = new EquatableArray<ParameterModel>(updatedParameters.ToImmutableArray())
         };

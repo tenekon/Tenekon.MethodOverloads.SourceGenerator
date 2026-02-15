@@ -85,7 +85,9 @@ internal static partial class Parser
         var typeParameterNames = methodSymbol.TypeParameters.Select(tp => tp.Name).ToImmutableArray();
         var containingTypeParameters = BuildContainingTypeParameterInfo(methodSymbol);
         var constraints = BuildTypeParameterConstraints(methodSymbol);
-        var supplyParameterTypes = ExtractSupplyParameterTypes(methodSymbol, cancellationToken);
+        var containingTypeSupplyParameterTypes =
+            ExtractContainingTypeSupplyParameterTypes(methodSymbol, cancellationToken);
+        var supplyParameterTypes = ExtractSupplyParameterTypes(methodSymbol, cancellationToken, scopeId: 0);
         var (options, fromAttribute) = ExtractOverloadOptions(methodSymbol, cancellationToken);
 
         return new MethodModel(
@@ -101,6 +103,7 @@ internal static partial class Parser
             constraints,
             containingTypeParameters.Names,
             containingTypeParameters.Constraints,
+            new EquatableArray<SupplyParameterTypeModel>(containingTypeSupplyParameterTypes),
             new EquatableArray<SupplyParameterTypeModel>(supplyParameterTypes),
             new EquatableArray<string>(typeParameterNames),
             new EquatableArray<ParameterModel>([.. parameters]),
@@ -170,10 +173,11 @@ internal static partial class Parser
     }
 
     private static ImmutableArray<SupplyParameterTypeModel> ExtractSupplyParameterTypes(
-        IMethodSymbol methodSymbol,
-        CancellationToken cancellationToken)
+        ISymbol symbol,
+        CancellationToken cancellationToken,
+        int scopeId)
     {
-        var attributes = RoslynHelpers.GetAttributes(methodSymbol, "SupplyParameterTypeAttribute");
+        var attributes = RoslynHelpers.GetAttributes(symbol, "SupplyParameterTypeAttribute");
         if (attributes.IsDefaultOrEmpty) return ImmutableArray<SupplyParameterTypeModel>.Empty;
 
         var builder = ImmutableArray.CreateBuilder<SupplyParameterTypeModel>();
@@ -182,7 +186,33 @@ internal static partial class Parser
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            builder.Add(ExtractSupplyParameterType(attribute, cancellationToken));
+            builder.Add(ExtractSupplyParameterType(attribute, cancellationToken, scopeId));
+        }
+
+        return builder.ToImmutable();
+    }
+
+    private static ImmutableArray<SupplyParameterTypeModel> ExtractContainingTypeSupplyParameterTypes(
+        IMethodSymbol methodSymbol,
+        CancellationToken cancellationToken)
+    {
+        var builder = ImmutableArray.CreateBuilder<SupplyParameterTypeModel>();
+        var typeStack = new Stack<INamedTypeSymbol>();
+        var current = methodSymbol.ContainingType;
+        while (current is not null)
+        {
+            typeStack.Push(current);
+            current = current.ContainingType;
+        }
+
+        var scopeId = 1;
+        while (typeStack.Count > 0)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var typeSymbol = typeStack.Pop();
+            var supplies = ExtractSupplyParameterTypes(typeSymbol, cancellationToken, scopeId);
+            if (!supplies.IsDefaultOrEmpty) builder.AddRange(supplies);
+            scopeId++;
         }
 
         return builder.ToImmutable();
@@ -190,7 +220,8 @@ internal static partial class Parser
 
     private static SupplyParameterTypeModel ExtractSupplyParameterType(
         AttributeData attribute,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int scopeId)
     {
         var syntax = attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken) as AttributeSyntax;
         SourceLocationModel? attributeLocation = syntax is null
@@ -250,6 +281,7 @@ internal static partial class Parser
             invalidReason = "SupplyParameterType requires a type parameter name.";
 
         return new SupplyParameterTypeModel(
+            scopeId,
             typeParamName ?? string.Empty,
             typeDisplay,
             signatureDisplay,
@@ -489,6 +521,7 @@ internal static partial class Parser
             foreach (var constant in named.Value.Values)
                 if (constant.Value is INamedTypeSymbol matcherType)
                 {
+                    if (matcherType.IsUnboundGenericType) matcherType = matcherType.OriginalDefinition;
                     var display = matcherType.ToDisplayString(RoslynHelpers.TypeDisplayFormat);
                     if (!seen.Add(display)) continue;
 

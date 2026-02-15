@@ -52,7 +52,7 @@ public sealed class MethodOverloadsDiagnosticsAnalyzer : DiagnosticAnalyzer
 
             var typeTargets = new ConcurrentBag<TypeTargetInput>();
             var methodTargets = new ConcurrentBag<MethodTargetInput>();
-
+            
             startContext.RegisterOperationAction(
                 operationContext => AnalyzeAttributeOperation(operationContext, typeTargets, methodTargets),
                 OperationKind.Attribute);
