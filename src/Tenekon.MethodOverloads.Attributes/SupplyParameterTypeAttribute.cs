@@ -17,4 +17,6 @@ public sealed class SupplyParameterTypeAttribute : global::System.Attribute
     public string TypeParameterName { get; }
 
     public global::System.Type SuppliedType { get; }
+
+    public object? Group { get; set; }
 }

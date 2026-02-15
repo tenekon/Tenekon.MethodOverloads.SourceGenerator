@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -232,32 +233,44 @@ internal static partial class Parser
 
         string? invalidReason = null;
         string? typeParamName = null;
+        var groupKey = GroupKey.Default;
 
         if (syntax is not null)
         {
-            if (syntax.ArgumentList is null || syntax.ArgumentList.Arguments.Count != 2)
+            if (syntax.ArgumentList is null)
             {
                 invalidReason ??= "SupplyParameterType requires two positional arguments.";
             }
             else
             {
-                var firstArg = syntax.ArgumentList.Arguments[0].Expression;
-                var secondArg = syntax.ArgumentList.Arguments[1].Expression;
+                var positionalArgs = syntax.ArgumentList.Arguments
+                    .Where(arg => arg.NameEquals is null && arg.NameColon is null)
+                    .ToList();
 
-                if (TryGetNameofIdentifier(firstArg, out var name, out var nameLoc))
+                if (positionalArgs.Count != 2)
                 {
-                    typeParamName = name;
-                    nameLocation = nameLoc;
+                    invalidReason ??= "SupplyParameterType requires two positional arguments.";
                 }
                 else
                 {
-                    invalidReason ??= "SupplyParameterType requires nameof(<TypeParameter>) as the first argument.";
-                }
+                    var firstArg = positionalArgs[0].Expression;
+                    var secondArg = positionalArgs[1].Expression;
 
-                if (!TryGetTypeofExpression(secondArg, out var typeLoc))
-                    invalidReason ??= "SupplyParameterType requires typeof(<Type>) as the second argument.";
-                else
-                    typeLocation = typeLoc;
+                    if (TryGetNameofIdentifier(firstArg, out var name, out var nameLoc))
+                    {
+                        typeParamName = name;
+                        nameLocation = nameLoc;
+                    }
+                    else
+                    {
+                        invalidReason ??= "SupplyParameterType requires nameof(<TypeParameter>) as the first argument.";
+                    }
+
+                    if (!TryGetTypeofExpression(secondArg, out var typeLoc))
+                        invalidReason ??= "SupplyParameterType requires typeof(<Type>) as the second argument.";
+                    else
+                        typeLocation = typeLoc;
+                }
             }
         }
 
@@ -280,8 +293,15 @@ internal static partial class Parser
         if (string.IsNullOrWhiteSpace(typeParamName) && invalidReason is null)
             invalidReason = "SupplyParameterType requires a type parameter name.";
 
+        if (TryGetGroupArgument(attribute, out var groupConstant))
+        {
+            if (!TryGetGroupKey(groupConstant, out groupKey, out var groupError))
+                invalidReason ??= groupError ?? "SupplyParameterType requires a valid Group argument.";
+        }
+
         return new SupplyParameterTypeModel(
             scopeId,
+            groupKey,
             typeParamName ?? string.Empty,
             typeDisplay,
             signatureDisplay,
@@ -290,6 +310,73 @@ internal static partial class Parser
             attributeLocation,
             nameLocation,
             typeLocation);
+    }
+
+    private static bool TryGetGroupArgument(AttributeData attribute, out TypedConstant constant)
+    {
+        foreach (var named in attribute.NamedArguments)
+        {
+            if (!string.Equals(named.Key, "Group", StringComparison.Ordinal)) continue;
+
+            constant = named.Value;
+            return true;
+        }
+
+        constant = default;
+        return false;
+    }
+
+    private static bool TryGetGroupKey(
+        TypedConstant constant,
+        out GroupKey key,
+        out string? invalidReason)
+    {
+        invalidReason = null;
+        key = GroupKey.Default;
+
+        if (constant.IsNull) return true;
+
+        switch (constant.Kind)
+        {
+            case TypedConstantKind.Type:
+                if (constant.Value is ITypeSymbol typeSymbol)
+                {
+                    var display = typeSymbol.ToDisplayString(RoslynHelpers.TypeDisplayFormat);
+                    key = GroupKey.FromTypeDisplay(display);
+                    return true;
+                }
+
+                invalidReason = "SupplyParameterType Group requires typeof(<Type>) when specifying a type.";
+                return false;
+
+            case TypedConstantKind.Primitive:
+            case TypedConstantKind.Enum:
+                if (constant.Value is null) return true;
+                key = GroupKey.FromConstant(BuildConstantKey(constant));
+                return true;
+
+            default:
+                invalidReason = "SupplyParameterType Group must be a type or constant.";
+                return false;
+        }
+    }
+
+    private static string BuildConstantKey(TypedConstant constant)
+    {
+        var typeDisplay = constant.Type?.ToDisplayString(RoslynHelpers.TypeDisplayFormat) ?? "unknown";
+        return typeDisplay + ":" + FormatConstantValue(constant.Value);
+    }
+
+    private static string FormatConstantValue(object? value)
+    {
+        if (value is null) return "null";
+        if (value is string s) return s;
+        if (value is char c) return c.ToString();
+        if (value is bool b) return b ? "true" : "false";
+        if (value is IFormattable formattable)
+            return formattable.ToString(null, CultureInfo.InvariantCulture);
+
+        return value.ToString() ?? string.Empty;
     }
 
     private static bool TryGetNameofIdentifier(

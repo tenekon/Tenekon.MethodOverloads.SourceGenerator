@@ -2,6 +2,7 @@ namespace Tenekon.MethodOverloads.SourceGenerator.Models;
 
 internal readonly record struct SupplyParameterTypeModel(
     int ScopeId,
+    GroupKey Group,
     string TypeParameterName,
     string SuppliedTypeDisplay,
     string SuppliedSignatureTypeDisplay,

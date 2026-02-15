@@ -2,11 +2,11 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias.SupplyParameterType;
 
-[SuppressMessage("MethodOverloadsGenerator", "MOG014")]
-public sealed class SupplyParameterType_Class_7
+[SuppressMessage("MethodOverloadsGenerator", "MOG015")]
+public sealed class SupplyParameterType_Class_16
 {
     [GenerateOverloads(nameof(optionalObject))]
-    [SupplyParameterType("TConstraint", typeof(SupplyParameterType_Constraint))]
+    [SupplyParameterType(nameof(SupplyParameterType_Constraint), typeof(SupplyParameterType_Constraint))]
     public void Case_1<TConstraint>(
         SupplyParameterType_IService<TConstraint>? constrainedService,
         object? optionalObject)

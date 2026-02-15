@@ -13,13 +13,3 @@ public sealed class SupplyParameterType_Class_8
     {
     }
 }
-
-public static class SupplyParameterType_Class_8_AcceptanceCriterias
-{
-    public static void Case_1<TConstraint>(
-        this SupplyParameterType_Class_8 source,
-        SupplyParameterType_IService<TConstraint>? constrainedService)
-    {
-        source.Case_1<TConstraint>(constrainedService, default);
-    }
-}
