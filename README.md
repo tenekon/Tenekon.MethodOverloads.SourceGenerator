@@ -24,6 +24,7 @@ A C# source generator that creates extension overloads by treating a selected pa
 ## Core Concepts
 
 - **Window**: the parameter range that can be omitted to produce overloads.
+- **ExcludeAny**: a list of parameter names that must be omitted in every overload within the window.
 - **Matchers**: define windows on matcher methods and apply them to target methods.
 - **Bucketization**: route generated methods into a specific static partial class.
 - **SupplyParameterType**: substitute method type parameters with concrete types before generation.
@@ -71,7 +72,20 @@ Use `Begin`, `End`, `BeginExclusive`, `EndExclusive`, or the constructor `Genera
 public void Query(int start, int end, bool includeMetadata, string? tag) { }
 ```
 
-### 3) Matcher-Based Generation (Method-Level)
+### 3) ExcludeAny (Forced Omissions)
+
+ExcludeAny forces specific parameters inside the window to be omitted in every generated overload.
+
+```csharp
+[GenerateOverloads(Begin = nameof(optionalA), End = nameof(optionalC), ExcludeAny = [nameof(optionalB)])]
+public void Configure(int required, string? optionalA, string? optionalB, string? optionalC) { }
+```
+
+Notes:
+- `ExcludeAny` cannot be combined with `Matchers` on the same attribute.
+- If ExcludeAny covers the whole window, no overloads are generated for that attribute.
+
+### 4) Matcher-Based Generation (Method-Level)
 
 Input:
 ```csharp
@@ -103,7 +117,7 @@ public static class MethodOverloads
 }
 ```
 
-### 4) Matcher-Based Generation (Type-Level + Static Target)
+### 5) Matcher-Based Generation (Type-Level + Static Target)
 
 Input:
 ```csharp
@@ -138,7 +152,7 @@ public static class MethodOverloads
 }
 ```
 
-### 5) Range Anchor Match Mode
+### 6) Range Anchor Match Mode
 
 `RangeAnchorMatchMode.TypeOnly` (default) matches by type only.  
 `RangeAnchorMatchMode.TypeAndName` requires matching names as well.
@@ -149,7 +163,7 @@ public static class MethodOverloads
 public void Call(string id, string name, bool active) { }
 ```
 
-### 6) Subsequence Strategy
+### 7) Subsequence Strategy
 
 `OverloadSubsequenceStrategy.UniqueBySignature` (default) generates all unique overloads.  
 `OverloadSubsequenceStrategy.PrefixOnly` generates only prefix omissions.
@@ -160,7 +174,7 @@ public void Call(string id, string name, bool active) { }
 public void Configure(int required, string? optionalA, bool optionalB) { }
 ```
 
-### 7) Overload Visibility
+### 8) Overload Visibility
 
 ```csharp
 [OverloadGenerationOptions(OverloadVisibility = OverloadVisibility.Internal)]
@@ -168,7 +182,7 @@ public void Configure(int required, string? optionalA, bool optionalB) { }
 public void Configure(int required, string? optionalA, bool optionalB) { }
 ```
 
-### 8) Bucketization (Scoped Static Classes)
+### 9) Bucketization (Scoped Static Classes)
 
 Route generated overloads into a specific static partial class:
 
@@ -191,7 +205,7 @@ public static partial class MyBucket
 }
 ```
 
-### 9) SupplyParameterType (Generic Substitution)
+### 10) SupplyParameterType (Generic Substitution)
 
 Replace method type parameters with concrete types in generated overloads and invocations.
 
@@ -219,7 +233,7 @@ public static class MethodOverloads
 
 If only some method type parameters are supplied, the overload stays generic for the remaining ones.
 
-### 10) Generic Containing Types
+### 11) Generic Containing Types
 
 Containing type type parameters and constraints are preserved on generated overloads.
 
@@ -262,6 +276,9 @@ Diagnostics are reported by the analyzer and surfaced during build:
 - `MOG014` Invalid SupplyParameterType usage.
 - `MOG015` SupplyParameterType refers to missing type parameter.
 - `MOG016` Conflicting SupplyParameterType mappings.
+- `MOG017` Matchers + ExcludeAny conflict.
+- `MOG018` ExcludeAny refers to missing/out-of-window parameter.
+- `MOG019` ExcludeAny contains invalid entries.
 
 You can downgrade error-level diagnostics in `.globalconfig` if you need the project to compile with intentional violations.
 
