@@ -1,19 +1,22 @@
 #nullable enable
 namespace Tenekon.MethodOverloads;
 
-public enum RangeAnchorMatchMode
+[global::Microsoft.CodeAnalysis.Embedded]
+internal enum RangeAnchorMatchMode
 {
     TypeOnly,
     TypeAndName
 }
 
-public enum OverloadSubsequenceStrategy
+[global::Microsoft.CodeAnalysis.Embedded]
+internal enum OverloadSubsequenceStrategy
 {
     PrefixOnly,
     UniqueBySignature
 }
 
-public enum OverloadVisibility
+[global::Microsoft.CodeAnalysis.Embedded]
+internal enum OverloadVisibility
 {
     MatchTarget,
     Public,
@@ -21,6 +24,7 @@ public enum OverloadVisibility
     Private
 }
 
+[global::Microsoft.CodeAnalysis.Embedded]
 [global::System.AttributeUsage(
     global::System.AttributeTargets.Class | global::System.AttributeTargets.Struct
     | global::System.AttributeTargets.Interface | global::System.AttributeTargets.Method)]

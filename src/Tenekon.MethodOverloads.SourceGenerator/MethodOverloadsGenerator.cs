@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -17,10 +18,11 @@ public sealed class MethodOverloadsGenerator : IIncrementalGenerator
     {
         context.RegisterPostInitializationOutput(static postContext =>
         {
-            // This generates the correct "internal sealed partial class" definition of EmbeddedAttribute
-            // as expected by the Roslyn compiler.
-            // See: https://github.com/dotnet/roslyn/issues/76584
-            postContext.AddEmbeddedAttributeDefinition();
+            // Use once we do not embed attributes ourselves
+            // // This generates the correct "internal sealed partial class" definition of EmbeddedAttribute
+            // // as expected by the Roslyn compiler.
+            // // See: https://github.com/dotnet/roslyn/issues/76584
+            // postContext.AddEmbeddedAttributeDefinition();
             
             postContext.AddSource(
                 "EmbeddedAttribute.g.cs",
@@ -95,7 +97,7 @@ public sealed class MethodOverloadsGenerator : IIncrementalGenerator
 
     private static string LoadAttributeSource(string resourceName)
     {
-        var assembly = typeof(GenerateOverloadsAttribute).Assembly;
+        var assembly = typeof(AssemblyMarker).Assembly;
         using var stream = assembly.GetManifestResourceStream(resourceName)
             ?? throw new InvalidOperationException("Missing embedded attribute resource: " + resourceName);
         using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);

@@ -740,6 +740,9 @@ internal static partial class Parser
         string? beginExclusive = null;
         string? end = null;
         string? endExclusive = null;
+        var excludeAny = EquatableArray<string>.Empty;
+        var hasInvalidExcludeAny = false;
+        SourceLocationModel? invalidExcludeAnyLocation = null;
 
         if (attribute.ConstructorArguments.Length > 0
             && attribute.ConstructorArguments[index: 0].Kind == TypedConstantKind.Primitive
@@ -748,6 +751,15 @@ internal static partial class Parser
 
         foreach (var arg in attribute.NamedArguments)
         {
+            if (string.Equals(arg.Key, "ExcludeAny", StringComparison.Ordinal))
+            {
+                excludeAny = ExtractExcludeAnyFromAttribute(
+                    arg.Value,
+                    out hasInvalidExcludeAny);
+                if (hasInvalidExcludeAny) invalidExcludeAnyLocation = attributeLocation;
+                continue;
+            }
+
             if (arg.Value.Kind != TypedConstantKind.Primitive || arg.Value.Value is not string value) continue;
 
             if (string.Equals(arg.Key, "Begin", StringComparison.Ordinal))
@@ -765,6 +777,9 @@ internal static partial class Parser
             beginExclusive,
             end,
             endExclusive,
+            excludeAny,
+            hasInvalidExcludeAny,
+            invalidExcludeAnyLocation,
             attributeLocation,
             identifierLocation,
             SyntaxAttributeLocation: null);
@@ -779,6 +794,9 @@ internal static partial class Parser
         string? beginExclusive = null;
         string? end = null;
         string? endExclusive = null;
+        var excludeAny = EquatableArray<string>.Empty;
+        var hasInvalidExcludeAny = false;
+        SourceLocationModel? invalidExcludeAnyLocation = null;
 
         if (attribute.ArgumentList is not null)
             foreach (var argument in attribute.ArgumentList.Arguments)
@@ -795,6 +813,15 @@ internal static partial class Parser
                 }
 
                 var name = argument.NameEquals.Name.Identifier.ValueText;
+                if (string.Equals(name, "ExcludeAny", StringComparison.Ordinal))
+                {
+                    excludeAny = ExtractExcludeAnyFromSyntax(
+                        argument.Expression,
+                        out hasInvalidExcludeAny,
+                        out invalidExcludeAnyLocation);
+                    continue;
+                }
+
                 var value = GetAttributeStringValue(argument.Expression);
 
                 if (string.IsNullOrEmpty(value)) continue;
@@ -814,6 +841,9 @@ internal static partial class Parser
             beginExclusive,
             end,
             endExclusive,
+            excludeAny,
+            hasInvalidExcludeAny,
+            invalidExcludeAnyLocation,
             AttributeLocation: null,
             identifierLocation,
             SourceLocationModel.FromSyntaxNode(attribute));
@@ -841,6 +871,116 @@ internal static partial class Parser
         }
 
         return false;
+    }
+
+    private static EquatableArray<string> ExtractExcludeAnyFromAttribute(
+        TypedConstant constant,
+        out bool hasInvalidExcludeAny)
+    {
+        hasInvalidExcludeAny = false;
+        if (constant.Kind != TypedConstantKind.Array) return EquatableArray<string>.Empty;
+
+        var builder = ImmutableArray.CreateBuilder<string>();
+        foreach (var entry in constant.Values)
+        {
+            if (entry.Kind != TypedConstantKind.Primitive || entry.Value is not string value
+                || string.IsNullOrEmpty(value))
+            {
+                hasInvalidExcludeAny = true;
+                continue;
+            }
+
+            builder.Add(value);
+        }
+
+        return new EquatableArray<string>(builder.ToImmutable());
+    }
+
+    private static EquatableArray<string> ExtractExcludeAnyFromSyntax(
+        ExpressionSyntax expression,
+        out bool hasInvalidExcludeAny,
+        out SourceLocationModel? invalidExcludeAnyLocation)
+    {
+        hasInvalidExcludeAny = false;
+        invalidExcludeAnyLocation = null;
+
+        var values = new List<string>();
+        if (!TryExtractExcludeAnyValues(expression, values, out invalidExcludeAnyLocation))
+        {
+            hasInvalidExcludeAny = true;
+            return EquatableArray<string>.Empty;
+        }
+
+        return new EquatableArray<string>(values.ToImmutableArray());
+    }
+
+    private static bool TryExtractExcludeAnyValues(
+        ExpressionSyntax expression,
+        List<string> values,
+        out SourceLocationModel? invalidLocation)
+    {
+        invalidLocation = null;
+
+        switch (expression)
+        {
+            case ArrayCreationExpressionSyntax arrayCreation:
+                return TryExtractExcludeAnyFromInitializer(arrayCreation.Initializer, values, out invalidLocation);
+
+            case ImplicitArrayCreationExpressionSyntax implicitArray:
+                return TryExtractExcludeAnyFromInitializer(implicitArray.Initializer, values, out invalidLocation);
+
+            case CollectionExpressionSyntax collection:
+                foreach (var element in collection.Elements)
+                {
+                    if (element is not ExpressionElementSyntax expressionElement)
+                    {
+                        invalidLocation = SourceLocationModel.FromSyntaxNode(element);
+                        return false;
+                    }
+
+                    var value = GetAttributeStringValue(expressionElement.Expression);
+                    if (value is null || value.Length == 0)
+                    {
+                        invalidLocation = SourceLocationModel.FromSyntaxNode(expressionElement.Expression);
+                        return false;
+                    }
+
+                    values.Add(value);
+                }
+
+                return true;
+
+            default:
+                invalidLocation = SourceLocationModel.FromSyntaxNode(expression);
+                return false;
+        }
+    }
+
+    private static bool TryExtractExcludeAnyFromInitializer(
+        InitializerExpressionSyntax? initializer,
+        List<string> values,
+        out SourceLocationModel? invalidLocation)
+    {
+        invalidLocation = null;
+        if (initializer is null)
+        {
+            invalidLocation = null;
+            return false;
+        }
+
+        foreach (var expression in initializer.Expressions)
+        {
+            var value = GetAttributeStringValue(expression);
+            if (value is null || value.Length == 0)
+            {
+                invalidLocation = SourceLocationModel.FromSyntaxNode(expression);
+                return false;
+            }
+
+            values.Add(value);
+        }
+
+        return true;
     }
 
     private static string? GetAttributeStringValue(ExpressionSyntax expression)

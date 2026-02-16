@@ -1,8 +1,9 @@
 #nullable enable
 namespace Tenekon.MethodOverloads;
 
+[global::Microsoft.CodeAnalysis.Embedded]
 [global::System.AttributeUsage(global::System.AttributeTargets.Method, AllowMultiple = true)]
-public sealed class GenerateOverloadsAttribute : global::System.Attribute
+internal sealed class GenerateOverloadsAttribute : global::System.Attribute
 {
     public GenerateOverloadsAttribute()
     {
@@ -33,6 +34,11 @@ public sealed class GenerateOverloadsAttribute : global::System.Attribute
     /// All parameters until <see cref="End"/> (inclusive) are considered for optional or required.
     /// </summary>
     public string? End { get; set; }
+
+    /// <summary>
+    /// Parameters listed here are always omitted from generated overloads within the resolved window.
+    /// </summary>
+    public string[]? ExcludeAny { get; set; }
 
     public global::System.Type[]? Matchers { get; set; }
 }

@@ -177,6 +177,7 @@ internal sealed class OverloadPlanBuilder
                             new WindowSpec(
                                 windowSpecFromAttribute.StartIndex,
                                 windowSpecFromAttribute.EndIndex,
+                                windowSpecFromAttribute.ExcludeAnyIndices,
                                 groupKey));
                         optionsByGroupKey[groupKey] = directOptions;
                         methodsByGroupKey[groupKey] = targetEffectiveMethod;
@@ -310,7 +311,11 @@ internal sealed class OverloadPlanBuilder
                                         out var windowFailure))
                                 {
                                     windowSpecs.Add(
-                                        new WindowSpec(windowSpec.StartIndex, windowSpec.EndIndex, groupKey));
+                                        new WindowSpec(
+                                            windowSpec.StartIndex,
+                                            windowSpec.EndIndex,
+                                            windowSpec.ExcludeAnyIndices,
+                                            groupKey));
 
                                     if (windowFailure.Kind == WindowSpecFailureKind.RedundantAnchors)
                                         Report(
@@ -375,7 +380,8 @@ internal sealed class OverloadPlanBuilder
         var parameterCount = baseMethod.Parameters.Items.Length;
         var originalParameters = baseMethod.Parameters.Items;
         var optionalIndexSpecs = BuildOptionalIndexSpecs(windowSpecs, parameterCount);
-        var unionOptional = optionalIndexSpecs.SelectMany(spec => spec.Indices).Distinct().ToArray();
+        if (optionalIndexSpecs.Count == 0) yield break;
+        var unionOptional = optionalIndexSpecs.SelectMany(spec => spec.WindowIndices).Distinct().ToArray();
         var defaultMap = BuildDefaultValueMap(baseMethod);
         var unionHasDefaults = unionOptional.Any(index => defaultMap.TryGetValue(
             originalParameters[index].Name,
@@ -400,7 +406,13 @@ internal sealed class OverloadPlanBuilder
         foreach (var optionalSpec in optionalIndexSpecs)
         {
             var options = optionsByGroupKey[optionalSpec.GroupKey];
-            var optionalIndices = optionalSpec.Indices;
+            var windowIndices = optionalSpec.WindowIndices;
+            var excludeAnyIndices = optionalSpec.ExcludeAnyIndices;
+            if (excludeAnyIndices.Length == windowIndices.Length) continue;
+
+            var optionalIndices = windowIndices
+                .Where(index => Array.IndexOf(excludeAnyIndices, index) < 0)
+                .ToArray();
             if (optionalIndices.Length == 0) continue;
 
             var omissionSets = options.SubsequenceStrategy == OverloadSubsequenceStrategy.PrefixOnly
@@ -409,13 +421,14 @@ internal sealed class OverloadPlanBuilder
 
             foreach (var omittedIndices in omissionSets)
             {
-                if (omittedIndices.Length == 0) continue;
+                if (omittedIndices.Length == 0 && excludeAnyIndices.Length == 0) continue;
 
                 var method = methodsByGroupKey.TryGetValue(optionalSpec.GroupKey, out var candidate)
                     ? candidate
                     : baseMethod;
                 var methodParameters = method.Parameters.Items;
-                var omittedParameters = omittedIndices.Select(i => methodParameters[i]).ToArray();
+                var finalOmittedIndices = MergeSortedIndices(omittedIndices, excludeAnyIndices);
+                var omittedParameters = finalOmittedIndices.Select(i => methodParameters[i]).ToArray();
 
                 if (omittedParameters.Any(p => p.RefKind != RefKind.None))
                 {
@@ -429,7 +442,8 @@ internal sealed class OverloadPlanBuilder
 
                 if (omittedParameters.All(p => IsDefaultableParameter(p, defaultMap))) continue;
 
-                var keptParameters = methodParameters.Where((_, index) => Array.IndexOf(omittedIndices, index) < 0)
+                var keptParameters = methodParameters
+                    .Where((_, index) => Array.IndexOf(finalOmittedIndices, index) < 0)
                     .ToArray();
 
                 var key = BuildGeneratedSignatureKey(method, keptParameters);
@@ -493,10 +507,18 @@ internal sealed class OverloadPlanBuilder
     {
         foreach (var attribute in attributes.Items)
         {
-            if (!attribute.HasMatchers || !attribute.Args.HasAny) continue;
+            if (!attribute.HasMatchers) continue;
 
             var location = attribute.Args.AttributeLocation
                 ?? attribute.Args.SyntaxAttributeLocation ?? method.IdentifierLocation;
+            if (attribute.Args.HasExcludeAny)
+            {
+                Report(GeneratorDiagnostics.MatchersAndExcludeAnyConflict, location, method.Name);
+                return true;
+            }
+
+            if (!attribute.Args.HasAny) continue;
+
             Report(GeneratorDiagnostics.WindowAndMatchersConflict, location, method.Name);
             return true;
         }
@@ -511,6 +533,7 @@ internal sealed class OverloadPlanBuilder
         foreach (var group in windowSpecs.GroupBy(spec => spec.GroupKey, StringComparer.Ordinal))
         {
             var union = new SortedSet<int>();
+            var unionExclude = new SortedSet<int>();
             var groupSpecs = new List<int[]>();
 
             foreach (var windowSpec in group)
@@ -521,17 +544,19 @@ internal sealed class OverloadPlanBuilder
                 if (start > end) continue;
 
                 var indices = Enumerable.Range(start, end - start + 1).ToArray();
-                specs.Add(new OptionalIndexSpec(indices, group.Key));
+                if (windowSpec.ExcludeAnyIndices.Length == indices.Length) continue;
+                specs.Add(new OptionalIndexSpec(indices, windowSpec.ExcludeAnyIndices, group.Key));
                 groupSpecs.Add(indices);
 
                 foreach (var index in indices) union.Add(index);
+                foreach (var index in windowSpec.ExcludeAnyIndices) unionExclude.Add(index);
             }
 
             if (groupSpecs.Count > 1 && union.Count > 0)
             {
                 var unionIndices = union.ToArray();
                 if (!groupSpecs.Any(spec => spec.SequenceEqual(unionIndices)))
-                    specs.Add(new OptionalIndexSpec(unionIndices, group.Key));
+                    specs.Add(new OptionalIndexSpec(unionIndices, unionExclude.ToArray(), group.Key));
             }
         }
 
@@ -550,6 +575,30 @@ internal sealed class OverloadPlanBuilder
     {
         return parameter.IsOptional || parameter.HasExplicitDefaultValue
             || (defaultMap.TryGetValue(parameter.Name, out var hasDefault) && hasDefault);
+    }
+
+    private static int[] MergeSortedIndices(int[] left, int[] right)
+    {
+        if (left.Length == 0) return right;
+        if (right.Length == 0) return left;
+
+        var result = new int[left.Length + right.Length];
+        var i = 0;
+        var j = 0;
+        var k = 0;
+
+        while (i < left.Length && j < right.Length)
+        {
+            if (left[i] < right[j])
+                result[k++] = left[i++];
+            else
+                result[k++] = right[j++];
+        }
+
+        while (i < left.Length) result[k++] = left[i++];
+        while (j < right.Length) result[k++] = right[j++];
+
+        return result;
     }
 
     private static IEnumerable<int[]> BuildAllOmissions(int[] optionalIndices)
@@ -610,6 +659,17 @@ internal sealed class OverloadPlanBuilder
             Report(GeneratorDiagnostics.BeginAndBeginExclusiveConflict, location, methodName);
         else if (failure.Kind == WindowSpecFailureKind.ConflictingEndAnchors)
             Report(GeneratorDiagnostics.EndAndEndExclusiveConflict, location, methodName);
+        else if (failure.Kind == WindowSpecFailureKind.InvalidExcludeAny)
+            Report(
+                GeneratorDiagnostics.InvalidExcludeAnyEntry,
+                args.InvalidExcludeAnyLocation ?? location,
+                methodName);
+        else if (failure.Kind == WindowSpecFailureKind.ExcludeAnyOutsideWindow)
+            Report(
+                GeneratorDiagnostics.InvalidExcludeAnyParameter,
+                location,
+                failure.AnchorValue ?? string.Empty,
+                methodName);
     }
 
     private IEnumerable<ParameterMatch> FindSubsequenceMatches(
@@ -700,6 +760,12 @@ internal sealed class OverloadPlanBuilder
 
         var matcherParams = matcherMethod.Parameters.Items;
 
+        if (args.HasInvalidExcludeAny)
+        {
+            failure = new WindowSpecFailure(WindowSpecFailureKind.InvalidExcludeAny, anchorKind: null, anchorValue: null);
+            return false;
+        }
+
         var startIndex = 0;
         var endIndex = targetMethod.Parameters.Items.Length - 1;
         if (match.TargetIndices.Length > 0)
@@ -776,19 +842,51 @@ internal sealed class OverloadPlanBuilder
             endIndex = match.TargetIndices[endIdx];
         }
 
-        if (!string.IsNullOrEmpty(args.EndExclusive))
+          if (!string.IsNullOrEmpty(args.EndExclusive))
+          {
+              var endIdx = IndexOfParameter(matcherParams, args.EndExclusive!);
+              if (endIdx < 0)
+              {
+                  failure = new WindowSpecFailure(WindowSpecFailureKind.MissingAnchor, "EndExclusive", args.EndExclusive);
+                  return false;
+              }
+
+              endIndex = match.TargetIndices[endIdx] - 1;
+          }
+
+        var excludeAnyIndices = Array.Empty<int>();
+        if (args.ExcludeAny.Items.Length > 0)
         {
-            var endIdx = IndexOfParameter(matcherParams, args.EndExclusive!);
-            if (endIdx < 0)
+            var excludeSet = new SortedSet<int>();
+            foreach (var excludeName in args.ExcludeAny.Items)
             {
-                failure = new WindowSpecFailure(WindowSpecFailureKind.MissingAnchor, "EndExclusive", args.EndExclusive);
-                return false;
+                var excludeIdx = IndexOfParameter(matcherParams, excludeName);
+                if (excludeIdx < 0)
+                {
+                    failure = new WindowSpecFailure(
+                        WindowSpecFailureKind.ExcludeAnyOutsideWindow,
+                        "ExcludeAny",
+                        excludeName);
+                    return false;
+                }
+
+                var targetIndex = match.TargetIndices[excludeIdx];
+                if (targetIndex < startIndex || targetIndex > endIndex)
+                {
+                    failure = new WindowSpecFailure(
+                        WindowSpecFailureKind.ExcludeAnyOutsideWindow,
+                        "ExcludeAny",
+                        excludeName);
+                    return false;
+                }
+
+                excludeSet.Add(targetIndex);
             }
 
-            endIndex = match.TargetIndices[endIdx] - 1;
+            if (excludeSet.Count > 0) excludeAnyIndices = excludeSet.ToArray();
         }
 
-        windowSpec = new WindowSpec(startIndex, endIndex);
+        windowSpec = new WindowSpec(startIndex, endIndex, excludeAnyIndices);
         return true;
     }
 
@@ -1255,20 +1353,23 @@ internal sealed class OverloadPlanBuilder
         return method.ContainingTypeDisplay;
     }
 
-    private readonly struct WindowSpec(int startIndex, int endIndex, string groupKey)
+    private readonly struct WindowSpec(int startIndex, int endIndex, int[] excludeAnyIndices, string groupKey)
     {
-        public WindowSpec(int startIndex, int endIndex) : this(startIndex, endIndex, string.Empty)
+        public WindowSpec(int startIndex, int endIndex, int[] excludeAnyIndices)
+            : this(startIndex, endIndex, excludeAnyIndices, string.Empty)
         {
         }
 
         public int StartIndex { get; } = startIndex;
         public int EndIndex { get; } = endIndex;
+        public int[] ExcludeAnyIndices { get; } = excludeAnyIndices;
         public string GroupKey { get; } = groupKey;
     }
 
-    private readonly struct OptionalIndexSpec(int[] indices, string groupKey)
+    private readonly struct OptionalIndexSpec(int[] windowIndices, int[] excludeAnyIndices, string groupKey)
     {
-        public int[] Indices { get; } = indices;
+        public int[] WindowIndices { get; } = windowIndices;
+        public int[] ExcludeAnyIndices { get; } = excludeAnyIndices;
         public string GroupKey { get; } = groupKey;
     }
 
@@ -1292,7 +1393,9 @@ internal sealed class OverloadPlanBuilder
         ConflictingAnchors,
         RedundantAnchors,
         ConflictingBeginAnchors,
-        ConflictingEndAnchors
+        ConflictingEndAnchors,
+        InvalidExcludeAny,
+        ExcludeAnyOutsideWindow
     }
 
     private readonly struct WindowSpecFailure(WindowSpecFailureKind kind, string? anchorKind, string? anchorValue)

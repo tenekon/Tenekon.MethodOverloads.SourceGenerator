@@ -44,6 +44,9 @@ For each target method, the generator builds one or more windows:
 - Matcher: from GenerateOverloads on the matcher method that matched the target.
 - When a matcher method matches a target in multiple places, each matched subsequence becomes its own window.
 - If a matcher method has multiple windows, a union window is computed only within that matcher group (never across different matcher methods).
+- ExcludeAny: list of parameter names that must be omitted in every overload for that attribute. ExcludeAny cannot be combined with Matchers (MOG017).
+- ExcludeAny entries must resolve to parameters inside the resolved window; invalid or out-of-window entries produce MOG018/MOG019 and skip that attribute.
+- If ExcludeAny covers the entire window, that window produces no overloads.
 
 ## 5) Matching rules
 

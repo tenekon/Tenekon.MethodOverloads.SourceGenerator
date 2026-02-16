@@ -34,7 +34,10 @@ public sealed class MethodOverloadsDiagnosticsAnalyzer : DiagnosticAnalyzer
         GeneratorDiagnostics.InvalidBucketType,
         GeneratorDiagnostics.InvalidSupplyParameterType,
         GeneratorDiagnostics.SupplyParameterTypeMissingTypeParameter,
-        GeneratorDiagnostics.SupplyParameterTypeConflicting
+        GeneratorDiagnostics.SupplyParameterTypeConflicting,
+        GeneratorDiagnostics.MatchersAndExcludeAnyConflict,
+        GeneratorDiagnostics.InvalidExcludeAnyParameter,
+        GeneratorDiagnostics.InvalidExcludeAnyEntry
     ];
 
     /// <inheritdoc/>

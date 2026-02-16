@@ -131,4 +131,28 @@ internal static class GeneratorDiagnostics
         "MethodOverloadsGenerator",
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor MatchersAndExcludeAnyConflict = new(
+        "MOG017",
+        "GenerateOverloads cannot combine Matchers and ExcludeAny",
+        "GenerateOverloads cannot combine Matchers and ExcludeAny on method '{0}'",
+        "MethodOverloadsGenerator",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidExcludeAnyParameter = new(
+        "MOG018",
+        "ExcludeAny refers to missing window parameter",
+        "GenerateOverloads ExcludeAny refers to '{0}', which is not a parameter within the resolved window on method '{1}'",
+        "MethodOverloadsGenerator",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidExcludeAnyEntry = new(
+        "MOG019",
+        "ExcludeAny contains invalid entries",
+        "GenerateOverloads ExcludeAny contains invalid entries on method '{0}'",
+        "MethodOverloadsGenerator",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

@@ -7,6 +7,6 @@
     </PropertyGroup>
     
     <ItemGroup>
-        <EmbeddedResource Include="*Attribute.cs"/>
+        <EmbeddedResource Include="*Attribute.cs" WithCulture="false" />
     </ItemGroup>
 </Project>

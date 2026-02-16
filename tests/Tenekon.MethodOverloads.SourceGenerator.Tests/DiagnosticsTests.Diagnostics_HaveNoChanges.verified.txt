@@ -126,5 +126,29 @@
     Category: MethodOverloadsGenerator,
     DefaultSeverity: 2,
     IsEnabledByDefault: true
+  },
+  {
+    Id: MOG017,
+    Title: GenerateOverloads cannot combine Matchers and ExcludeAny,
+    MessageFormat: GenerateOverloads cannot combine Matchers and ExcludeAny on method '{0}',
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 3,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG018,
+    Title: ExcludeAny refers to missing window parameter,
+    MessageFormat: GenerateOverloads ExcludeAny refers to '{0}', which is not a parameter within the resolved window on method '{1}',
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 3,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG019,
+    Title: ExcludeAny contains invalid entries,
+    MessageFormat: GenerateOverloads ExcludeAny contains invalid entries on method '{0}',
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 3,
+    IsEnabledByDefault: true
   }
 ]
