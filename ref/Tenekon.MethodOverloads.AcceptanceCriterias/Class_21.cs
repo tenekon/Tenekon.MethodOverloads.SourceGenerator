@@ -54,5 +54,5 @@ public abstract class Class_21_Matched
 
 public static class Class_21_AcceptanceCriterias
 {
-    // Diagnostics are expected for the cases above, but MatcherSignature now emits a receiver-only overload.
+    // No overloads expected: every case above only triggers a diagnostic (MatcherSignature: int vs. string → MOG002).
 }
