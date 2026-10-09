@@ -155,4 +155,20 @@ internal static class GeneratorDiagnostics
         "MethodOverloadsGenerator",
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnmarkedMatcherType = new(
+        "MOG020",
+        "Matcher type is not marked with OverloadMatcher",
+        "'{0}' is not marked with [OverloadMatcher] and cannot be used as a matcher in '{1}'",
+        "MethodOverloadsGenerator",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor MatcherTypeAsTarget = new(
+        "MOG021",
+        "Matcher type cannot be a generation target",
+        "'{0}' is marked with [OverloadMatcher] and cannot be a generation target; the attribute is ignored",
+        "MethodOverloadsGenerator",
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

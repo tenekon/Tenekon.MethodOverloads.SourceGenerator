@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
+[OverloadMatcher]
 internal interface Class_34_Matcher
 {
     [GenerateOverloads(nameof(param_b))]

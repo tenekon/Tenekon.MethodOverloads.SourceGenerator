@@ -9,4 +9,5 @@ internal readonly record struct TypeModel(
     Accessibility DeclaredAccessibility,
     EquatableArray<MethodModel> Methods,
     EquatableArray<MethodSignatureModel> MethodSignatures,
-    OverloadOptionsModel Options);
+    OverloadOptionsModel Options,
+    bool IsMatcher);

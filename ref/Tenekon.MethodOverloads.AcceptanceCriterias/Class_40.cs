@@ -14,6 +14,7 @@ public readonly struct Class_40_Case_2_Param_2;
 /// OverloadVisibility precedence between target and matcher frames.
 /// </summary>
 [OverloadGenerationOptions(OverloadVisibility = OverloadVisibility.Internal)]
+[OverloadMatcher]
 internal interface Class_40_Matcher
 {
     [GenerateOverloads(nameof(param_a))]

@@ -61,6 +61,21 @@ public class MatcherUsageTargets
 {
 }
 
+[OverloadMatcher]
+public class OverloadMatcherOnClass
+{
+}
+
+[OverloadMatcher]
+public struct OverloadMatcherOnStruct
+{
+}
+
+[OverloadMatcher]
+public interface OverloadMatcherOnInterface
+{
+}
+
 public class SupplyParameterTypeTargets
 {
     [SupplyParameterType(nameof(TValue), typeof(object))]

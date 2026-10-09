@@ -31,6 +31,7 @@ public sealed partial class AttributeUsageTests
             "GenerateOverloads",
             "OverloadGenerationOptions",
             "MatcherUsage",
+            "OverloadMatcher",
             "SupplyParameterType"
         };
 

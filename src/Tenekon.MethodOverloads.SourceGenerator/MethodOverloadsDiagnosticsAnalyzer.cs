@@ -37,7 +37,9 @@ public sealed class MethodOverloadsDiagnosticsAnalyzer : DiagnosticAnalyzer
         GeneratorDiagnostics.SupplyParameterTypeConflicting,
         GeneratorDiagnostics.MatchersAndExcludeAnyConflict,
         GeneratorDiagnostics.InvalidExcludeAnyParameter,
-        GeneratorDiagnostics.InvalidExcludeAnyEntry
+        GeneratorDiagnostics.InvalidExcludeAnyEntry,
+        GeneratorDiagnostics.UnmarkedMatcherType,
+        GeneratorDiagnostics.MatcherTypeAsTarget
     ];
 
     /// <inheritdoc/>
@@ -62,6 +64,8 @@ public sealed class MethodOverloadsDiagnosticsAnalyzer : DiagnosticAnalyzer
         if (context.Symbol is not INamedTypeSymbol typeSymbol) return;
 
         var cancellationToken = context.CancellationToken;
+        ReportMatcherRoleDiagnostics(context, typeSymbol);
+
         var typeTargets = ImmutableArray.CreateBuilder<TypeTargetInput>();
         var methodTargets = ImmutableArray.CreateBuilder<MethodTargetInput>();
 
@@ -110,6 +114,80 @@ public sealed class MethodOverloadsDiagnosticsAnalyzer : DiagnosticAnalyzer
 
             context.ReportDiagnostic(diagnostic.CreateDiagnostic(location));
         }
+    }
+
+    /// <summary>
+    /// Reports how this type uses the matcher role. These are declaration checks that do not need the overload plan:
+    /// a matcher type must not be a target (MOG021), and every type listed in Matchers must be marked (MOG020).
+    /// </summary>
+    private static void ReportMatcherRoleDiagnostics(SymbolAnalysisContext context, INamedTypeSymbol typeSymbol)
+    {
+        var isMatcherType = Parser.IsMatcherType(typeSymbol);
+
+        foreach (var attribute in RoslynHelpers.GetAttributes(typeSymbol, "GenerateMethodOverloadsAttribute"))
+            if (isMatcherType)
+                ReportMatcherTypeAsTarget(context, typeSymbol, attribute);
+            else
+                ReportUnmarkedMatcherTypes(context, typeSymbol, attribute);
+
+        foreach (var member in typeSymbol.GetMembers())
+        {
+            if (member is not IMethodSymbol methodSymbol) continue;
+
+            foreach (var attribute in RoslynHelpers.GetAttributes(methodSymbol, "GenerateOverloadsAttribute"))
+                if (!isMatcherType)
+                    ReportUnmarkedMatcherTypes(context, typeSymbol, attribute);
+                else if (GetMatchersArgument(attribute) is not null)
+                    ReportMatcherTypeAsTarget(context, typeSymbol, attribute);
+        }
+    }
+
+    private static void ReportMatcherTypeAsTarget(
+        SymbolAnalysisContext context,
+        INamedTypeSymbol typeSymbol,
+        AttributeData attribute)
+    {
+        if (attribute.ApplicationSyntaxReference is not { } reference) return;
+
+        context.ReportDiagnostic(
+            Diagnostic.Create(
+                GeneratorDiagnostics.MatcherTypeAsTarget,
+                reference.GetSyntax(context.CancellationToken).GetLocation(),
+                typeSymbol.ToDisplayString(SymbolDisplayFormat.CSharpShortErrorMessageFormat)));
+    }
+
+    private static void ReportUnmarkedMatcherTypes(
+        SymbolAnalysisContext context,
+        INamedTypeSymbol typeSymbol,
+        AttributeData attribute)
+    {
+        if (GetMatchersArgument(attribute) is not { } matchers
+            || attribute.ApplicationSyntaxReference?.GetSyntax(context.CancellationToken) is not AttributeSyntax syntax)
+            return;
+
+        for (var index = 0; index < matchers.Length; index++)
+        {
+            if (matchers[index].Value is not INamedTypeSymbol matcherType || Parser.IsMatcherType(matcherType))
+                continue;
+
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    GeneratorDiagnostics.UnmarkedMatcherType,
+                    (GetMatchersElement(syntax, index) ?? syntax).GetLocation(),
+                    matcherType.ToDisplayString(SymbolDisplayFormat.CSharpShortErrorMessageFormat),
+                    typeSymbol.Name));
+        }
+    }
+
+    private static ImmutableArray<TypedConstant>? GetMatchersArgument(AttributeData attribute)
+    {
+        foreach (var named in attribute.NamedArguments)
+            if (string.Equals(named.Key, "Matchers", StringComparison.Ordinal))
+                return named.Value.Kind == TypedConstantKind.Array && !named.Value.IsNull
+                    ? named.Value.Values
+                    : ImmutableArray<TypedConstant>.Empty;
+
+        return null;
     }
 
     /// <summary>

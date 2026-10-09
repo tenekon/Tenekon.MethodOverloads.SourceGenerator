@@ -47,6 +47,10 @@ public sealed class MethodOverloadsGenerator : IIncrementalGenerator
             postContext.AddSource(
                 "MatcherUsageAttribute.g.cs",
                 LoadAttributeSource(GeneratorAttributesSource.MatcherUsageAttribute));
+
+            postContext.AddSource(
+                "OverloadMatcherAttribute.g.cs",
+                LoadAttributeSource(GeneratorAttributesSource.OverloadMatcherAttribute));
         });
 
         var attributesOnlyProvider = context.AnalyzerConfigOptionsProvider.Select(static (provider, _) =>

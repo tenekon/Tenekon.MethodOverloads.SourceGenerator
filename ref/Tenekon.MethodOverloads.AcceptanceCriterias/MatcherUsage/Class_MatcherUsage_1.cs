@@ -5,6 +5,7 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias.MatcherUsage;
 /// <summary>
 /// Matcher matches target, but overload generation is skipped due to defaults inside window.
 /// </summary>
+[OverloadMatcher]
 internal interface Class_MatcherUsage_1_Matcher
 {
     [GenerateOverloads(nameof(optional))]

@@ -2,6 +2,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
+[OverloadMatcher]
 internal interface Class_25_MatcherUnused
 {
     [GenerateOverloads(nameof(param_a))]
@@ -28,6 +29,7 @@ public sealed class Class_25_MixedTarget
     public void Case_1(int param_1, string? param_2, bool param_3) { }
 }
 
+[OverloadMatcher]
 internal interface Class_25_MatcherMixed
 {
     [GenerateOverloads(nameof(param_b))]

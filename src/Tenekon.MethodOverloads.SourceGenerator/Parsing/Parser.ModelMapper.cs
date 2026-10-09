@@ -45,7 +45,17 @@ internal static partial class Parser
             typeSymbol.DeclaredAccessibility,
             new EquatableArray<MethodModel>([.. methods]),
             new EquatableArray<MethodSignatureModel>([.. signatures]),
-            options);
+            options,
+            IsMatcherType(typeSymbol));
+    }
+
+    /// <summary>
+    /// A type is a matcher only when it is marked with OverloadMatcherAttribute. Matcher types are never targets, and
+    /// unmarked types are never used as matchers.
+    /// </summary>
+    internal static bool IsMatcherType(INamedTypeSymbol typeSymbol)
+    {
+        return RoslynHelpers.GetAttribute(typeSymbol.OriginalDefinition, "OverloadMatcherAttribute") is not null;
     }
 
     internal static MethodModel BuildMethodModel(IMethodSymbol methodSymbol, CancellationToken cancellationToken)
@@ -609,6 +619,10 @@ internal static partial class Parser
                 if (constant.Value is INamedTypeSymbol matcherType)
                 {
                     if (matcherType.IsUnboundGenericType) matcherType = matcherType.OriginalDefinition;
+
+                    // Unmarked types are ignored here; the analyzer reports them (MOG020).
+                    if (!IsMatcherType(matcherType)) continue;
+
                     var display = GetMatcherTypeDisplay(matcherType);
                     if (!seen.Add(display)) continue;
 

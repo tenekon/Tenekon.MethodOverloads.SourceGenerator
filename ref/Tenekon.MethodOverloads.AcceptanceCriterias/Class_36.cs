@@ -3,6 +3,7 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 /// <summary>
 /// Matcher type A for matcher-union testing.
 /// </summary>
+[OverloadMatcher]
 internal interface Class_36_MatcherA
 {
     /// <summary>
@@ -15,6 +16,7 @@ internal interface Class_36_MatcherA
 /// <summary>
 /// Matcher type B for matcher-union testing.
 /// </summary>
+[OverloadMatcher]
 internal interface Class_36_MatcherB
 {
     /// <summary>

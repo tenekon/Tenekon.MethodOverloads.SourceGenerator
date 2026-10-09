@@ -80,5 +80,18 @@ Place it on the class or member that contains the diagnostic location. It does t
 - It suppresses the diagnostic in the real build and in the IDE.
 
 `MOG002` is reported at the `typeof` reference in the target's `Matchers`, so its `[SuppressMessage]` belongs on
-the target class, not on the matcher.
+the target class, not on the matcher. The same applies to `MOG020` (a type in `Matchers` without `[OverloadMatcher]`).
+
+## Matcher types
+
+Every type listed in `Matchers` must be marked with `[OverloadMatcher]`; otherwise the target gets `MOG020` and the
+type is not used as a matcher (see `Class_46`).
+
+Diagnostics inside interfaces are not mapped to a case. Cases about matcher types therefore use an abstract class as
+matcher: `Class_47` (MOG021), `Class_48` (one matcher per path of the matcher validation step; the error kinds
+themselves are covered at targets) and `Class_49` (an unused matcher produces no overloads and no diagnostics).
+
+Diagnostics are compared by ID per class, so a case cannot express how often a diagnostic is reported.
+`UnmarkedMatcherTests` checks on the acceptance output that `MOG020` is reported at every `typeof` reference of
+`Class_46`.
 

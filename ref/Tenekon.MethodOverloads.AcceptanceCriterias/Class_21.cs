@@ -39,6 +39,7 @@ public static class Class_21
     public static void Parameterless() { }
 }
 
+[OverloadMatcher]
 internal interface Class_21_Matcher
 {
     [GenerateOverloads(nameof(m))]

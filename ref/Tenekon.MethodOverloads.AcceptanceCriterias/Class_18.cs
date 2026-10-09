@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeAndName)]
+[OverloadMatcher]
 internal interface Class_18_Matcher
 {
     [GenerateOverloads(nameof(param_2))]

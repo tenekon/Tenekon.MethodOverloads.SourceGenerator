@@ -1,5 +1,6 @@
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
+[OverloadMatcher]
 internal interface Class_4_Matcher
 {
     [GenerateOverloads(EndExclusive = nameof(param_b))]

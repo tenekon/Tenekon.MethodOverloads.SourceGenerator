@@ -9,6 +9,7 @@ public sealed class SupplyParameterType_Class_11_Case_1_Param_1<TConstraint>;
 public sealed class SupplyParameterType_Class_11_Case_2_Param_1<TConstraint>;
 
 [SupplyParameterType(nameof(TConstraint), typeof(SupplyParameterType_Class_11_Constraint_4))]
+[OverloadMatcher]
 public interface SupplyParameterType_Class_11_Matcher<TConstraint>
 {
     [GenerateOverloads(nameof(param_2))]
