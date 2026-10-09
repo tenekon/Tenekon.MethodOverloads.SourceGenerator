@@ -359,10 +359,12 @@ internal sealed class OverloadPlanBuilder
         {
             if (entry.Value) continue;
 
-            Report(
-                GeneratorDiagnostics.MatcherHasNoSubsequenceMatch,
-                matcherLocations.TryGetValue(entry.Key, out var location) ? location : null,
-                entry.Key.MethodName);
+            _diagnostics.Add(
+                new EquatableDiagnostic(
+                    GeneratorDiagnostics.MatcherHasNoSubsequenceMatch,
+                    matcherLocations.TryGetValue(entry.Key, out var location) ? location : null,
+                    new EquatableArray<string>([entry.Key.MethodName]),
+                    entry.Key.ContainingTypeDisplay));
         }
     }
 

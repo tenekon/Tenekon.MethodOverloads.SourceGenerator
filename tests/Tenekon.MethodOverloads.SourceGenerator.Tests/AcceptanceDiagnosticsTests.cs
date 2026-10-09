@@ -4,6 +4,12 @@ namespace Tenekon.MethodOverloads.SourceGenerator.Tests;
 
 public sealed class AcceptanceDiagnosticsTests
 {
+    [Fact]
+    public void Analyzer_runs_without_exceptions()
+    {
+        Assert.Empty(AcceptanceFixtureCache.Instance.AnalyzerExceptions);
+    }
+
     [Theory]
     [ClassData(typeof(AcceptanceDiagnosticsData))]
     public void Expected_diagnostics_are_reported(DiagnosticCaseResult caseResult)

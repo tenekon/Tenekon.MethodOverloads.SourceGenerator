@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 public readonly struct Class_40_Case_1_Param_1;
@@ -33,6 +35,8 @@ public abstract class Class_40_1
     protected internal abstract void Case_2(Class_40_Case_2_Param_1 param_1, Class_40_Case_2_Param_2 param_2);
 }
 
+// Matcher_2 has no match in Class_40_2 (MOG002 at the typeof reference).
+[SuppressMessage("MethodOverloadsGenerator", "MOG002")]
 [GenerateMethodOverloads(Matchers = [typeof(Class_40_Matcher)])]
 [OverloadGenerationOptions(OverloadVisibility = OverloadVisibility.Public)]
 public abstract class Class_40_2

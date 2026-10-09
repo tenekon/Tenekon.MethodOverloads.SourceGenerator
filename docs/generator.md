@@ -121,6 +121,16 @@ Diagnostics are reported by the analyzer (not by the generator):
 - Analyzer: src/Tenekon.MethodOverloads.SourceGenerator/MethodOverloadsDiagnosticsAnalyzer.cs
 - Generator: src/Tenekon.MethodOverloads.SourceGenerator/MethodOverloadsGenerator.cs
 
+The analyzer analyzes each type on its own (symbol action) with the same parsing and planning logic as the
+generator:
+- Diagnostics are reported live in the IDE, not only at the end of a build.
+- Each type reports only diagnostics located in its own declaration; diagnostics at a matcher are reported when the
+  matcher type itself is analyzed.
+- Locations are in source, so `#pragma warning disable`, `[SuppressMessage]` and per-file `.editorconfig`
+  severities apply.
+- MOG002 is evaluated per target: it is reported at the `typeof` reference in `Matchers` when a matcher method has
+  no subsequence match in that target.
+
 Attributes-only mode suppresses diagnostics the same way it suppresses overload generation.
 
 ## 11) Entry point & files

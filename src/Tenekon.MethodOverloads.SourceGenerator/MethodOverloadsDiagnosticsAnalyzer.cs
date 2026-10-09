@@ -1,18 +1,18 @@
-using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
-using Microsoft.CodeAnalysis.Operations;
 using Tenekon.MethodOverloads.SourceGenerator.Generation;
 using Tenekon.MethodOverloads.SourceGenerator.Helpers;
+using Tenekon.MethodOverloads.SourceGenerator.Models;
 using Tenekon.MethodOverloads.SourceGenerator.Parsing;
 using Tenekon.MethodOverloads.SourceGenerator.Parsing.Inputs;
 
 namespace Tenekon.MethodOverloads.SourceGenerator;
 
 /// <summary>
-/// Reports diagnostics for overload generation by analyzing attributed symbols and delegating to the
-/// shared parsing and generation pipeline.
+/// Reports diagnostics for overload generation. Each type is analyzed on its own with the shared parsing and
+/// generation pipeline, so diagnostics are reported live in the IDE and can be suppressed in source.
 /// </summary>
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class MethodOverloadsDiagnosticsAnalyzer : DiagnosticAnalyzer
@@ -49,103 +49,202 @@ public sealed class MethodOverloadsDiagnosticsAnalyzer : DiagnosticAnalyzer
         context.ConfigureGeneratedCodeAnalysis(GeneratedCodeAnalysisFlags.None);
         context.EnableConcurrentExecution();
 
-        context.RegisterCompilationStartAction(startContext =>
+        context.RegisterCompilationStartAction(static startContext =>
         {
             if (IsAttributesOnly(startContext.Options.AnalyzerConfigOptionsProvider)) return;
 
-            var typeTargets = new ConcurrentBag<TypeTargetInput>();
-            var methodTargets = new ConcurrentBag<MethodTargetInput>();
-            
-            startContext.RegisterOperationAction(
-                operationContext => AnalyzeAttributeOperation(operationContext, typeTargets, methodTargets),
-                OperationKind.Attribute);
-
-            startContext.RegisterCompilationEndAction(endContext =>
-            {
-                if (typeTargets.IsEmpty && methodTargets.IsEmpty) return;
-
-                var model = Parser.Parse([.. typeTargets], [.. methodTargets], endContext.CancellationToken);
-                if (model is null) return;
-
-                foreach (var diagnostic in model.Diagnostics.Items)
-                    endContext.ReportDiagnostic(diagnostic.CreateDiagnostic());
-
-                var builder = new OverloadPlanBuilder(model);
-                var result = builder.Build();
-
-                foreach (var diagnostic in result.Diagnostics.Items)
-                    endContext.ReportDiagnostic(diagnostic.CreateDiagnostic());
-            });
-
-            return;
-
-            void AnalyzeAttributeOperation(
-                OperationAnalysisContext operationContext,
-                ConcurrentBag<TypeTargetInput> collectedTypeTargets,
-                ConcurrentBag<MethodTargetInput> collectedMethodTargets)
-            {
-                if (operationContext.Operation is not IAttributeOperation attributeOperation) return;
-
-                var attributeClass = GetAttributeClass(attributeOperation);
-                if (attributeClass is null) return;
-
-                if (IsTargetAttribute(attributeClass, AttributeNames.GenerateOverloadsAttribute))
-                {
-                    if (operationContext.ContainingSymbol is not IMethodSymbol methodSymbol) return;
-
-                    var target = TargetFactory.CreateMethodTargetFromSymbol(
-                        methodSymbol,
-                        operationContext.CancellationToken);
-                    if (target.HasValue) collectedMethodTargets.Add(target.Value);
-
-                    return;
-                }
-
-                if (IsTargetAttribute(attributeClass, AttributeNames.GenerateMethodOverloadsAttribute))
-                {
-                    if (operationContext.ContainingSymbol is not INamedTypeSymbol typeSymbol) return;
-
-                    var target = TargetFactory.CreateTypeTargetFromSymbol(
-                        typeSymbol,
-                        operationContext.CancellationToken);
-                    if (target.HasValue) collectedTypeTargets.Add(target.Value);
-                }
-
-                return;
-
-                static bool IsTargetAttribute(INamedTypeSymbol attributeClass, string expectedFullName)
-                {
-                    var display = attributeClass.ToDisplayString(RoslynHelpers.TypeDisplayFormat);
-                    if (display.StartsWith("global::", StringComparison.Ordinal))
-                        display = display.Substring("global::".Length);
-
-                    return string.Equals(display, expectedFullName, StringComparison.Ordinal);
-                }
-
-                static INamedTypeSymbol? GetAttributeClass(IAttributeOperation attributeOperation)
-                {
-                    var operation = attributeOperation.Operation;
-
-                    return operation switch
-                    {
-                        IObjectCreationOperation creation => creation.Constructor?.ContainingType
-                            ?? creation.Type as INamedTypeSymbol,
-                        IInvalidOperation invalid => invalid.Type as INamedTypeSymbol,
-                        _ => operation.Type as INamedTypeSymbol
-                    };
-                }
-            }
-
-            static bool IsAttributesOnly(AnalyzerConfigOptionsProvider optionsProvider)
-            {
-                if (optionsProvider.GlobalOptions.TryGetValue(
-                        "build_property.TenekonMethodOverloadsSourceGeneratorAttributesOnly",
-                        out var raw))
-                    return string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(raw, "1", StringComparison.Ordinal);
-
-                return false;
-            }
+            startContext.RegisterSymbolAction(AnalyzeType, SymbolKind.NamedType);
         });
+    }
+
+    private static void AnalyzeType(SymbolAnalysisContext context)
+    {
+        if (context.Symbol is not INamedTypeSymbol typeSymbol) return;
+
+        var cancellationToken = context.CancellationToken;
+        var typeTargets = ImmutableArray.CreateBuilder<TypeTargetInput>();
+        var methodTargets = ImmutableArray.CreateBuilder<MethodTargetInput>();
+
+        if (HasAttribute(typeSymbol, AttributeNames.GenerateMethodOverloadsAttribute)
+            && TargetFactory.CreateTypeTargetFromSymbol(typeSymbol, cancellationToken) is { } typeTarget)
+            typeTargets.Add(typeTarget);
+
+        foreach (var member in typeSymbol.GetMembers())
+        {
+            if (member is not IMethodSymbol methodSymbol
+                || !HasAttribute(methodSymbol, AttributeNames.GenerateOverloadsAttribute))
+                continue;
+
+            if (TargetFactory.CreateMethodTargetFromSymbol(methodSymbol, cancellationToken) is { } methodTarget)
+                methodTargets.Add(methodTarget);
+        }
+
+        if (typeTargets.Count == 0 && methodTargets.Count == 0) return;
+
+        // The model only knows this type, so every diagnostic is evaluated for this type alone.
+        var model = Parser.Parse(typeTargets.ToImmutable(), methodTargets.ToImmutable(), cancellationToken);
+        if (model is null) return;
+
+        var plan = new OverloadPlanBuilder(model).Build();
+        var reported = new HashSet<EquatableDiagnostic>();
+
+        foreach (var diagnostic in model.Diagnostics.Items.Concat(plan.Diagnostics.Items))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (!reported.Add(diagnostic)) continue;
+
+            if (diagnostic.MatcherTypeDisplay is { } matcherTypeDisplay)
+            {
+                var referenceLocation = FindMatcherReference(typeSymbol, matcherTypeDisplay, cancellationToken)
+                    ?? typeSymbol.Locations.FirstOrDefault();
+                context.ReportDiagnostic(diagnostic.CreateDiagnostic(referenceLocation, typeSymbol.Name));
+                continue;
+            }
+
+            // Diagnostics located in other types (e.g. at a matcher) are reported by the analysis of that type.
+            if (diagnostic.Location is not { } sourceLocation) continue;
+
+            var location = ResolveOwnLocation(typeSymbol, sourceLocation, cancellationToken);
+            if (location is null) continue;
+
+            context.ReportDiagnostic(diagnostic.CreateDiagnostic(location));
+        }
+    }
+
+    /// <summary>
+    /// Maps a stored source location to an in-source location when it lies directly in this type, so that
+    /// #pragma and [SuppressMessage] apply. Returns null for locations owned by other types.
+    /// </summary>
+    private static Location? ResolveOwnLocation(
+        INamedTypeSymbol typeSymbol,
+        SourceLocationModel sourceLocation,
+        CancellationToken cancellationToken)
+    {
+        var filePath = sourceLocation.SourceTreeFilePath ?? string.Empty;
+        var span = sourceLocation.SourceSpan;
+        Location? resolved = null;
+        var matches = 0;
+
+        foreach (var reference in typeSymbol.DeclaringSyntaxReferences)
+        {
+            var tree = reference.SyntaxTree;
+            if (!string.Equals(tree.FilePath, filePath, StringComparison.Ordinal) || !reference.Span.Contains(span))
+                continue;
+
+            var declaration = reference.GetSyntax(cancellationToken);
+            var node = tree.GetRoot(cancellationToken).FindNode(span, getInnermostNodeForTie: true);
+            if (node.FirstAncestorOrSelf<BaseTypeDeclarationSyntax>() != declaration) continue;
+
+            resolved = Location.Create(tree, span);
+            matches++;
+        }
+
+        // Several declarations share the path (e.g. in-memory trees without a path), so the tree is ambiguous.
+        return matches > 1 ? sourceLocation.ToLocation() : resolved;
+    }
+
+    private static Location? FindMatcherReference(
+        INamedTypeSymbol typeSymbol,
+        string matcherTypeDisplay,
+        CancellationToken cancellationToken)
+    {
+        var location = FindMatcherReference(
+            RoslynHelpers.GetAttributes(typeSymbol, "GenerateMethodOverloadsAttribute"),
+            matcherTypeDisplay,
+            cancellationToken);
+        if (location is not null) return location;
+
+        foreach (var member in typeSymbol.GetMembers())
+        {
+            if (member is not IMethodSymbol methodSymbol) continue;
+
+            location = FindMatcherReference(
+                RoslynHelpers.GetAttributes(methodSymbol, "GenerateOverloadsAttribute"),
+                matcherTypeDisplay,
+                cancellationToken);
+            if (location is not null) return location;
+        }
+
+        return null;
+    }
+
+    private static Location? FindMatcherReference(
+        ImmutableArray<AttributeData> attributes,
+        string matcherTypeDisplay,
+        CancellationToken cancellationToken)
+    {
+        foreach (var attribute in attributes)
+        foreach (var named in attribute.NamedArguments)
+        {
+            if (!string.Equals(named.Key, "Matchers", StringComparison.Ordinal)
+                || named.Value.Kind != TypedConstantKind.Array)
+                continue;
+
+            var matchers = named.Value.Values;
+            for (var index = 0; index < matchers.Length; index++)
+            {
+                if (matchers[index].Value is not INamedTypeSymbol matcherType
+                    || !string.Equals(
+                        Parser.GetMatcherTypeDisplay(matcherType),
+                        matcherTypeDisplay,
+                        StringComparison.Ordinal))
+                    continue;
+
+                if (attribute.ApplicationSyntaxReference?.GetSyntax(cancellationToken) is not AttributeSyntax syntax)
+                    continue;
+
+                return (GetMatchersElement(syntax, index) ?? syntax).GetLocation();
+            }
+        }
+
+        return null;
+    }
+
+    private static SyntaxNode? GetMatchersElement(AttributeSyntax attribute, int index)
+    {
+        var argument = attribute.ArgumentList?.Arguments.FirstOrDefault(argument => string.Equals(
+            argument.NameEquals?.Name.Identifier.ValueText,
+            "Matchers",
+            StringComparison.Ordinal));
+        if (argument is null) return null;
+
+        IReadOnlyList<SyntaxNode>? elements = argument.Expression switch
+        {
+            CollectionExpressionSyntax collection when collection.Elements.All(e => e is ExpressionElementSyntax) =>
+                collection.Elements.Select(e => (SyntaxNode)((ExpressionElementSyntax)e).Expression).ToList(),
+            ArrayCreationExpressionSyntax { Initializer: { } initializer } => initializer.Expressions,
+            ImplicitArrayCreationExpressionSyntax implicitArray => implicitArray.Initializer.Expressions,
+            _ => null
+        };
+
+        return elements is not null && index < elements.Count ? elements[index] : argument;
+    }
+
+    private static bool HasAttribute(ISymbol symbol, string expectedFullName)
+    {
+        foreach (var attribute in symbol.GetAttributes())
+        {
+            if (attribute.AttributeClass is not { } attributeClass) continue;
+
+            var display = attributeClass.ToDisplayString(RoslynHelpers.TypeDisplayFormat);
+            if (display.StartsWith("global::", StringComparison.Ordinal))
+                display = display.Substring("global::".Length);
+
+            if (string.Equals(display, expectedFullName, StringComparison.Ordinal)) return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsAttributesOnly(AnalyzerConfigOptionsProvider optionsProvider)
+    {
+        if (optionsProvider.GlobalOptions.TryGetValue(
+                "build_property.TenekonMethodOverloadsSourceGeneratorAttributesOnly",
+                out var raw))
+            return string.Equals(raw, "true", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(raw, "1", StringComparison.Ordinal);
+
+        return false;
     }
 }

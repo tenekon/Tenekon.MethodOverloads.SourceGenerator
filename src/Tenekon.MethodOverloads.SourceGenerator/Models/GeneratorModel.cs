@@ -10,14 +10,17 @@ internal sealed record GeneratorModel(
     EquatableArray<MatcherTypeModel> MatcherTypes,
     EquatableArray<EquatableDiagnostic> Diagnostics);
 
+// MatcherTypeDisplay is set for diagnostics about a matcher usage: the matcher type whose typeof reference in the
+// target carries the diagnostic.
 internal readonly record struct EquatableDiagnostic(
     DiagnosticDescriptor Descriptor,
     SourceLocationModel? Location,
-    EquatableArray<string> MessageArgs)
+    EquatableArray<string> MessageArgs,
+    string? MatcherTypeDisplay = null)
 {
-    public Diagnostic CreateDiagnostic()
+    public Diagnostic CreateDiagnostic(Location? location, params string[] additionalMessageArgs)
     {
-        var args = MessageArgs.Items.Length == 0 ? [] : MessageArgs.Items.Cast<object?>().ToArray();
-        return Diagnostic.Create(Descriptor, Location?.ToLocation(), args);
+        object?[] args = [.. MessageArgs.Items, .. additionalMessageArgs];
+        return Diagnostic.Create(Descriptor, location, args);
     }
 }

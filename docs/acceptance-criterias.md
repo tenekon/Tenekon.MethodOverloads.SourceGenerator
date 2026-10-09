@@ -23,7 +23,6 @@ Source files:
 
 Support files:
 - `.editorconfig` (IDE/inspection suppression + generated code marker)
-- `.globalconfig` (diagnostic severity overrides)
 
 ## How tests consume it
 
@@ -33,6 +32,8 @@ There are two main test paths:
    - Tests read the `ref/*.cs` files and build an in-memory compilation.
    - Expected overload signatures come from `Class_*_AcceptanceCriterias`.
    - Expected diagnostics are inferred from `[SuppressMessage]` attributes (MOG IDs).
+   - The analyzer runs with `reportSuppressedDiagnostics: true`, so diagnostics suppressed by those attributes
+     are still compared (`Diagnostic.IsSuppressed == true`).
    - See: `tests/Tenekon.MethodOverloads.SourceGenerator.Tests/Infrastructure/AcceptanceTestData.cs`.
 
 2) **Project build validation (real MSBuild)**
@@ -54,20 +55,11 @@ The tests explicitly build the project with:
 - `TenekonMethodOverloadsSourceGeneratorAttributesOnly=false`
 to ensure a full generation build also succeeds.
 
-## .globalconfig (diagnostic severities)
+## Error-level diagnostics
 
-File:
-- `ref/Tenekon.MethodOverloads.AcceptanceCriterias/.globalconfig`
-
-Role:
-- Downgrades certain MOG diagnostics from **error** to **warning** so the project can build while still
-  exercising those diagnostics in acceptance criteria.
-
-Current overrides:
-- `MOG007`, `MOG009`, `MOG010`, `MOG012` → warning
-
-These diagnostics are treated as errors by default and are not suppressable in source;
-the globalconfig allows the project to compile while still surfacing them for tests.
+Some MOG diagnostics are errors by default (e.g. `MOG007`, `MOG012`). The project still compiles because the
+`[SuppressMessage]` attributes that declare them as expected also suppress them in the build. No severity
+overrides are needed.
 
 ## .editorconfig (IDE suppression and generated code)
 
@@ -80,9 +72,13 @@ Role:
 
 ## How expected diagnostics are declared
 
-Use `[SuppressMessage]` on the target class with a `CheckId` that includes the MOG ID:
+Use `[SuppressMessage]` with a `CheckId` that includes the MOG ID:
 - Example: `[SuppressMessage("MethodOverloadsGenerator", "MOG012")]`
 
-Tests interpret these attributes as **expected diagnostics** for that class, even if the suppression is only
-used for documentation/clarity in the source.
+Place it on the class or member that contains the diagnostic location. It does two things:
+- Tests interpret it as an **expected diagnostic** for the enclosing class.
+- It suppresses the diagnostic in the real build and in the IDE.
+
+`MOG002` is reported at the `typeof` reference in the target's `Matchers`, so its `[SuppressMessage]` belongs on
+the target class, not on the matcher.
 
