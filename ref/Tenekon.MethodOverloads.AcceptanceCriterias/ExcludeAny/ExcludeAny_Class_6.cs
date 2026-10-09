@@ -5,6 +5,7 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias.ExcludeAny;
 public sealed class ExcludeAny_Class_6_Param_1;
 public sealed class ExcludeAny_Class_6_Param_2;
 
+[OverloadMatcher]
 public interface ExcludeAny_Class_6_Matcher
 {
     [GenerateOverloads(nameof(param_2))]

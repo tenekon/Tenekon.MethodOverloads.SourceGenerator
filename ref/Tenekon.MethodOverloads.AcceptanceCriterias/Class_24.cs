@@ -1,5 +1,6 @@
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
+[OverloadMatcher]
 internal interface Class_24_Matcher
 {
     [GenerateOverloads(nameof(param_b))]

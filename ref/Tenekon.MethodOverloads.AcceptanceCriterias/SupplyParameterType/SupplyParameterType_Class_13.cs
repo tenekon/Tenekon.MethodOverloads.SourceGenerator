@@ -5,6 +5,7 @@ public sealed class SupplyParameterType_Class_13_Constraint_2;
 
 public sealed class SupplyParameterType_Class_13_Param<TConstraint>;
 
+[OverloadMatcher]
 public interface SupplyParameterType_Class_13_Matcher
 {
     [GenerateOverloads(Begin = nameof(optionalObject))]

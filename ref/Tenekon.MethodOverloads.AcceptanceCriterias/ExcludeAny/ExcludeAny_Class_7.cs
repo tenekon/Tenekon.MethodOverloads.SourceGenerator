@@ -4,6 +4,7 @@ public sealed class ExcludeAny_Class_7_Param_1;
 public sealed class ExcludeAny_Class_7_Param_2;
 public sealed class ExcludeAny_Class_7_Param_3;
 
+[OverloadMatcher]
 public interface ExcludeAny_Class_7_Matcher
 {
     [GenerateOverloads(ExcludeAny = [nameof(param_2)])]

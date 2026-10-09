@@ -16,6 +16,7 @@ public sealed class Bug_Class_1_Type_3;
 
 public interface Bug_Class_1_Type_4<TConstraint>;
 
+[OverloadMatcher]
 internal interface Bug_Class_1_ICommandRuntimeFactoryMatchers
 {
     [GenerateOverloads(Begin = nameof(param_3))]

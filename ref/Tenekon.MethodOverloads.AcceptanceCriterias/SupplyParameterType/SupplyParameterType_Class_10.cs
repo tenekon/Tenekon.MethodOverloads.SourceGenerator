@@ -1,5 +1,6 @@
 namespace Tenekon.MethodOverloads.AcceptanceCriterias.SupplyParameterType;
 
+[OverloadMatcher]
 public interface SupplyParameterType_Class_10_Matcher
 {
     [GenerateOverloads(nameof(optionalObject))]

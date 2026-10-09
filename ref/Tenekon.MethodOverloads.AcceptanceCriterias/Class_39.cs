@@ -22,6 +22,7 @@ public readonly struct Class_39_Case_2_Param_4;
 /// SubsequenceStrategy precedence between target and matcher frames.
 /// </summary>
 [OverloadGenerationOptions(SubsequenceStrategy = OverloadSubsequenceStrategy.PrefixOnly)]
+[OverloadMatcher]
 internal interface Class_39_Matcher
 {
     [OverloadGenerationOptions(SubsequenceStrategy = OverloadSubsequenceStrategy.UniqueBySignature)]

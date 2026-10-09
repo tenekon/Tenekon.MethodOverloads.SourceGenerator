@@ -13,7 +13,6 @@ internal sealed class OverloadPlanBuilder
     private readonly Dictionary<string, TypeModel> _typesByDisplay;
     private readonly Dictionary<string, TypeTargetModel> _typeTargetsByDisplay;
     private readonly Dictionary<string, MatcherTypeModel> _matcherTypesByDisplay;
-    private readonly HashSet<string> _matcherTypeDisplays;
     private readonly Dictionary<OverloadGroupKey, List<OverloadPlanEntry>> _methodsByGroup;
     private readonly Dictionary<OverloadGroupKey, MatcherGroupInfo> _matchedMatchersByGroup;
     private readonly List<EquatableDiagnostic> _diagnostics;
@@ -33,7 +32,6 @@ internal sealed class OverloadPlanBuilder
             target => target.Type.DisplayName,
             target => target,
             StringComparer.Ordinal);
-        _matcherTypeDisplays = new HashSet<string>(_matcherTypesByDisplay.Keys, StringComparer.Ordinal);
         _methodsByGroup = new Dictionary<OverloadGroupKey, List<OverloadPlanEntry>>();
         _matchedMatchersByGroup = new Dictionary<OverloadGroupKey, MatcherGroupInfo>();
         _diagnostics = [];
@@ -42,6 +40,7 @@ internal sealed class OverloadPlanBuilder
     public OverloadPlan Build()
     {
         BuildMethods();
+        ValidateMatcherMethods();
         return new OverloadPlan(
             _methodsByGroup,
             _matchedMatchersByGroup,
@@ -81,7 +80,8 @@ internal sealed class OverloadPlanBuilder
         {
             if (!method.IsOrdinary) continue;
 
-            if (_matcherTypeDisplays.Contains(method.ContainingTypeDisplay)) continue;
+            // Methods of matcher types are never targets; ValidateMatcherMethods checks their attributes.
+            if (IsDeclaredInMatcherType(method)) continue;
 
             if (method.DeclaredAccessibility == Accessibility.Private
                 || method.DeclaredAccessibility == Accessibility.Protected)
@@ -202,28 +202,20 @@ internal sealed class OverloadPlanBuilder
                 {
                     if (!_matcherTypesByDisplay.TryGetValue(matcherTypeDisplay, out var matcherType)) continue;
 
+                    // Invalid matcher attributes are skipped silently here. ValidateMatcherMethods reports them once,
+                    // in the matcher type itself.
                     foreach (var matcherMethod in SelectMatcherMethods(
                                  matcherType.MatcherMethods,
                                  method.Parameters.Items.Length))
                     {
                         var matcherMethodModel = matcherMethod.Method;
-                        if (!matcherMethodModel.IsOrdinary) continue;
+                        if (!matcherMethodModel.IsOrdinary || matcherMethodModel.Parameters.Items.Length == 0) continue;
 
                         var matcherAttributes = SelectGenerateAttributes(
                             matcherMethod.GenerateAttributesFromAttribute,
                             matcherMethod.GenerateAttributesFromSyntax);
 
-                        if (matcherMethodModel.Parameters.Items.Length == 0)
-                        {
-                            var location = GetAttributeLocation(matcherAttributes)
-                                ?? matcherMethodModel.IdentifierLocation;
-                            Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, matcherMethodModel.Name);
-                            continue;
-                        }
-
-                        if (HasMatchersWindowConflict(matcherMethodModel, matcherAttributes))
-                            continue;
-
+                        // Matchers on a matcher method are ignored (MOG021).
                         var matcherDirectAttributes = matcherAttributes.Items.Where(attribute => !attribute.HasMatchers)
                             .ToArray();
                         if (matcherDirectAttributes.Length == 0) continue;
@@ -242,7 +234,7 @@ internal sealed class OverloadPlanBuilder
                         }
 
                         var matcherHasSupply = HasAnySupply(matcherMethodModel);
-                        var matcherGroupMaps = BuildSupplyMapsByGroup(matcherMethodModel);
+                        var matcherGroupMaps = BuildSupplyMapsByGroup(matcherMethodModel, report: false);
                         var groupKeys = new HashSet<GroupKey>(targetGroupMaps.Keys);
                         groupKeys.UnionWith(matcherGroupMaps.Keys);
                         if (groupKeys.Count == 0 && !hasAnySupply && !matcherHasSupply)
@@ -269,11 +261,7 @@ internal sealed class OverloadPlanBuilder
                                 containingType,
                                 matcherMethodModel,
                                 matcherType);
-                            if (matcherOptions.BucketType is { IsValid: false } invalidMatcherBucket)
-                            {
-                                ReportInvalidBucketType(invalidMatcherBucket, matcherMethodModel.IdentifierLocation);
-                                continue;
-                            }
+                            if (matcherOptions.BucketType is { IsValid: false }) continue;
 
                             var matches = FindSubsequenceMatches(
                                     effectiveMatcherMethod,
@@ -308,26 +296,13 @@ internal sealed class OverloadPlanBuilder
                                         attribute.Args,
                                         match,
                                         out var windowSpec,
-                                        out var windowFailure))
-                                {
+                                        out _))
                                     windowSpecs.Add(
                                         new WindowSpec(
                                             windowSpec.StartIndex,
                                             windowSpec.EndIndex,
                                             windowSpec.ExcludeAnyIndices,
                                             groupKey));
-
-                                    if (windowFailure.Kind == WindowSpecFailureKind.RedundantAnchors)
-                                        Report(
-                                            GeneratorDiagnostics.RedundantBeginEndAnchors,
-                                            attribute.Args.AttributeLocation ?? attribute.Args.SyntaxAttributeLocation
-                                            ?? matcherMethodModel.IdentifierLocation,
-                                            matcherMethodModel.Name);
-                                }
-                                else
-                                {
-                                    ReportWindowFailure(windowFailure, attribute.Args, matcherMethodModel.Name);
-                                }
                         }
                     }
                 }
@@ -366,6 +341,70 @@ internal sealed class OverloadPlanBuilder
                     new EquatableArray<string>([entry.Key.MethodName]),
                     entry.Key.ContainingTypeDisplay));
         }
+    }
+
+    /// <summary>
+    /// Checks the attributes of matcher methods once, independent of any target. Targets skip invalid matcher
+    /// attributes silently, so these diagnostics are reported only here, in the matcher type itself.
+    /// </summary>
+    private void ValidateMatcherMethods()
+    {
+        foreach (var methodTarget in _model.MethodTargets.Items)
+        {
+            var method = methodTarget.Method;
+            if (!method.IsOrdinary) continue;
+
+            if (!_typesByDisplay.TryGetValue(method.ContainingTypeDisplay, out var matcherType)
+                || !matcherType.IsMatcher)
+                continue;
+
+            BuildSupplyMapsByGroup(method);
+
+            // Matcher frame: options on the matcher method take precedence over options on the matcher type.
+            if ((method.Options.BucketType ?? matcherType.Options.BucketType) is { IsValid: false } invalidBucket)
+            {
+                ReportInvalidBucketType(invalidBucket, method.IdentifierLocation);
+                continue;
+            }
+
+            var attributes = SelectGenerateAttributes(
+                methodTarget.GenerateAttributesFromAttribute,
+                methodTarget.GenerateAttributesFromSyntax);
+
+            if (method.Parameters.Items.Length == 0)
+            {
+                var location = GetAttributeLocation(attributes) ?? method.IdentifierLocation;
+                Report(GeneratorDiagnostics.ParameterlessTargetMethod, location, method.Name);
+                continue;
+            }
+
+            // Matchers on a matcher method are ignored (MOG021, reported by the analyzer).
+            foreach (var attribute in attributes.Items.Where(attribute => !attribute.HasMatchers))
+                if (TryCreateWindowSpecFromArgs(
+                        method,
+                        method,
+                        attribute.Args,
+                        ParameterMatch.Identity(method.Parameters.Items.Length),
+                        out _,
+                        out var windowFailure))
+                {
+                    if (windowFailure.Kind == WindowSpecFailureKind.RedundantAnchors)
+                        Report(
+                            GeneratorDiagnostics.RedundantBeginEndAnchors,
+                            attribute.Args.AttributeLocation ?? attribute.Args.SyntaxAttributeLocation
+                            ?? method.IdentifierLocation,
+                            method.Name);
+                }
+                else
+                {
+                    ReportWindowFailure(windowFailure, attribute.Args, method.Name);
+                }
+        }
+    }
+
+    private bool IsDeclaredInMatcherType(MethodModel method)
+    {
+        return _typesByDisplay.TryGetValue(method.ContainingTypeDisplay, out var type) && type.IsMatcher;
     }
 
     private IEnumerable<OverloadPlanEntry> GenerateOverloadsForMethod(
@@ -940,10 +979,11 @@ internal sealed class OverloadPlanBuilder
     }
 
     private Dictionary<GroupKey, Dictionary<string, (string Display, string Signature)>> BuildSupplyMapsByGroup(
-        MethodModel method)
+        MethodModel method,
+        bool report = true)
     {
-        var typeReplacements = BuildContainingTypeSupplyMapsByGroup(method);
-        var methodReplacements = BuildMethodSupplyMapsByGroup(method);
+        var typeReplacements = BuildContainingTypeSupplyMapsByGroup(method, report);
+        var methodReplacements = BuildMethodSupplyMapsByGroup(method, report);
 
         if (methodReplacements.Count == 0) return typeReplacements;
 
@@ -974,7 +1014,7 @@ internal sealed class OverloadPlanBuilder
     }
 
     private Dictionary<GroupKey, Dictionary<string, (string Display, string Signature)>>
-        BuildContainingTypeSupplyMapsByGroup(MethodModel method)
+        BuildContainingTypeSupplyMapsByGroup(MethodModel method, bool report)
     {
         if (method.ContainingTypeSupplyParameterTypes.Items.Length == 0)
             return new Dictionary<GroupKey, Dictionary<string, (string Display, string Signature)>>();
@@ -1000,7 +1040,7 @@ internal sealed class OverloadPlanBuilder
                     var reason = string.IsNullOrWhiteSpace(supply.InvalidReason)
                         ? "Invalid SupplyParameterType."
                         : supply.InvalidReason!;
-                    Report(GeneratorDiagnostics.InvalidSupplyParameterType, location, method.Name, reason);
+                    if (report) Report(GeneratorDiagnostics.InvalidSupplyParameterType, location, method.Name, reason);
                     continue;
                 }
 
@@ -1009,11 +1049,12 @@ internal sealed class OverloadPlanBuilder
                     var location = supply.NameLocation
                                    ?? supply.AttributeLocation
                                    ?? method.IdentifierLocation;
-                    Report(
-                        GeneratorDiagnostics.SupplyParameterTypeMissingTypeParameter,
-                        location,
-                        supply.TypeParameterName,
-                        method.Name);
+                    if (report)
+                        Report(
+                            GeneratorDiagnostics.SupplyParameterTypeMissingTypeParameter,
+                            location,
+                            supply.TypeParameterName,
+                            method.Name);
                     continue;
                 }
 
@@ -1031,7 +1072,7 @@ internal sealed class OverloadPlanBuilder
                         scopeConflicts[supply.Group] = conflicts;
                     }
 
-                    if (conflicts.Add(supply.TypeParameterName))
+                    if (conflicts.Add(supply.TypeParameterName) && report)
                         Report(
                             GeneratorDiagnostics.SupplyParameterTypeConflicting,
                             supply.AttributeLocation ?? method.IdentifierLocation,
@@ -1071,7 +1112,8 @@ internal sealed class OverloadPlanBuilder
     }
 
     private Dictionary<GroupKey, Dictionary<string, (string Display, string Signature)>> BuildMethodSupplyMapsByGroup(
-        MethodModel method)
+        MethodModel method,
+        bool report)
     {
         if (method.SupplyParameterTypes.Items.Length == 0)
             return new Dictionary<GroupKey, Dictionary<string, (string Display, string Signature)>>();
@@ -1094,7 +1136,7 @@ internal sealed class OverloadPlanBuilder
                 var reason = string.IsNullOrWhiteSpace(supply.InvalidReason)
                     ? "Invalid SupplyParameterType."
                     : supply.InvalidReason!;
-                Report(GeneratorDiagnostics.InvalidSupplyParameterType, location, method.Name, reason);
+                if (report) Report(GeneratorDiagnostics.InvalidSupplyParameterType, location, method.Name, reason);
                 continue;
             }
 
@@ -1107,11 +1149,12 @@ internal sealed class OverloadPlanBuilder
                 var location = supply.NameLocation
                                ?? supply.AttributeLocation
                                ?? method.IdentifierLocation;
-                Report(
-                    GeneratorDiagnostics.SupplyParameterTypeMissingTypeParameter,
-                    location,
-                    supply.TypeParameterName,
-                    method.Name);
+                if (report)
+                    Report(
+                        GeneratorDiagnostics.SupplyParameterTypeMissingTypeParameter,
+                        location,
+                        supply.TypeParameterName,
+                        method.Name);
                 continue;
             }
 
@@ -1129,7 +1172,7 @@ internal sealed class OverloadPlanBuilder
                     conflictsByGroup[supply.Group] = conflicts;
                 }
 
-                if (conflicts.Add(name))
+                if (conflicts.Add(name) && report)
                     Report(
                         GeneratorDiagnostics.SupplyParameterTypeConflicting,
                         supply.AttributeLocation ?? method.IdentifierLocation,

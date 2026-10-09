@@ -64,6 +64,7 @@ public sealed class DiagnosticSuppressionTests
 
             namespace Demo;
 
+            [OverloadMatcher]
             internal interface IMatcher
             {
                 [GenerateOverloads(nameof(value))]

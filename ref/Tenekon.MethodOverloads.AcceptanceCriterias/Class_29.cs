@@ -1,6 +1,7 @@
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
 [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeAndName)]
+[OverloadMatcher]
 internal interface Class_29_Matcher
 {
     [GenerateOverloads(nameof(param_2))]

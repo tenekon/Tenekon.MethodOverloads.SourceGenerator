@@ -3,6 +3,7 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 /// <summary>
 /// Matcher type for mixed direct + matcher generation.
 /// </summary>
+[OverloadMatcher]
 internal interface Class_37_Matcher
 {
     /// <summary>

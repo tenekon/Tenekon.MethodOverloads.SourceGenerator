@@ -17,6 +17,9 @@ internal static class GeneratorAttributesSource
     public const string MatcherUsageAttribute =
         "Tenekon.MethodOverloads.MatcherUsageAttribute.cs";
 
+    public const string OverloadMatcherAttribute =
+        "Tenekon.MethodOverloads.OverloadMatcherAttribute.cs";
+
     public const string SupplyParameterTypeAttribute =
         "Tenekon.MethodOverloads.SupplyParameterTypeAttribute.cs";
 }

@@ -5,6 +5,7 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 /// Expects overloads only when effective match mode allows.
 /// </summary>
 [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeAndName)]
+[OverloadMatcher]
 internal interface Class_6_Matcher
 {
     [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeOnly)]

@@ -3,6 +3,7 @@ namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 /// <summary>
 /// 
 /// </summary>
+[OverloadMatcher]
 internal interface Class_3_Matcher
 {
     [GenerateOverloads(EndExclusive = nameof(param_b))]

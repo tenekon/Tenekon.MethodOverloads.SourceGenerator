@@ -150,5 +150,21 @@
     Category: MethodOverloadsGenerator,
     DefaultSeverity: 3,
     IsEnabledByDefault: true
+  },
+  {
+    Id: MOG020,
+    Title: Matcher type is not marked with OverloadMatcher,
+    MessageFormat: '{0}' is not marked with [OverloadMatcher] and cannot be used as a matcher in '{1}',
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 3,
+    IsEnabledByDefault: true
+  },
+  {
+    Id: MOG021,
+    Title: Matcher type cannot be a generation target,
+    MessageFormat: '{0}' is marked with [OverloadMatcher] and cannot be a generation target; the attribute is ignored,
+    Category: MethodOverloadsGenerator,
+    DefaultSeverity: 3,
+    IsEnabledByDefault: true
   }
 ]

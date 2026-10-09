@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Tenekon.MethodOverloads.SourceGenerator.Helpers;
 using Tenekon.MethodOverloads.SourceGenerator.Models;
@@ -35,7 +36,7 @@ internal static class TargetFactory
         if (attributes.IsDefaultOrEmpty) return null;
 
         var typeModel = Parser.BuildTypeModel(typeSymbol, cancellationToken);
-        var (matcherDisplays, matcherModels) = Parser.ExtractMatcherTypes(attributes, cancellationToken);
+        var (matcherDisplays, matcherModels) = ExtractMatcherTypes(typeModel, attributes, cancellationToken);
         return new TypeTargetInput(
             typeModel,
             new EquatableArray<string>(matcherDisplays),
@@ -56,7 +57,7 @@ internal static class TargetFactory
         var (attributeModels, syntaxModels) = Parser.ExtractGenerateOverloadsAttributes(
             methodSymbol,
             cancellationToken);
-        var (matcherDisplays, matcherModels) = Parser.ExtractMatcherTypes(attributes, cancellationToken);
+        var (matcherDisplays, matcherModels) = ExtractMatcherTypes(typeModel, attributes, cancellationToken);
 
         return new MethodTargetInput(
             methodModel,
@@ -65,5 +66,16 @@ internal static class TargetFactory
             new EquatableArray<GenerateOverloadsAttributeModel>(syntaxModels),
             new EquatableArray<string>(matcherDisplays),
             new EquatableArray<MatcherTypeModel>(matcherModels));
+    }
+
+    // A matcher type is never a target, so its Matchers are ignored; the analyzer reports them (MOG021).
+    private static (ImmutableArray<string> Displays, ImmutableArray<MatcherTypeModel> Models) ExtractMatcherTypes(
+        TypeModel ownerType,
+        ImmutableArray<AttributeData> attributes,
+        CancellationToken cancellationToken)
+    {
+        return ownerType.IsMatcher
+            ? (ImmutableArray<string>.Empty, ImmutableArray<MatcherTypeModel>.Empty)
+            : Parser.ExtractMatcherTypes(attributes, cancellationToken);
     }
 }

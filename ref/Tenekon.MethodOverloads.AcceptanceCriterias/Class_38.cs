@@ -1,11 +1,13 @@
 namespace Tenekon.MethodOverloads.AcceptanceCriterias;
 
+[OverloadMatcher]
 internal interface Class_38_MatcherA
 {
     [GenerateOverloads(nameof(param_b))]
     void Matcher_1(int param_a, string param_b);
 }
 
+[OverloadMatcher]
 internal interface Class_38_MatcherB
 {
     [GenerateOverloads(nameof(param_c))]
