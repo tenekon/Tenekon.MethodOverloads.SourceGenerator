@@ -53,14 +53,20 @@ public sealed class PackageLayoutFixture : IDisposable
             CreateNoWindow = true
         };
 
+        // Reused MSBuild nodes outlive the build and inherit the redirected pipes, so reading
+        // stdout/stderr to the end would block until their idle timeout expires.
+        startInfo.Environment["MSBUILDDISABLENODEREUSE"] = "1";
+
         using var process = new Process { StartInfo = startInfo };
         process.Start();
 
+        // Drain both streams concurrently; reading them one after another can deadlock once the
+        // other pipe's buffer is full.
+        var error = process.StandardError.ReadToEndAsync();
         var output = process.StandardOutput.ReadToEnd();
-        var error = process.StandardError.ReadToEnd();
         process.WaitForExit();
 
-        return new ProcessResult(process.ExitCode, string.Concat(output, error));
+        return new ProcessResult(process.ExitCode, string.Concat(output, error.Result));
     }
 
     private sealed record ProcessResult(int ExitCode, string Output);

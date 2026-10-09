@@ -66,6 +66,10 @@ public sealed class RefProjectBuildTests
             CreateNoWindow = true
         };
 
+        // Reused MSBuild nodes outlive the build and inherit the redirected pipes, so reading
+        // stdout/stderr to the end would block until their idle timeout expires.
+        process.StartInfo.Environment["MSBUILDDISABLENODEREUSE"] = "1";
+
         process.Start();
         var stdOut = process.StandardOutput.ReadToEndAsync();
         var stdErr = process.StandardError.ReadToEndAsync();
