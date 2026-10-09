@@ -47,7 +47,7 @@ Each file defines:
 Non-test helpers (fixtures, data, models) live under:
 - tests/Tenekon.MethodOverloads.SourceGenerator.Tests/Infrastructure
 
-More detail on the acceptance criterias project (including editorconfig/globalconfig behavior) is in:
+More detail on the acceptance criterias project (including editorconfig behavior and expected diagnostics) is in:
 - docs/acceptance-criterias.md
 
 ## Running tests

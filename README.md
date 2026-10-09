@@ -258,10 +258,10 @@ Emit attributes only (skip generation and diagnostics):
 
 ## Diagnostics
 
-Diagnostics are reported by the analyzer and surfaced during build:
+Diagnostics are reported by the analyzer, live in the IDE and during build:
 
 - `MOG001` Invalid window anchor.
-- `MOG002` Matcher has no subsequence match.
+- `MOG002` Matcher has no subsequence match in a target (reported at the `typeof` reference in `Matchers`).
 - `MOG003` Defaults inside window.
 - `MOG004` Params outside window.
 - `MOG005` Ref/out/in omitted.
@@ -280,7 +280,20 @@ Diagnostics are reported by the analyzer and surfaced during build:
 - `MOG018` ExcludeAny refers to missing/out-of-window parameter.
 - `MOG019` ExcludeAny contains invalid entries.
 
-You can downgrade error-level diagnostics in `.globalconfig` if you need the project to compile with intentional violations.
+Diagnostics can be suppressed in source like any other analyzer diagnostic:
+
+```csharp
+#pragma warning disable MOG001
+[GenerateOverloads(Begin = "missing")]
+public void Configure(int value) { }
+#pragma warning restore MOG001
+
+[SuppressMessage("MethodOverloadsGenerator", "MOG011")]
+[GenerateOverloads]
+public void Reset() { }
+```
+
+Severities can also be changed in `.editorconfig` or `.globalconfig`, e.g. `dotnet_diagnostic.MOG002.severity = none`.
 
 ## Generation Rules (Summary)
 
