@@ -56,6 +56,9 @@ public sealed class AttributesOnlyTests
             generatedTrees,
             tree => tree.Contains("class OverloadGenerationOptionsAttribute", StringComparison.Ordinal));
         Assert.Contains(generatedTrees, tree => tree.Contains("class MatcherUsageAttribute", StringComparison.Ordinal));
+        Assert.Contains(
+            generatedTrees,
+            tree => tree.Contains("class OverloadMatcherAttribute", StringComparison.Ordinal));
         Assert.DoesNotContain(
             generatedTrees,
             tree => tree.Contains("public static class MethodOverloads", StringComparison.Ordinal));
