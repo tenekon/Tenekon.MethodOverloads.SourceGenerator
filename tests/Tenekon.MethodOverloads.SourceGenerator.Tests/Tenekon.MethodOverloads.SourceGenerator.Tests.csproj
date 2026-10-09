@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
+        <!-- Allow the tests to run where only a newer runtime is installed (e.g. the dotnet/sdk:10.0 CI image). -->
+        <RollForward>Major</RollForward>
         <LangVersion>preview</LangVersion>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
