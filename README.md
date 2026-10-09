@@ -17,7 +17,7 @@ A C# source generator that creates extension overloads by treating a selected pa
 
 ## Quickstart
 
-1. Add `[GenerateOverloads]` to a method, or `[GenerateMethodOverloads(Matchers = ...)]` to a type.
+1. Add `[GenerateOverloads]` to a method, or `[GenerateMethodOverloads(Matchers = ...)]` to a type. Mark matcher types with `[OverloadMatcher]`.
 2. (Optional) Add `[OverloadGenerationOptions(...)]` to control matching and output.
 3. Build. Generated code appears as `MethodOverloads_<Namespace>*.g.cs`.
 
@@ -25,7 +25,7 @@ A C# source generator that creates extension overloads by treating a selected pa
 
 - **Window**: the parameter range that can be omitted to produce overloads.
 - **ExcludeAny**: a list of parameter names that must be omitted in every overload within the window.
-- **Matchers**: define windows on matcher methods and apply them to target methods.
+- **Matchers**: define windows on matcher methods and apply them to target methods. Matcher types are marked with `[OverloadMatcher]` and are never targets themselves.
 - **Bucketization**: route generated methods into a specific static partial class.
 - **SupplyParameterType**: substitute method type parameters with concrete types before generation.
 
@@ -99,6 +99,7 @@ public sealed class UserService
     public void UpdateUser(string id, string name, int level, bool active) { }
 }
 
+[OverloadMatcher]
 internal interface UserMatchers
 {
     [GenerateOverloads(nameof(paramB))]
@@ -131,6 +132,7 @@ public static class MathUtils
     public static void Multiply(int left, int right, bool checkedOverflow) { }
 }
 
+[OverloadMatcher]
 internal interface MathMatchers
 {
     [GenerateOverloads(nameof(paramB))]
@@ -151,6 +153,14 @@ public static class MethodOverloads
     }
 }
 ```
+
+Matcher types:
+
+- A matcher type is marked with `[OverloadMatcher]`. Its `[GenerateOverloads]` methods only describe windows; the type itself never gets overloads, whether or not a target uses it.
+- A type listed in `Matchers` without `[OverloadMatcher]` is reported (`MOG020`) and ignored. It keeps its own role, so its own `[GenerateOverloads]` methods still get overloads.
+- `[GenerateMethodOverloads]` on a matcher type, or `Matchers` on one of its methods, is reported (`MOG021`) and ignored.
+
+> **Breaking change:** a type used to become a matcher implicitly as soon as any target listed it in `Matchers`, which also removed the overloads of its own `[GenerateOverloads]` methods. Matcher types must now be marked with `[OverloadMatcher]`.
 
 ### 6) Range Anchor Match Mode
 
@@ -279,6 +289,8 @@ Diagnostics are reported by the analyzer, live in the IDE and during build:
 - `MOG017` Matchers + ExcludeAny conflict.
 - `MOG018` ExcludeAny refers to missing/out-of-window parameter.
 - `MOG019` ExcludeAny contains invalid entries.
+- `MOG020` Type in `Matchers` is not marked with `[OverloadMatcher]` (reported at the `typeof` reference).
+- `MOG021` Matcher type used as a generation target (`[GenerateMethodOverloads]` on it, or `Matchers` on one of its methods).
 
 Diagnostics can be suppressed in source like any other analyzer diagnostic:
 

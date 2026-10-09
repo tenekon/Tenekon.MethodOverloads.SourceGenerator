@@ -4,7 +4,7 @@ This doc explains what the generator looks at, how it decides what to emit, and 
 
 ## Quickstart
 
-1) Mark a method with [GenerateOverloads] or a type with [GenerateMethodOverloads(Matchers = [...])].
+1) Mark a method with [GenerateOverloads] or a type with [GenerateMethodOverloads(Matchers = [...])]. Mark matcher types with [OverloadMatcher].
 2) (Optional) Add [OverloadGenerationOptions(...)] to control matching and output.
 3) Build the project. Generated overloads appear in MethodOverloads_<Namespace>.g.cs.
 
@@ -17,6 +17,7 @@ Create extension overloads from a single method by treating a parameter span as 
 - Target method: the method the generator is trying to add overloads for.
 - Optional window: a contiguous range of parameters that can be omitted.
 - Subsequence: an order-preserving omission set inside the optional window.
+- Matcher type: a type marked with [OverloadMatcher]. Its GenerateOverloads methods are matcher methods.
 - Matcher method: a method signature used to match target methods by subsequence.
 - Direct generation: GenerateOverloads on the target method itself.
 - Matcher-based generation: GenerateMethodOverloads on a type (or Matchers on a method).
@@ -27,12 +28,21 @@ The generator scans all syntax trees and records:
 - All declared types and their methods.
 - GenerateMethodOverloads on types (type-level matchers). Multiple attributes are allowed; matcher types are unioned.
 - GenerateOverloads on methods, including Matchers = [...] on the method (method-level matchers).
+- OverloadMatcher on types (matcher types).
+
+Matcher types are explicit:
+- Only types marked with [OverloadMatcher] are used as matchers. An unmarked type in Matchers is ignored and
+  reported (MOG020); it keeps its own role, so its own GenerateOverloads methods are still direct targets.
+- A matcher type is a matcher whether or not a target lists it in Matchers.
+- GenerateMethodOverloads on a matcher type, or Matchers on a GenerateOverloads of one of its methods, is ignored and
+  reported (MOG021). Other GenerateOverloads attributes of that matcher method still apply.
+- Methods of a matcher type without GenerateOverloads are neither matcher methods nor targets.
 
 Only ordinary methods are considered (no constructors, operators, etc.).
 
 Methods are skipped if they are:
 - Declared private or protected
-- Declared in a matcher type (matcher types are never targets)
+- Declared in a type marked with [OverloadMatcher] (matcher types are never targets)
 
 ## 4) Optional window rules
 
@@ -124,8 +134,12 @@ Diagnostics are reported by the analyzer (not by the generator):
 The analyzer analyzes each type on its own (symbol action) with the same parsing and planning logic as the
 generator:
 - Diagnostics are reported live in the IDE, not only at the end of a build.
-- Each type reports only diagnostics located in its own declaration; diagnostics at a matcher are reported when the
-  matcher type itself is analyzed.
+- Each type reports only diagnostics located in its own declaration.
+- Formal diagnostics on matcher methods (MOG001, MOG007–MOG011, MOG013–MOG016, MOG018, MOG019) are reported once,
+  when the matcher type itself is analyzed, whether or not a target uses it. Targets skip invalid matcher attributes
+  silently. Generation diagnostics (MOG003–MOG006) are reported only at targets.
+- MOG020 and MOG021 are declaration checks: MOG020 is reported at every `typeof` reference to an unmarked type in
+  `Matchers`; MOG021 is reported at the offending attribute in the matcher type.
 - Locations are in source, so `#pragma warning disable`, `[SuppressMessage]` and per-file `.editorconfig`
   severities apply.
 - MOG002 is evaluated per target: it is reported at the `typeof` reference in `Matchers` when a matcher method has
