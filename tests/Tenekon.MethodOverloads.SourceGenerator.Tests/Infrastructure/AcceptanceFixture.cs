@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -32,7 +33,8 @@ public sealed class AcceptanceFixture
 
         var actual = AcceptanceTestData.ExtractActualSignatures(outputCompilation, generatedTrees);
         Cases = AcceptanceTestData.BuildCaseResults(expected, actual);
-        Diagnostics = GetAnalyzerDiagnostics(outputCompilation);
+        Diagnostics = GetAnalyzerDiagnostics(outputCompilation, out var analyzerExceptions);
+        AnalyzerExceptions = analyzerExceptions;
         DiagnosticCases = AcceptanceTestData.BuildDiagnosticResults(ExpectedDiagnostics, Diagnostics);
     }
 
@@ -42,13 +44,30 @@ public sealed class AcceptanceFixture
     public IReadOnlyList<CaseResult> Cases { get; }
     internal ImmutableArray<AcceptanceTestData.ExpectedDiagnostic> ExpectedDiagnostics { get; }
     public ImmutableArray<Diagnostic> Diagnostics { get; }
+    public IReadOnlyCollection<Exception> AnalyzerExceptions { get; }
     public IReadOnlyList<DiagnosticCaseResult> DiagnosticCases { get; }
 
-    private static ImmutableArray<Diagnostic> GetAnalyzerDiagnostics(Compilation compilation)
+    private static ImmutableArray<Diagnostic> GetAnalyzerDiagnostics(
+        Compilation compilation,
+        out IReadOnlyCollection<Exception> analyzerExceptions)
     {
         var analyzer = new MethodOverloadsDiagnosticsAnalyzer();
         var analyzers = ImmutableArray.Create<DiagnosticAnalyzer>(analyzer);
-        var diagnostics = compilation.WithAnalyzers(analyzers).GetAnalyzerDiagnosticsAsync().GetAwaiter().GetResult();
+
+        // The reference sources declare expected diagnostics via [SuppressMessage], which suppresses them.
+        // Suppressed diagnostics are therefore reported too (Diagnostic.IsSuppressed == true).
+        var exceptions = new ConcurrentQueue<Exception>();
+        var options = new CompilationWithAnalyzersOptions(
+            new AnalyzerOptions(ImmutableArray<AdditionalText>.Empty),
+            onAnalyzerException: (exception, _, _) => exceptions.Enqueue(exception),
+            concurrentAnalysis: true,
+            logAnalyzerExecutionTime: false,
+            reportSuppressedDiagnostics: true);
+        var diagnostics = compilation.WithAnalyzers(analyzers, options)
+            .GetAnalyzerDiagnosticsAsync()
+            .GetAwaiter()
+            .GetResult();
+        analyzerExceptions = exceptions;
         return diagnostics;
     }
 }

@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace Tenekon.MethodOverloads.AcceptanceCriterias.Bug;
 
 public sealed class Bug_Class_1_Constraint_1;
@@ -39,6 +41,8 @@ public interface Bug_Class_1<TConstraint>
         Bug_Class_1_Type_4<TConstraint>? param_4);
 }
 
+// The bucket declares no methods, so the matcher has no match here (MOG002 at the typeof reference).
+[SuppressMessage("MethodOverloadsGenerator", "MOG002")]
 [GenerateMethodOverloads(Matchers = [typeof(Bug_Class_1_ICommandRuntimeFactoryMatchers)])]
 public static partial class Bug_Class_1_Bucket
 {

@@ -13,11 +13,12 @@ internal interface Class_5_Matcher
     void Matcher_1(bool param_1, CancellationToken param_2);
 
     [OverloadGenerationOptions(RangeAnchorMatchMode = RangeAnchorMatchMode.TypeAndName)]
-    [SuppressMessage("MethodOverloadsGenerator", "MOG002")]
     [GenerateOverloads(EndExclusive = nameof(param_2))]
     void Matcher_2(string? param_1, bool param_2, CancellationToken param_3);
 }
 
+// Matcher_2 has no match in Class_5 (MOG002 at the typeof reference).
+[SuppressMessage("MethodOverloadsGenerator", "MOG002")]
 [GenerateMethodOverloads(Matchers = [typeof(Class_5_Matcher)])]
 public abstract class Class_5
 {

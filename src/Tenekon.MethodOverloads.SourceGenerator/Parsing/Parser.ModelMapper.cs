@@ -609,7 +609,7 @@ internal static partial class Parser
                 if (constant.Value is INamedTypeSymbol matcherType)
                 {
                     if (matcherType.IsUnboundGenericType) matcherType = matcherType.OriginalDefinition;
-                    var display = matcherType.ToDisplayString(RoslynHelpers.TypeDisplayFormat);
+                    var display = GetMatcherTypeDisplay(matcherType);
                     if (!seen.Add(display)) continue;
 
                     symbols.Add(matcherType);
@@ -619,6 +619,12 @@ internal static partial class Parser
 
         var models = BuildMatcherTypeModels(symbols.ToImmutable(), cancellationToken);
         return (displays.ToImmutable(), models);
+    }
+
+    internal static string GetMatcherTypeDisplay(INamedTypeSymbol matcherType)
+    {
+        if (matcherType.IsUnboundGenericType) matcherType = matcherType.OriginalDefinition;
+        return matcherType.ToDisplayString(RoslynHelpers.TypeDisplayFormat);
     }
 
     private static ImmutableArray<MatcherTypeModel> BuildMatcherTypeModels(

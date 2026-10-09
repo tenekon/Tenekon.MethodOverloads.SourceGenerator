@@ -41,11 +41,12 @@ public static class Class_21
 
 internal interface Class_21_Matcher
 {
-    [SuppressMessage("MethodOverloadsGenerator", "MOG002")]
     [GenerateOverloads(nameof(m))]
     void MatcherSignature(int m);
 }
 
+// 2) Matcher without subsequence match (reported at the typeof reference of the target).
+[SuppressMessage("MethodOverloadsGenerator", "MOG002")]
 [GenerateMethodOverloads(Matchers = [typeof(Class_21_Matcher)])]
 public abstract class Class_21_Matched
 {
